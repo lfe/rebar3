@@ -4,4 +4,8 @@
 
 -spec init(rebar_state:t()) -> {ok, rebar_state:t()}.
 init(State) ->
-  {ok, State}.
+  Commands = [ fun rebar3_lfe_prv_compile:init/1,
+               fun rebar3_lfe_prv_run:init/1
+             ],
+  FoldFun  = fun(F, {ok, StateAcc}) -> F(StateAcc) end,
+  lists:foldl(FoldFun, {ok, State}, Commands).
