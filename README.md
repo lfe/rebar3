@@ -1,2 +1,3 @@
-# lfe
-A comprehensive LFE rebar3 plugin for all your LFE tooling needs
+# rebar3_lfe
+
+*A comprehensive LFE rebar3 plugin for all your LFE tooling needs*
