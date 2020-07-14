@@ -7,6 +7,7 @@
 #### Contents
 
 * [Features](#build-)
+* [Setup](#setup-)
 * [Use](#use-)
 
 ## Features [&#x219F;](#contents)
@@ -18,14 +19,14 @@
   * `rebar3 lfe repl`
 * Compile LFE source code:
   * `rebar3 lfe compile`
-* Run an LFE project's `(main)` function as a script:
+* Run an LFE project's `main/1` function as an lfescript (run `rebar3 new lfe-main` to see an example):
   * `rebar3 lfe run`
   * `rebar3 lfe run -- 1 2 5`
   * `rebar3 lfe run -main some/path/main.lfe`
 
 More coming soon!
 
-## Use [&#x219F;](#contents)
+## Setup [&#x219F;](#contents)
 
 Add the required plugins and provider hooks to your ``rebar.config``:
 
@@ -35,6 +36,10 @@ Add the required plugins and provider hooks to your ``rebar.config``:
     {git, "https://github.com/lfe-rebar3/rebar2_lfe.git", {branch, "master"}}}
 ]}.
 ```
+
+## Use [&#x219F;](#contents)
+
+TBD
 
 <!-- Named page links below: /-->
 
