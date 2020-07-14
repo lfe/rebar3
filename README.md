@@ -53,8 +53,8 @@ TBD
 [gh-actions]: https://github.com/lfe-rebar3/rebar3_lfe/actions
 [lfe]: https://github.com/rvirding/lfe
 [lfe]: https://github.com/rvirding/lfe
-[lfe badge]: https://img.shields.io/badge/lfe-1.3.0-blue.svg
-[erlang badge]: https://img.shields.io/badge/erlang-19%20to%2023-blue.svg
+[lfe badge]: https://img.shields.io/badge/lfe-1.3.0%E2%88%92dev-blue.svg
+[erlang badge]: https://img.shields.io/badge/erlang-19%E2%88%9223-blue.svg
 [versions]: https://github.com/lfe-rebar3/rebar3_lfe/blob/master/.travis.yml
 [github tag]: https://github.com/lfe-rebar3/rebar3_lfe/tags
 [github tag badge]: https://img.shields.io/github/tag/lfe-rebar3/rebar3_lfe.svg
@@ -66,4 +66,3 @@ TBD
 <!-- Unused badges:
 [![Downloads][hex downloads]][hex package]
  /-->
- 

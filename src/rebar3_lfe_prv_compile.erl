@@ -47,13 +47,13 @@ format_error(Reason) ->
 %% =============================================================================
 
 compile(State) ->
-    rebar_api:debug("\tCompiling LFE apps ...", []),
+    rebar_api:debug("Compiling LFE apps ...", []),
     Apps = rebar3_lfe_utils:get_apps(State),
     [compile_app(AppInfo) || AppInfo <- Apps],
     {ok, State}.
 
 compile_app(AppInfo) ->
-    rebar_api:debug("\tCompiling LFE apps ...", []),
+    rebar_api:info("Compiling ~ts ...", [rebar_app_info:name(AppInfo)]),
     rebar3_lfe_utils:copy_app_src(AppInfo),
     Opts = rebar_app_info:opts(AppInfo),
     AppDir = rebar_app_info:dir(AppInfo),
@@ -62,14 +62,14 @@ compile_app(AppInfo) ->
     OutDir = rebar3_lfe_utils:relative_out_dir(AppInfo),
     FirstFiles = rebar3_lfe_utils:get_first_files(Opts, AppDir),
     Config = rebar3_lfe_utils:config(OutDir, Opts),
-    rebar_api:debug("\tOtherSrcDirs: ~p", [OtherSrcDirs]),
-    rebar_api:debug("\tAppInfoDir: ~p", [AppDir]),
-    rebar_api:debug("\tSourceDirs: ~p", [SourceDirs]),
-    rebar_api:debug("\tOutDir: ~p", [OutDir]),
-    rebar_api:debug("\tFirstFiles: ~p", [FirstFiles]),
-    rebar_api:debug("\tConfig: ~p", [dict:fetch(lfe_opts, Config)]),
+    rebar_api:debug("OtherSrcDirs: ~p", [OtherSrcDirs]),
+    rebar_api:debug("AppInfoDir: ~p", [AppDir]),
+    rebar_api:debug("SourceDirs: ~p", [SourceDirs]),
+    rebar_api:debug("OutDir: ~p", [OutDir]),
+    rebar_api:debug("FirstFiles: ~p", [FirstFiles]),
+    rebar_api:debug("Config: ~p", [dict:fetch(lfe_opts, Config)]),
     [compile_dir(Config, FirstFiles, Dir, OutDir) || Dir <- SourceDirs],
-    rebar_api:debug("\tFinished compile.", []),
+    rebar_api:debug("Finished compile.", []),
     code:add_patha(rebar3_lfe_utils:out_dir(rebar_app_info:dir(AppInfo))).
 
 compile_dir(Config, FirstFiles, SourceDir, TargetDir) ->
@@ -79,13 +79,13 @@ compile_dir(Config, FirstFiles, SourceDir, TargetDir) ->
                             fun compile_file/3).
 
 compile_file(Source, Target, Config) ->
-    rebar_api:debug("\tCompiling ~s ...",
+    rebar_api:debug("Compiling ~s ...",
                       [rebar3_lfe_utils:relative(Source)]),
-    rebar_api:debug("\t\tOutput file: ~s",[Target]),
+    rebar_api:debug("Output file: ~s",[Target]),
     LfeOpts = dict:fetch(lfe_opts, Config),
-    rebar_api:debug("\t\tConfig: ~p", [LfeOpts]),
+    rebar_api:debug("Config: ~p", [LfeOpts]),
     CompileResults = lfe_comp:file(Source, LfeOpts),
-    rebar_api:debug("\tCompile results: ~p", [CompileResults]),
+    rebar_api:debug("Compile results: ~p", [CompileResults]),
     case CompileResults of
         {ok, _Mod} ->
             ok;
