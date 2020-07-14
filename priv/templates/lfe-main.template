@@ -6,9 +6,9 @@
 
 {template, "README.md.tpl", "{{name}}/README.md"}.
 {template, "LICENSE.tpl", "{{name}}/LICENSE"}.
-{template, "rebar.config.tpl", "{{name}}/rebar.config"}.
+{template, "rebar.config.main.tpl", "{{name}}/rebar.config"}.
 {template, "gitignore.tpl", "{{name}}/.gitignore"}.
 
 {template, "name.lfe.tpl", "{{name}}/src/{{name}}.lfe"}.
-{template, "main.lfe.tpl", "{{name}}/src/main.lfe"}.
+{template, "main.lfe.tpl", "{{name}}/scripts/main.lfe"}.
 {template, "app.src.tpl", "{{name}}/src/{{name}}.app.src"}.

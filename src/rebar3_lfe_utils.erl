@@ -9,7 +9,9 @@
          get_first_files/2,
          get_src_dirs/2,
          relative_out_dir/1,
-         relative/1]).
+         relative/1,
+         lfe_config/1,
+         first_value/2]).
 
 %% The following spec was commented out in this commit:
 %% * https://github.com/lfe-rebar3/compile/commit/cde13fdceec399c36635fe259074b7a01fcf3430
@@ -88,3 +90,15 @@ get_src_dirs(AppDir, Dirs) ->
 relative(Filename) ->
     {ok, Cwd} = file:get_cwd(),
     re:replace(Filename, Cwd, ".", [{return,list}]).
+
+lfe_config(State) ->
+  rebar_state:get(State, lfe).
+
+first_value([], _) -> no_value;
+first_value([Fun | Rest], State) ->
+    case Fun(State) of
+        no_value ->
+            first_value(Rest, State);
+        Value ->
+            Value
+    end.

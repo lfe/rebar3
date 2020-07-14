@@ -6,8 +6,6 @@
 -define(NAMESPACE, lfe).
 -define(DEPS, [compile]).
 
--type opts() :: [{atom(), any()}].
-
 %% =============================================================================
 %% Public API
 %% =============================================================================
@@ -15,12 +13,12 @@
 -spec init(rebar_state:t()) -> {ok, rebar_state:t()}.
 init(State) ->
   Opts     = [ { main, $m, "main", string
-               , "Provide module contains a main function"
+               , "Provide project file that contains a main function"
                }
              ],
   ShortDescription = "Run the project's main function.",
   Description =
-    "Calls the main function in the module specified in '{lfe, ... {main, X}}' in\n"
+    "Calls the main function in the file specified in '{lfe, ... {main, X}}' in\n"
     "rebar.config, which can be overriden using the --main option. Arguments \n"
     "to the function can be provided after --.",
   Provider = providers:create([ {namespace,  ?NAMESPACE}
@@ -29,7 +27,7 @@ init(State) ->
                               , {bare,       true}
                               , {deps,       ?DEPS}
                               , { example
-                                , "rebar3 lfe run -m foo/main -- 1 2"
+                                , "rebar3 lfe run -m scripts/main.lfe -- 1 2 5"
                                 }
                               , {opts,       Opts}
                               , {short_desc, ShortDescription}
@@ -52,64 +50,43 @@ format_error(Reason) ->
 
 -spec run(rebar_state:t()) -> ok.
 run(State) ->
-  DepsPaths = rebar_state:code_paths(State, all_deps),
-  code:add_pathsa(DepsPaths),
-
-  %% Resolve module and functions
-  {Opts, _} = rebar_state:command_parsed_args(State),
-  Apps = rebar_state:project_apps(State),
-  Main = resolve_main(Apps, Opts),
-
-  %% Resolve arguments
+  rebar_api:debug("\tRunning LFE via main function ...", []),
+  MainFile = main_file(State),
+  rebar_api:debug("\tmain file: ~p", [MainFile]),
+  %% Get main arguments
   RawArgs = rebar_state:command_args(State),
-  Args = resolve_args(RawArgs),
+  rebar_api:debug("\t\tRaw args: ~p", [RawArgs]),
+  Args = parse_args(RawArgs),
+  rebar_api:debug("\t\tArgs: ~p", [Args]),
+  lfescript:run([MainFile | Args]),
+  ok.
 
-  try
-    clj_rt:apply(Main, Args)
-  catch _:Reason ->
-      rebar_api:error( "Error when calling ~s with ~p arguments: ~s"
-                     , [clj_rt:str(Main), length(Args), clj_rt:str(Reason)]
-                     )
-  end.
-
--spec resolve_main([rebar_app_info:t()], opts()) -> ok.
-resolve_main(Apps, Opts) ->
-  CljeMain = find_clje_main(Apps),
-  case proplists:get_value(main, Opts, CljeMain) of
-    undefined ->
-      rebar_api:abort("No main function or namespace specified", []);
-    Main ->
-      case string:tokens(Main, "/") of
-        [Namespace] ->
-          resolve_var(Namespace, "-main");
-        [Namespace, Function] ->
-          resolve_var(Namespace, Function)
-      end
-  end.
-
--spec resolve_var(string(), string()) -> 'clojerl.Var':type().
-resolve_var(Ns, Name) ->
-  VarSym = clj_rt:symbol(list_to_binary(Ns), list_to_binary(Name)),
-  case 'clojure.core':'find-var'(VarSym) of
-    undefined -> rebar_api:error("~s/~s not found", [Ns, Name]);
-    Var       -> Var
-  end.
-
--spec find_clje_main([rebar_app_info:t()]) -> string().
-find_clje_main(Apps) ->
-  Mains = [rebar_app_info:get(App, clje_main, undefined) || App <- Apps],
-  case [X || X <- Mains, X =/= undefined] of
-    []  -> undefined;
-    [X] -> rebar_utils:to_list(X);
-    List ->
-      rebar_api:abort("More than one 'clje_main' found in the "
-                      "project applications: ~p ", [List])
-  end.
-
--spec resolve_args([string()]) -> [binary()].
-resolve_args(RawArgs) ->
+-spec parse_args([string()]) -> [binary()].
+parse_args(RawArgs) ->
   case lists:dropwhile(fun(X) -> X =/= "--" end, RawArgs) of
     [] -> [];
     [_ | Args] ->
       [rebar_utils:to_binary(X) || X <- Args]
   end.
+
+find_main_option(State) ->
+    {Opts, _} = rebar_state:command_parsed_args(State),
+    proplists:get_value(main, Opts, no_value).
+
+find_main_rebar(State) ->
+    LfeConfig = rebar3_lfe_utils:lfe_config(State),
+    rebar_api:debug("\tLFE config values: ~p", [LfeConfig]),
+    proplists:get_value(main, LfeConfig).
+
+main_file(State) ->
+    case rebar3_lfe_utils:first_value([fun find_main_option/1,
+                                       fun find_main_rebar/1], State) of
+        no_value ->
+            rebar_api:debug("No script_file specified.", []),
+            ok;
+        "none" ->
+            rebar_api:debug("Shell script execution skipped (--script none).", []),
+            ok;
+        RelFile ->
+            filename:absname(RelFile)
+    end.

@@ -31,6 +31,11 @@ init(State) ->
                          "Gives a short name to the node."},
                         {setcookie, undefined, "setcookie", atom,
                          "Sets the cookie if the node is distributed."},
+                        {script_file, undefined, "script", string,
+                         "Path to an escript file to run before "
+                         "starting the project apps. Defaults to "
+                         "rebar.config {shell, [{script_file, File}]} "
+                         "if not specified."},
                         {apps, undefined, "apps", string,
                          "A list of apps to boot before starting the "
                          "shell. (E.g. --apps app1,app2,app3) Defaults "

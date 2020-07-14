@@ -11,18 +11,17 @@
 
 ## Features [&#x219F;](#contents)
 
-Completed:
-
 * Create new LFE projects:
   * `rebar3 new lfe-lib`
-* Start up an LFE REPL: `rebar3 lfe repl`
-* Compile LFE source code: `rebar3 lfe compile`
-
-In progress:
-
-* Create new LFE projects:
   * `rebar3 new lfe-main`
-* Run an LFE project's `(main)` function as a script `rebar3 lfe run`
+* Start up an LFE REPL:
+  * `rebar3 lfe repl`
+* Compile LFE source code:
+  * `rebar3 lfe compile`
+* Run an LFE project's `(main)` function as a script:
+  * `rebar3 lfe run`
+  * `rebar3 lfe run -- 1 2 5`
+  * `rebar3 lfe run -main some/path/main.lfe`
 
 More coming soon!
 
