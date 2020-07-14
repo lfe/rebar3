@@ -59,9 +59,11 @@ Copyright © {{copyright_year}}, {{author_name}} <{{author_email}}>.
 [gitlab]: https://gitlab.com/ORG/{{name}}
 [travis]: https://travis-ci.org/ORG/{{name}}
 [travis badge]: https://img.shields.io/travis/ORG/{{name}}.svg
+[gh-actions-badge]: https://github.com/ORG/{{name}}/workflows/Go/badge.svg
+[gh-actions]: https://github.com/ORG/{{name}}/actions
 [lfe]: https://github.com/rvirding/lfe
 [lfe badge]: https://img.shields.io/badge/lfe-1.3.0-blue.svg
-[erlang badge]: https://img.shields.io/badge/erlang-21.0%20to%2023.0-blue.svg
+[erlang badge]: https://img.shields.io/badge/erlang-19%20to%2023-blue.svg
 [version]: https://github.com/ORG/{{name}}/blob/master/.travis.yml
 [github tags]: https://github.com/ORG/{{name}}/tags
 [github tags badge]: https://img.shields.io/github/tag/ORG/{{name}}.svg

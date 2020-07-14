@@ -1,4 +1,4 @@
-name: CI/CD
+name: ci/cd
 
 on:
   push:
@@ -9,13 +9,13 @@ on:
 jobs:
 
   build:
-    name: Test on OTP ${{ matrix.otp_version }} and ${{ matrix.os }}
+    name: Build on OTP ${{ matrix.otp_version }} / ${{ matrix.os }}
     runs-on: ubuntu-latest
 
     strategy:
       matrix:
-        # otp_version: [19, 20, 21, 22, 23]
-        otp_version: [23]
+        otp_version: [19, 20, 21, 22, 23]
+        # otp_version: [23]
         os: [ubuntu-latest]
     
     container:
@@ -25,12 +25,16 @@ jobs:
     - uses: actions/checkout@v2
     - name: Compile
       run: rebar3 compile
+    - name: Get Supported 'new' Templates
+      run: cd priv/testing && rebar3 new
     - name: Create LFE Library Project
-      run: cd priv/testing && rebar3 lfe new-lib
+      run: cd priv/testing && rebar3 new lfe-lib example1
+    - name: Compile LFE Library Project
+      run: cd priv/testing/example1 && DEBUG=1 rebar3 lfe compile
     - name: Create LFE Main Project
-      run: echo TBD
+      run: cd priv/testing && rebar3 new lfe-main example2
     - name: Run LFE Main Project's Script
-      run: echo TBD
+      run: cd priv/testing/example2 && rebar3 lfe run -- 42
     - name: Create LFE/OTP Application Project
       run: echo TBD
     - name: Create LFE/OTP Release Project

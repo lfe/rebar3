@@ -1,6 +1,6 @@
 # rebar3_lfe
 
-[![Build Status][travis badge]][travis] [![LFE Versions][lfe badge]][lfe] [![Erlang Versions][erlang badge]][versions] [![Tag][github tag badge]][github tag] [![Downloads][hex downloads]][hex package]
+[![Build Status][gh-actions-badge]][gh-actions] [![LFE Versions][lfe badge]][lfe] [![Erlang Versions][erlang badge]][versions] [![Tag][github tag badge]][github tag] [![Downloads][hex downloads]][hex package]
 
 [![Project Logo][logo]][logo-large]
 
@@ -49,11 +49,12 @@ TBD
 [logo-large]: https://avatars2.githubusercontent.com/u/15242004
 [github]: https://github.com/lfe-rebar3/rebar3_lfe
 [gitlab]: https://gitlab.com/lfe-rebar3/rebar3_lfe
-[travis]: https://travis-ci.org/lfe-rebar3/rebar3_lfe
-[travis badge]: https://img.shields.io/travis/lfe-rebar3/rebar3_lfe.svg
+[gh-actions-badge]: https://github.com/lfe-rebar3/rebar3_lfe/workflows/ci%2Fcd/badge.svg
+[gh-actions]: https://github.com/lfe-rebar3/rebar3_lfe/actions
+[lfe]: https://github.com/rvirding/lfe
 [lfe]: https://github.com/rvirding/lfe
 [lfe badge]: https://img.shields.io/badge/lfe-1.3.0-blue.svg
-[erlang badge]: https://img.shields.io/badge/erlang-20.0%20to%2023.0-blue.svg
+[erlang badge]: https://img.shields.io/badge/erlang-19%20to%2023-blue.svg
 [versions]: https://github.com/lfe-rebar3/rebar3_lfe/blob/master/.travis.yml
 [github tag]: https://github.com/lfe-rebar3/rebar3_lfe/tags
 [github tag badge]: https://img.shields.io/github/tag/lfe-rebar3/rebar3_lfe.svg
