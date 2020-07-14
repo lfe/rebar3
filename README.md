@@ -26,7 +26,7 @@
   * `rebar3 lfe run -- 1 2 5`
   * `rebar3 lfe run -main some/path/main.lfe`
 
-More coming soon!
+[More coming soon!](https://github.com/lfe-rebar3/rebar3_lfe/issues?q=is%3Aissue+is%3Aopen+label%3Afeature)
 
 ## Setup [&#x219F;](#contents)
 

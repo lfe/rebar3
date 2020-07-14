@@ -9,11 +9,17 @@ on:
 jobs:
 
   build:
-
+    name: Test on OTP ${{ matrix.otp_version }} and ${{ matrix.os }}
     runs-on: ubuntu-latest
 
+    strategy:
+      matrix:
+        # otp_version: [19, 20, 21, 22, 23]
+        otp_version: [23]
+        os: [ubuntu-latest]
+    
     container:
-      image: erlang:22.0.7
+      image: erlang:${{ matrix.otp_version }}
 
     steps:
     - uses: actions/checkout@v2
