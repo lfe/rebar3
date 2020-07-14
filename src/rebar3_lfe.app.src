@@ -2,14 +2,18 @@
  [{description, "A comprehensive LFE rebar3 plugin for all your LFE tooling needs"},
   {vsn, "0.1.0"},
   {registered, []},
-  {applications, [kernel, stdlib]},
+  {applications, [kernel, stdlib, lfe]},
   {env,[]},
-  {modules, []},
+  {modules, [rebar3_lfe]},
 
+  %% Hex.pm metadata
+  {pkg_name, rebar3_lfe},
   {licenses, ["Apache 2.0"]},
-  { links
-  , [ {"GitHub", "https://github.com/lfe-rebar3/rebar3_lfe"}
-    , {"LFE", "https://github.com/rvirding/lfe"}
+  {maintainers, ["Duncan McGreggor"]},
+  { links,
+    [ {"GitHub", "https://github.com/lfe-rebar3/rebar3_lfe"},
+      {"Hex", "https://hex.pm/packages/rebar3_lfe"},
+      {"LFE", "https://github.com/rvirding/lfe"}
     ]
   }
  ]}.

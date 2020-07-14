@@ -1,6 +1,6 @@
 # rebar3_lfe
 
-[![Build Status][gh-actions-badge]][gh-actions] [![LFE Versions][lfe badge]][lfe] [![Erlang Versions][erlang badge]][versions] [![Tag][github tag badge]][github tag] [![Downloads][hex downloads]][hex package]
+[![Build Status][gh-actions-badge]][gh-actions] [![LFE Versions][lfe badge]][lfe] [![Erlang Versions][erlang badge]][versions] [![Tag][github tag badge]][github tag]
 
 [![Project Logo][logo]][logo-large]
 
@@ -62,3 +62,8 @@ TBD
 [hex badge]: https://img.shields.io/hexpm/v/rebar3_lfe.svg?maxAge=2592000
 [hex package]: https://hex.pm/packages/rebar3_lfe
 [hex downloads]: https://img.shields.io/hexpm/dt/rebar3_lfe.svg
+
+<!-- Unused badges:
+[![Downloads][hex downloads]][hex package]
+ /-->
+ 
