@@ -1,5 +1,7 @@
 # rebar3_lfe
 
+[![Build Status][travis badge]][travis] [![LFE Versions][lfe badge]][lfe] [![Erlang Versions][erlang badge]][versions] [![Tag][github tag badge]][github tag] [![Downloads][hex downloads]][hex package]
+
 [![Project Logo][logo]][logo-large]
 
 *A comprehensive LFE rebar3 plugin for all your LFE tooling needs*
@@ -45,3 +47,17 @@ TBD
 
 [logo]: https://avatars2.githubusercontent.com/u/15242004?s=250
 [logo-large]: https://avatars2.githubusercontent.com/u/15242004
+[github]: https://github.com/lfe-rebar3/rebar3_lfe
+[gitlab]: https://gitlab.com/lfe-rebar3/rebar3_lfe
+[travis]: https://travis-ci.org/lfe-rebar3/rebar3_lfe
+[travis badge]: https://img.shields.io/travis/lfe-rebar3/rebar3_lfe.svg
+[lfe]: https://github.com/rvirding/lfe
+[lfe badge]: https://img.shields.io/badge/lfe-1.3.0-blue.svg
+[erlang badge]: https://img.shields.io/badge/erlang-20.0%20to%2023.0-blue.svg
+[versions]: https://github.com/lfe-rebar3/rebar3_lfe/blob/master/.travis.yml
+[github tag]: https://github.com/lfe-rebar3/rebar3_lfe/tags
+[github tag badge]: https://img.shields.io/github/tag/lfe-rebar3/rebar3_lfe.svg
+[github downloads]: https://img.shields.io/github/downloads/atom/atom/total.svg
+[hex badge]: https://img.shields.io/hexpm/v/rebar3_lfe.svg?maxAge=2592000
+[hex package]: https://hex.pm/packages/rebar3_lfe
+[hex downloads]: https://img.shields.io/hexpm/dt/rebar3_lfe.svg
