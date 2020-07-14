@@ -19,5 +19,13 @@ jobs:
     - uses: actions/checkout@v2
     - name: Compile
       run: rebar3 compile
-    - name: Run tests
-      run: rebar3 do eunit, ct
+    - name: Create LFE Library Project
+      run: echo TBD
+    - name: Create LFE Main Project
+      run: echo TBD
+    - name: Run LFE Main Project's Script
+      run: echo TBD
+    - name: Create LFE/OTP Application Project
+      run: echo TBD
+    - name: Create LFE/OTP Release Project
+      run: echo TBD
