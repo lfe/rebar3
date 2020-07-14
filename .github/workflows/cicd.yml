@@ -20,7 +20,7 @@ jobs:
     - name: Compile
       run: rebar3 compile
     - name: Create LFE Library Project
-      run: echo TBD
+      run: cd priv/testing && rebar3 lfe new-lib
     - name: Create LFE Main Project
       run: echo TBD
     - name: Run LFE Main Project's Script
