@@ -54,12 +54,7 @@ init(State) ->
 
 -spec do(rebar_state:t()) -> {ok, rebar_state:t()} | {error, string()}.
 do(Config) ->
-    rebar_api:debug("\tStarting LFE REPL ...", []),
-    rebar_api:debug("\t\tSetting shell args ...", []),
-    Config1 = rebar_state:set(Config, shell, [{shell_args, ['tty_sl -c -e',{lfe_shell,start,[]}]}]),
-    rebar_api:debug("\t\tCalling underlying rebar3 shell 'do' function ...", []),
-    rebar_prv_shell:do(Config1),
-    {ok, Config1}.
+    {ok, repl(Config)}.
 
 -spec format_error(any()) -> iolist().
 format_error({unknown_app, Unknown}) ->
@@ -73,3 +68,12 @@ format_error(Reason) ->
 
 info() ->
     "Start an LFE REPL with project and deps preloaded similar to~n'lfe -pa ebin -pa deps/*/ebin'.~n".
+
+repl(Config) ->
+    rebar_api:debug("\tStarting LFE REPL ...", []),
+    rebar_api:debug("\t\tPlain args: ~p", [init:get_plain_arguments()]),
+    rebar_api:debug("\t\tSetting shell args ...", []),
+    Config1 = rebar_state:set(Config, shell, [{shell_args, ['tty_sl -c -e',{lfe_shell,start,[]}]}]),
+    rebar_api:debug("\t\tCalling underlying rebar3 shell 'do' function ...", []),
+    rebar_prv_shell:do(Config1),
+    Config1.
