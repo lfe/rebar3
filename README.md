@@ -2,13 +2,13 @@
 
 [![Build Status][gh-actions-badge]][gh-actions] [![LFE Versions][lfe badge]][lfe] [![Erlang Versions][erlang badge]][versions] [![Tag][github tag badge]][github tag]
 
-[![Project Logo][logo]][logo-large]
-
 *A comprehensive LFE rebar3 plugin for all your LFE tooling needs*
+
+[![Project Logo][logo]][logo-large]
 
 #### Contents
 
-* [Features](#build-)
+* [Features](#features-)
 * [Setup](#setup-)
 * [Use](#use-)
 
@@ -17,6 +17,7 @@
 * Create new LFE projects:
   * `rebar3 new lfe-lib`
   * `rebar3 new lfe-main`
+  * `rebar3 new lfe-app`
 * Start up an LFE REPL:
   * `rebar3 lfe repl`
 * Compile LFE source code:
@@ -41,7 +42,103 @@ Add the required plugins and provider hooks to your ``rebar.config``:
 
 ## Use [&#x219F;](#contents)
 
-TBD
+### Creating and Using a Library
+
+```shell
+$ rebar3 new lfe-lib mything
+```
+
+```text
+===> Compiling rebar3_lfe
+===> Writing mything/README.md
+===> Writing mything/LICENSE
+===> Writing mything/rebar.config
+===> Writing mything/.gitignore
+===> Writing mything/src/mything.lfe
+===> Writing mything/src/mything.app.src
+```
+
+```shell
+$ cd mything
+$ rebar3 lfe repl
+```
+
+```text
+===> Compiling lfe
+===> Compiling rebar3_lfe
+===> Compiling mything
+```
+
+```lisp
+lfe> (mything:my-fun)
+hello-world
+```
+
+### Creating and Running a `main` Script
+
+```shell
+$ rebar3 new lfe-main mymain
+```
+
+```text
+===> Writing mymain/README.md
+===> Writing mymain/LICENSE
+===> Writing mymain/rebar.config
+===> Writing mymain/.gitignore
+===> Writing mymain/src/mymain.lfe
+===> Writing mymain/scripts/main.lfe
+===> Writing mymain/src/mymain.app.src
+```
+
+```shell
+$ cd mymain
+$ rebar3 lfe run -- 42
+```
+
+```text
+===> Compiling lfe
+===> Compiling rebar3_lfe
+===> Compiling mything
+Running script '/usr/local/bin/rebar3' with args [<<"42">>] ...
+'hello-world'
+```
+
+### Creating and Running an LFE/OTP Application
+
+```shell
+$ rebar3 new lfe-app myapp
+```
+
+```text
+===> Writing myapp/README.md
+===> Writing myapp/LICENSE
+===> Writing myapp/rebar.config
+===> Writing myapp/.gitignore
+===> Writing myapp/src/myapp.lfe
+===> Writing myapp/src/myapp-app.lfe
+===> Writing myapp/src/myapp-sup.lfe
+===> Writing myapp/src/myapp.app.src
+```
+
+```shell
+$ cd myapp
+$ rebar3 lfe repl
+```
+
+```text
+===> Compiling lfe
+===> Compiling rebar3_lfe
+===> Compiling mything
+```
+
+```lisp
+lfe> (application:ensure_all_started 'myapp)
+#(ok (myapp))
+lfe> (erlang:whereis 'myapp-sup)
+#Pid<0.205.0>
+lfe> (myapp:echo "testing the supervised gen_server ...")
+"testing the supervised gen_server ..."
+```
 
 <!-- Named page links below: /-->
 

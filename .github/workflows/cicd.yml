@@ -36,6 +36,8 @@ jobs:
     - name: Run LFE Main Project's Script
       run: cd priv/testing/example2 && rebar3 lfe run -- 42
     - name: Create LFE/OTP Application Project
-      run: echo TBD
+      run: cd priv/testing && rebar3 new lfe-app example3
+    - name: Compile LFE Application Project
+      run: cd priv/testing/example3 && DEBUG=1 rebar3 lfe compile
     - name: Create LFE/OTP Release Project
       run: echo TBD

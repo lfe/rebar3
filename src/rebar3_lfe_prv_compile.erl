@@ -53,7 +53,7 @@ compile(State) ->
     {ok, State}.
 
 compile_app(AppInfo) ->
-    rebar_api:info("Compiling ~ts ...", [rebar_app_info:name(AppInfo)]),
+    rebar_api:info("Compiling ~ts", [rebar_app_info:name(AppInfo)]),
     rebar3_lfe_utils:copy_app_src(AppInfo),
     Opts = rebar_app_info:opts(AppInfo),
     AppDir = rebar_app_info:dir(AppInfo),

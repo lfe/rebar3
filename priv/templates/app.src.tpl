@@ -7,6 +7,6 @@
       kernel
       ]
     },
-  {mod, {'{{name}}.app', []}}
+  {mod, {'{{name}}-app', []}}
   ]
 }.
