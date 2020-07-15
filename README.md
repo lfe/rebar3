@@ -17,6 +17,7 @@
 * Create new LFE projects:
   * `rebar3 new lfe-lib`
   * `rebar3 new lfe-main`
+  * `rebar3 new lfe-escript`
   * `rebar3 new lfe-app`
 * Start up an LFE REPL:
   * `rebar3 lfe repl`
@@ -26,6 +27,8 @@
   * `rebar3 lfe run`
   * `rebar3 lfe run -- 1 2 5`
   * `rebar3 lfe run -main some/path/main.lfe`
+* Escriptize an LFE escript project:
+  * `rebar3 lfe ecsriptize`
 
 [More coming soon!](https://github.com/lfe-rebar3/rebar3_lfe/issues?q=is%3Aissue+is%3Aopen+label%3Afeature)
 
@@ -138,6 +141,33 @@ lfe> (erlang:whereis 'myapp-sup)
 #Pid<0.205.0>
 lfe> (myapp:echo "testing the supervised gen_server ...")
 "testing the supervised gen_server ..."
+```
+
+### Creating and Running an LFE escript Application
+
+```shell
+$ rebar3 new lfe-escript myapp
+```
+
+```text
+===> Writing myapp/README.md
+===> Writing myapp/LICENSE
+===> Writing myapp/rebar.config
+===> Writing myapp/.gitignore
+===> Writing myapp/src/myapp.lfe
+===> Writing myapp/src/myapp.app.src
+```
+
+```shell
+$ cd myapp
+$ rebar3 lfe compile
+$ rebar3 escriptize
+```
+
+```lisp
+$ _build/default/bin/myapp 1 2 5
+Got args: ("1" "2" "5")
+Answer: 42
 ```
 
 <!-- Named page links below: /-->
