@@ -49,7 +49,7 @@ info(Description) ->
         "~n"
         "Calls the main function in the file specified in '{lfe, ... {main, X}}'~n"
         "in rebar.config, which can be overriden using the --main option.~n"
-        "Arguments to the function can be provided after --.",
+        "Arguments to the function can be provided after --.~n",
         [Description]).
 
 -spec run(rebar_state:t()) -> ok.

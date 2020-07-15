@@ -1,12 +1,11 @@
--module(rebar3_lfe_prv_escriptize).
+-module(rebar3_lfe_prv_run_escript).
 
 -export([init/1, 
          do/1, 
          format_error/1]).
 
--define(PROVIDER, escriptize).
+-define(PROVIDER, 'run-escript').
 -define(NAMESPACE, lfe).
--define(NAMESPACE_PROVIDER, {?NAMESPACE, ?PROVIDER}).
 %% Re-examine the DEPS definition once the following ticket is addressed:
 %% * https://github.com/lfe-rebar3/rebar3_lfe/issues/21
 -define(DEPS, [compile, {default, escriptize}]).
@@ -17,14 +16,14 @@
 
 -spec init(rebar_state:t()) -> {ok, rebar_state:t()}.
 init(State) ->
-  Description = "Escriptize an LFE escript project",
+  Description = "Run an LFE escript",
   Provider = providers:create([
       {namespace,  ?NAMESPACE},
       {name,       ?PROVIDER},
       {module,     ?MODULE},
       {bare,       true},
       {deps,       ?DEPS},
-      {example,    "rebar3 lfe escriptize"},
+      {example,    "rebar3 lfe run-escript"},
       {opts,       []},
       {short_desc, Description},
       {desc,       info(Description)}
@@ -33,9 +32,7 @@ init(State) ->
 
 -spec do(rebar_state:t()) -> {ok, rebar_state:t()} | {error, string()}.
 do(State) ->
-    %% We can re-enable this once the following bug is fixed:
-    %% * https://github.com/lfe-rebar3/rebar3_lfe/issues/21
-    %% rebar_prv_escriptize:do(State).
+    run(State),
     {ok, State}.
 
 -spec format_error(any()) -> iolist().
@@ -50,8 +47,13 @@ info(Description) ->
     io_lib:format(
         "~n~s~n"
         "~n"
-        "Generate an LFE escript executable containing the project's and its~n"
-        "dependencies' BEAM files. This command differs from the vanilla rebar3~n"
-        "version in that it first executes an LFE compile operation upon the~n"
-        "project code.~n",
+        "This runs an escriptized LFE escript project for the given~n"
+        "rebar3 profile.~n",
         [Description]).
+
+run(State) ->
+    Escript = rebar_state:escript_path(State),
+    Args = rebar_state:command_args(State),
+    Cmd = string:join([Escript | Args], " "),
+    Result = os:cmd(Cmd),
+    io:format("~s~n", [Result]).

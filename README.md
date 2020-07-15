@@ -33,6 +33,8 @@
   * `rebar3 lfe run -main some/path/main.lfe`
 * Escriptize an LFE escript project:
   * `rebar3 lfe ecsriptize`
+* Run an escriptized LFE escript project:
+  * `rebar3 lfe run-ecsript`
 
 [More coming soon!](https://github.com/lfe-rebar3/rebar3_lfe/issues?q=is%3Aissue+is%3Aopen+label%3Afeature)
 
@@ -154,8 +156,8 @@ $ rebar3 escriptize
 ```
 
 ```lisp
-$ _build/default/bin/myapp 1 2 5
-Got args: ("1" "2" "5")
+$ rebar3 lfe run-escript 1 2 5 no '3!'
+Got args: ("1" "2" "5" "no" "3!")
 Answer: 42
 ```
 

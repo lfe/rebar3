@@ -39,12 +39,12 @@ init(State) ->
                          "if not specified."},
                         {apps, undefined, "apps", string,
                          "A list of apps to boot before starting the "
-                         "shell. (E.g. --apps app1,app2,app3) Defaults "
+                         "REPL. (E.g. --apps app1,app2,app3) Defaults "
                          "to rebar.config {shell, [{apps, Apps}]} or "
                          "relx apps if not specified."},
                         {relname, $r, "relname", atom,
                          "Name of the release to use as a template for the "
-                         "shell session"},
+                         "REPL session"},
                         {relvsn, $v, "relvsn", string,
                          "Version of the release to use for the shell "
                          "session"},
