@@ -14,6 +14,7 @@
 
 -spec init(rebar_state:t()) -> {ok, rebar_state:t()}.
 init(State) ->
+    Description = "Run an LFE REPL with project apps and deps in path.",
     State1 = rebar_state:add_provider(
             State,
             providers:create([
@@ -23,8 +24,8 @@ init(State) ->
                 {bare, true},
                 {deps, ?DEPS},
                 {example, "rebar3 lfe repl"},
-                {short_desc, "Run an LFE REPL with project apps and deps in path."},
-                {desc, info()},
+                {short_desc, Description},
+                {desc, info(Description)},
                 {opts, [{name, undefined, "name", atom,
                          "Gives a long name to the node."},
                         {sname, undefined, "sname", atom,
@@ -71,8 +72,13 @@ format_error(Reason) ->
 %% Internal functions
 %% =============================================================================
 
-info() ->
-    "Start an LFE REPL with project and deps preloaded similar to~n'lfe -pa ebin -pa deps/*/ebin'.~n".
+info(Description) ->
+  io_lib:format(
+        "~n~s~n"
+        "~n"
+        "This is very simular as to what's done with:~n"
+        "\t'lfe -pa ebin -pa deps/*/ebin'.~n",
+        [Description]).
 
 repl(Config) ->
     rebar_api:debug("\tStarting LFE REPL ...", []),

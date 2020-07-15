@@ -20,16 +20,18 @@
 
 -spec init(rebar_state:t()) -> {ok, rebar_state:t()}.
 init(State) ->
-  Provider = providers:create([{namespace,  ?NAMESPACE},
-                               {name,       ?PROVIDER},
-                               {module,     ?MODULE},
-                               {bare,       true},
-                               {deps,       ?DEPS},
-                               {example,    "rebar3 lfe compile"},
-                               {opts,       []},
-                               {short_desc, "Compile LFE project"},
-                               {desc,       info("Compile LFE project")}
-                            ]),
+  Description = "Compile LFE project",
+  Provider = providers:create([
+      {namespace,  ?NAMESPACE},
+      {name,       ?PROVIDER},
+      {module,     ?MODULE},
+      {bare,       true},
+      {deps,       ?DEPS},
+      {example,    "rebar3 lfe compile"},
+      {opts,       []},
+      {short_desc, Description},
+      {desc,       info(Description)}
+  ]),
   {ok, rebar_state:add_provider(State, Provider)}.
 
 -spec do(rebar_state:t()) -> {ok, rebar_state:t()} | {error, string()}.

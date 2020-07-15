@@ -16,23 +16,18 @@ init(State) ->
                , "Provide project file that contains a main function"
                }
              ],
-  ShortDescription = "Run the project's main function.",
-  Description =
-    "Calls the main function in the file specified in '{lfe, ... {main, X}}' in\n"
-    "rebar.config, which can be overriden using the --main option. Arguments \n"
-    "to the function can be provided after --.",
-  Provider = providers:create([ {namespace,  ?NAMESPACE}
-                              , {name,       ?PROVIDER}
-                              , {module,     ?MODULE}
-                              , {bare,       true}
-                              , {deps,       ?DEPS}
-                              , { example
-                                , "rebar3 lfe run -m scripts/main.lfe -- 1 2 5"
-                                }
-                              , {opts,       Opts}
-                              , {short_desc, ShortDescription}
-                              , {desc,       Description}
-                              ]),
+  Description = "Run the project's main function.",
+  Provider = providers:create([ 
+      {namespace, ?NAMESPACE},
+      {name, ?PROVIDER},
+      {module, ?MODULE},
+      {bare, true},
+      {deps, ?DEPS},
+      {example, "rebar3 lfe run -m scripts/main.lfe -- 1 2 5"},
+      {opts, Opts},
+      {short_desc, Description},
+      {desc, info(Description)}
+    ]),
   {ok, rebar_state:add_provider(State, Provider)}.
 
 -spec do(rebar_state:t()) -> {ok, rebar_state:t()} | {error, string()}.
@@ -47,6 +42,15 @@ format_error(Reason) ->
 %% =============================================================================
 %% Internal functions
 %% =============================================================================
+
+info(Description) ->
+  io_lib:format(
+        "~n~s~n"
+        "~n"
+        "Calls the main function in the file specified in '{lfe, ... {main, X}}'~n"
+        "in rebar.config, which can be overriden using the --main option.~n"
+        "Arguments to the function can be provided after --.",
+        [Description]).
 
 -spec run(rebar_state:t()) -> ok.
 run(State) ->
