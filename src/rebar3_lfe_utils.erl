@@ -11,7 +11,8 @@
          relative_out_dir/1,
          relative/1,
          lfe_config/1,
-         first_value/2]).
+         first_value/2,
+         update_app_file/1]).
 
 %% The following spec was commented out in this commit:
 %% * https://github.com/lfe-rebar3/compile/commit/cde13fdceec399c36635fe259074b7a01fcf3430
@@ -102,3 +103,39 @@ first_value([Fun | Rest], State) ->
         Value ->
             Value
     end.
+
+%% @doc Updates the list of modules in the .app file for the specified
+%% directory.
+%%
+%% The .app file will be update to include all modules in its
+%% `modules' entry. The modules listed are resolved by looking for all
+%% files with the extension `.beam' in `Dir'.
+-spec update_app_file(file:name()) -> ok.
+update_app_file(Dir) ->
+  case rebar_utils:find_files(Dir, ".app$", false) of
+    [AppFile] ->
+      {ok, [{application, AppName, AppDetail0}]} = file:consult(AppFile),
+
+      BeamPaths = rebar_utils:find_files(Dir, ".beam$", false),
+      Modules   = [ list_to_atom(filename:basename(Path, ".beam"))
+                    || Path <- BeamPaths
+                  ],
+      AppDetail1  = lists:keyreplace( modules
+                                    , 1
+                                    , AppDetail0
+                                    , {modules, Modules}
+                                    ),
+      SpecBefore = io_lib:format("~p.\n", [{application, AppName, AppDetail0}]),
+      SpecAfter = io_lib:format("~p.\n", [{application, AppName, AppDetail1}]),
+
+      rebar_api:debug("Updating app file for ~p", [AppName]),
+      rebar_api:debug("~p.app (BEFORE):~n~s", [AppName, SpecBefore]),
+      rebar_api:debug("~p.app (AFTER):~n~s", [AppName, SpecAfter]),
+
+      ok = rebar_file_utils:write_file_if_contents_differ( AppFile
+                                                         , SpecAfter
+                                                         , utf8
+                                                         ),
+      ok;
+    [] -> ok
+  end.
