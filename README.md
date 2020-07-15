@@ -15,7 +15,7 @@
   * [Creating and Running a `main` Script](#creating-and-running-a-main-script-)
   * [Creating and Running an LFE/OTP Application](#creating-and-running-an-lfeotp-application-)
   * [Creating and Running an LFE escript Application](#creating-and-running-an-lfe-escript-application-)
-  * [Creating an LFE/OTP Release](#creating-an-lfeotp-release-)
+  * [Creating and Running an LFE/OTP Release](#creating-and-running-an-lfeotp-release-)
 
 ## Features [&#x219F;](#contents)
 
@@ -163,7 +163,7 @@ Got args: ("1" "2" "5" "no" "3!")
 Answer: 42
 ```
 
-### Creating an LFE/OTP Release [&#x219F;](#contents)
+### Creating and Running an LFE/OTP Release [&#x219F;](#contents)
 
 ```shell
 $ rebar3 new lfe-release prod-app
@@ -197,6 +197,14 @@ Eshell V11.0  (abort with ^G)
 #Pid<0.351.0>
 (prod-app@spacemac)lfe> (prod-app:echo "testing from production!")
 "testing from production!"
+```
+
+Additionally, you can run the release script commands (the non-interactive,
+non-shell commands) via the LFE rebar3 plugin:
+
+```shell
+$ rebar3 lfe run-release ping
+pong
 ```
 
 <!-- Named page links below: /-->

@@ -47,3 +47,9 @@ jobs:
       run: cd priv/testing/example-escript && rebar3 lfe run-escript 1 2 5
     - name: Create LFE/OTP Release Project
       run: cd priv/testing && rebar3 new lfe-release example-release
+    - name: Build LFE/OTP Release
+      run: cd priv/testing/example-release && rebar3 release
+    - name: Start LFE/OTP Release 
+      run: cd priv/testing/example-release && rebar3 lfe run-release start && sleep 20
+    - name: Ping LFE/OTP Release 
+      run: cd priv/testing/example-release && rebar3 lfe run-release ping
