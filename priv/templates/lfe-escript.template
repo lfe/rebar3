@@ -1,0 +1,13 @@
+{description, "Complete LFE escript application structure"}.
+{variables, [
+    {name, "my-escript-app", "Name of the LFE escript application"},
+    {description, "An LFE escript application", "Short description of the application"}
+]}.
+
+{template, "README.md.tpl", "{{name}}/README.md"}.
+{template, "LICENSE.tpl", "{{name}}/LICENSE"}.
+{template, "rebar.config.escript.tpl", "{{name}}/rebar.config"}.
+{template, "gitignore.tpl", "{{name}}/.gitignore"}.
+
+{template, "escript.lfe.tpl", "{{name}}/src/{{name}}.lfe"}.
+{template, "app-lib.src.tpl", "{{name}}/src/{{name}}.app.src"}.
