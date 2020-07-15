@@ -11,6 +11,10 @@
 * [Features](#features-)
 * [Setup](#setup-)
 * [Use](#use-)
+  * [Creating and Using a Library](#creating-and-using-a-library-)
+  * [Creating and Running a `main` Script](#creating-and-running-a-main-script-)
+  * [Creating and Running an LFE/OTP Application](#creating-and-running-an-lfeotp-application-)
+  * [Creating and Running an LFE escript Application](#creating-and-running-an-lfe-escript-application-)
 
 ## Features [&#x219F;](#contents)
 
@@ -34,7 +38,7 @@
 
 ## Setup [&#x219F;](#contents)
 
-Add the required plugins and provider hooks to your ``rebar.config``:
+Add the plugin to your ``rebar.config``:
 
 ```erlang
 {plugins, [
@@ -45,7 +49,7 @@ Add the required plugins and provider hooks to your ``rebar.config``:
 
 ## Use [&#x219F;](#contents)
 
-### Creating and Using a Library
+### Creating and Using a Library [&#x219F;](#contents)
 
 ```shell
 $ rebar3 new lfe-lib mything
@@ -66,18 +70,12 @@ $ cd mything
 $ rebar3 lfe repl
 ```
 
-```text
-===> Compiling lfe
-===> Compiling rebar3_lfe
-===> Compiling mything
-```
-
 ```lisp
 lfe> (mything:my-fun)
 hello-world
 ```
 
-### Creating and Running a `main` Script
+### Creating and Running a `main` Script [&#x219F;](#contents)
 
 ```shell
 $ rebar3 new lfe-main mymain
@@ -99,14 +97,11 @@ $ rebar3 lfe run -- 42
 ```
 
 ```text
-===> Compiling lfe
-===> Compiling rebar3_lfe
-===> Compiling mything
 Running script '/usr/local/bin/rebar3' with args [<<"42">>] ...
 'hello-world'
 ```
 
-### Creating and Running an LFE/OTP Application
+### Creating and Running an LFE/OTP Application [&#x219F;](#contents)
 
 ```shell
 $ rebar3 new lfe-app myapp
@@ -128,12 +123,6 @@ $ cd myapp
 $ rebar3 lfe repl
 ```
 
-```text
-===> Compiling lfe
-===> Compiling rebar3_lfe
-===> Compiling mything
-```
-
 ```lisp
 lfe> (application:ensure_all_started 'myapp)
 #(ok (myapp))
@@ -143,7 +132,7 @@ lfe> (myapp:echo "testing the supervised gen_server ...")
 "testing the supervised gen_server ..."
 ```
 
-### Creating and Running an LFE escript Application
+### Creating and Running an LFE escript Application [&#x219F;](#contents)
 
 ```shell
 $ rebar3 new lfe-escript myapp
