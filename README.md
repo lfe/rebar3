@@ -15,6 +15,7 @@
   * [Creating and Running a `main` Script](#creating-and-running-a-main-script-)
   * [Creating and Running an LFE/OTP Application](#creating-and-running-an-lfeotp-application-)
   * [Creating and Running an LFE escript Application](#creating-and-running-an-lfe-escript-application-)
+  * [Creating an LFE/OTP Release](#creating-an-lfeotp-release-)
 
 ## Features [&#x219F;](#contents)
 
@@ -35,6 +36,7 @@
   * `rebar3 lfe ecsriptize`
 * Run an escriptized LFE escript project:
   * `rebar3 lfe run-ecsript`
+* Create an LFE/OTP release
 
 [More coming soon!](https://github.com/lfe-rebar3/rebar3_lfe/issues?q=is%3Aissue+is%3Aopen+label%3Afeature)
 
@@ -159,6 +161,42 @@ $ rebar3 escriptize
 $ rebar3 lfe run-escript 1 2 5 no '3!'
 Got args: ("1" "2" "5" "no" "3!")
 Answer: 42
+```
+
+### Creating an LFE/OTP Release [&#x219F;](#contents)
+
+```shell
+$ rebar3 new lfe-release prod-app
+```
+
+```text
+===> Writing prod-app/README.md
+===> Writing prod-app/LICENSE
+===> Writing prod-app/rebar.config
+===> Writing prod-app/.gitignore
+===> Writing prod-app/apps/prod-app/src/prod-app.lfe
+===> Writing prod-app/apps/prod-app/src/prod-app-app.lfe
+===> Writing prod-app/apps/prod-app/src/prod-app-sup.lfe
+===> Writing prod-app/apps/prod-app/src/prod-app.app.src
+===> Writing prod-app/config/sys.config
+===> Writing prod-app/config/vm.args
+```
+
+```shell
+$ rebar3 release
+$ ./_build/default/rel/prod-app/bin/prod-app console
+```
+
+```erlang
+Eshell V11.0  (abort with ^G)
+(prod-app@spacemac)1> lfe_shell:start().
+```
+
+```lisp
+(prod-app@spacemac)lfe> (erlang:whereis 'prod-app-sup)
+#Pid<0.351.0>
+(prod-app@spacemac)lfe> (prod-app:echo "testing from production!")
+"testing from production!"
 ```
 
 <!-- Named page links below: /-->

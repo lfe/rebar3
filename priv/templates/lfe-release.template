@@ -1,0 +1,18 @@
+{description, "Complete LFE application structure"}.
+{variables, [
+    {name, "my-lfe-app", "Name of the LFE application"},
+    {description, "An LFE application", "Short description of the library"}
+]}.
+
+{template, "README.md.tpl", "{{name}}/README.md"}.
+{template, "LICENSE.tpl", "{{name}}/LICENSE"}.
+{template, "rebar.config.release.tpl", "{{name}}/rebar.config"}.
+{template, "gitignore.tpl", "{{name}}/.gitignore"}.
+
+{template, "server.lfe.tpl", "{{name}}/apps/{{name}}/src/{{name}}.lfe"}.
+{template, "app.lfe.tpl", "{{name}}/apps/{{name}}/src/{{name}}-app.lfe"}.
+{template, "sup.lfe.tpl", "{{name}}/apps/{{name}}/src/{{name}}-sup.lfe"}.
+{template, "app-app.src.tpl", "{{name}}/apps/{{name}}/src/{{name}}.app.src"}.
+
+{template, "sys.config.tpl", "{{name}}/config/sys.config"}.
+{template, "vm.args.tpl", "{{name}}/config/vm.args"}.

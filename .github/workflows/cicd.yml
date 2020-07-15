@@ -46,4 +46,4 @@ jobs:
     - name: Run LFE escript Project
       run: cd priv/testing/example-escript && rebar3 lfe run-escript 1 2 5
     - name: Create LFE/OTP Release Project
-      run: echo TBD
+      run: cd priv/testing && rebar3 new lfe-release example-release
