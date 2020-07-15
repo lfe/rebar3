@@ -7,8 +7,9 @@
 -define(PROVIDER, escriptize).
 -define(NAMESPACE, lfe).
 -define(NAMESPACE_PROVIDER, {?NAMESPACE, ?PROVIDER}).
-% -define(DEPS, [{?NAMESPACE, compile}]).
--define(DEPS, [compile]).
+%% Re-examine the DEPS definition once the following ticket is addressed:
+%% * https://github.com/lfe-rebar3/rebar3_lfe/issues/21
+-define(DEPS, [compile, {default, escriptize}]).
 
 %% =============================================================================
 %% Plugin API
@@ -32,7 +33,10 @@ init(State) ->
 
 -spec do(rebar_state:t()) -> {ok, rebar_state:t()} | {error, string()}.
 do(State) ->
-    rebar_prv_escriptize:do(State).
+    %% We can re-enable this once the following bug is fixed:
+    %% * https://github.com/lfe-rebar3/rebar3_lfe/issues/21
+    %% rebar_prv_escriptize:do(State).
+    {ok, State}.
 
 -spec format_error(any()) -> iolist().
 format_error(Reason) ->
