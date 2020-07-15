@@ -12,4 +12,4 @@
 {template, "server.lfe.tpl", "{{name}}/src/{{name}}.lfe"}.
 {template, "app.lfe.tpl", "{{name}}/src/{{name}}-app.lfe"}.
 {template, "sup.lfe.tpl", "{{name}}/src/{{name}}-sup.lfe"}.
-{template, "app.src.tpl", "{{name}}/src/{{name}}.app.src"}.
+{template, "app-app.src.tpl", "{{name}}/src/{{name}}.app.src"}.

@@ -28,15 +28,15 @@ jobs:
     - name: Get Supported 'new' Templates
       run: cd priv/testing && rebar3 new
     - name: Create LFE Library Project
-      run: cd priv/testing && rebar3 new lfe-lib example1
+      run: cd priv/testing && rebar3 new lfe-lib example-lib
     - name: Compile LFE Library Project
-      run: cd priv/testing/example1 && DEBUG=1 rebar3 lfe compile
+      run: cd priv/testing/example-lib && DEBUG=1 rebar3 lfe compile
     - name: Create LFE Main Project
-      run: cd priv/testing && rebar3 new lfe-main example2
+      run: cd priv/testing && rebar3 new lfe-main example-main
     - name: Run LFE Main Project's Script
-      run: cd priv/testing/example2 && rebar3 lfe run -- 42
+      run: cd priv/testing/example-main && rebar3 lfe run -- 42
     - name: Create LFE/OTP Application Project
-      run: cd priv/testing && rebar3 new lfe-app example3
+      run: cd priv/testing && rebar3 new lfe-app example-app
     - name: Compile LFE Application Project
       run: cd priv/testing/example3 && DEBUG=1 rebar3 lfe compile
     - name: Create LFE/OTP Release Project
