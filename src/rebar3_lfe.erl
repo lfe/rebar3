@@ -6,6 +6,7 @@
 init(State) ->
   Commands = [ fun rebar3_lfe_prv_compile:init/1,
                fun rebar3_lfe_prv_escriptize:init/1,
+               fun rebar3_lfe_prv_release:init/1,
                fun rebar3_lfe_prv_repl:init/1,
                fun rebar3_lfe_prv_run:init/1,
                fun rebar3_lfe_prv_run_escript:init/1
