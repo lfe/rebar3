@@ -72,7 +72,16 @@ project, with many updates and using all the latest approaches developed in
 
 ## Setup [&#x219F;](#contents)
 
-Add the plugin to your ``rebar.config``:
+Add the plugin to your ``rebar.config`` (stable):
+
+```erlang
+{plugins, [
+  {rebar3_lfe,
+    {git, "https://github.com/lfe-rebar3/rebar2_lfe.git", {tag, "0.2.0"}}}
+]}.
+```
+
+Or, if you want to use the current development branch (unstable):
 
 ```erlang
 {plugins, [
