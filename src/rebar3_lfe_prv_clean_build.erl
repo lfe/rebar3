@@ -1,10 +1,10 @@
--module(rebar3_lfe_prv_clean).
+-module(rebar3_lfe_prv_clean_build).
 
 -export([init/1, 
          do/1, 
          format_error/1]).
 
--define(PROVIDER, clean).
+-define(PROVIDER, 'clean-build').
 -define(NAMESPACE, lfe).
 -define(DEPS, [{default, clean}]).
 
@@ -14,14 +14,14 @@
 
 -spec init(rebar_state:t()) -> {ok, rebar_state:t()}.
 init(State) ->
-  Description = "Clean apps .ebin files",
+  Description = "Remove the rebar _build directory",
   Provider = providers:create([
       {namespace,  ?NAMESPACE},
       {name,       ?PROVIDER},
       {module,     ?MODULE},
       {bare,       true},
       {deps,       ?DEPS},
-      {example,    "rebar3 lfe clean"},
+      {example,    "rebar3 lfe clean-build"},
       {opts,       []},
       {short_desc, Description},
       {desc,       info(Description)}
@@ -46,11 +46,11 @@ info(Description) ->
     io_lib:format(
         "~n~s~n"
         "~n"
-        "This deletes the compiled .ebin files for a project's apps.~n",
+        "This entirely deletes the ./_build directory created by rebar3.~n",
         [Description]).
 
 clean(AppInfo) ->
     rebar_api:debug("AppInfo: ~p", [AppInfo]),
-    AppEbin = rebar_app_info:ebin_dir(AppInfo),
-    rebar_api:debug("AppEbin: ~p", [AppEbin]),
-    rebar3_lfe_clean:delete_files(AppEbin).
+    BuildDir = rebar_app_info:get(AppInfo, base_dir, "_build"),
+    rebar_api:debug("BuildDir: ~p~n", [BuildDir]),
+    rebar_file_utils:rm_rf(BuildDir).

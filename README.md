@@ -20,6 +20,7 @@
     * [Creating and Running an LFE escript Application](#creating-and-running-an-lfe-escript-application-)
     * [Creating and Running an LFE/OTP Application](#creating-and-running-an-lfeotp-application-)
     * [Creating and Running an LFE/OTP Release](#creating-and-running-an-lfeotp-release-)
+  * [Cleanup](#cleanup-)
   * Metadata
     * [Get Versions](#get-versions-)
 
@@ -57,6 +58,9 @@ project, with many updates and using all the latest approaches developed in
   * `rebar3 lfe run-ecsript`
 * Generate an LFE/OTP release
   * `rebar3 release`
+* Cleanup
+  * `rebar3 lfe clean`
+  * `rebar3 lfe clean-build`
 * Metadata
   * `rebar3 lfe versions`
 
@@ -245,6 +249,27 @@ non-shell commands) via the LFE rebar3 plugin:
 ```shell
 $ rebar3 lfe run-release ping
 pong
+```
+
+### Cleanup
+
+Remove the apps' `ebin/*` files:
+
+```shell
+$ rebar3 lfe clean
+```
+
+Remove the `_build` directory:
+
+```shell
+$ rebar3 lfe clean-build
+```
+
+Remove the the cached directories for the app and the rebar3_lfe plugin, both
+global and local:
+
+```shell
+$ rebar3 lfe clean-cache
 ```
 
 ### Metadata

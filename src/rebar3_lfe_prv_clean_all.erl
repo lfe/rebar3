@@ -1,10 +1,10 @@
--module(rebar3_lfe_prv_clean).
+-module(rebar3_lfe_prv_clean_all).
 
 -export([init/1, 
          do/1, 
          format_error/1]).
 
--define(PROVIDER, clean).
+-define(PROVIDER, 'clean-all').
 -define(NAMESPACE, lfe).
 -define(DEPS, [{default, clean}]).
 
@@ -14,14 +14,14 @@
 
 -spec init(rebar_state:t()) -> {ok, rebar_state:t()}.
 init(State) ->
-  Description = "Clean apps .ebin files",
+  Description = "Execute all clean commands",
   Provider = providers:create([
       {namespace,  ?NAMESPACE},
       {name,       ?PROVIDER},
       {module,     ?MODULE},
       {bare,       true},
       {deps,       ?DEPS},
-      {example,    "rebar3 lfe clean"},
+      {example,    "rebar3 lfe clean-all"},
       {opts,       []},
       {short_desc, Description},
       {desc,       info(Description)}
@@ -30,8 +30,9 @@ init(State) ->
 
 -spec do(rebar_state:t()) -> {ok, rebar_state:t()} | {error, string()}.
 do(State) ->
-    Apps = rebar_state:project_apps(State),
-    [clean(AppInfo) || AppInfo <- Apps],
+    clean(),
+    rebar3_lfe_prv_clean_build:do(State),
+    rebar3_lfe_prv_clean_cache:do(State),
     {ok, State}.
 
 -spec format_error(any()) -> iolist().
@@ -46,11 +47,10 @@ info(Description) ->
     io_lib:format(
         "~n~s~n"
         "~n"
-        "This deletes the compiled .ebin files for a project's apps.~n",
+        "This deletes the _build directory, all project and plugin caches,~n"
+        "as well as the rebar.lock and any crashdump files.~n",
         [Description]).
 
-clean(AppInfo) ->
-    rebar_api:debug("AppInfo: ~p", [AppInfo]),
-    AppEbin = rebar_app_info:ebin_dir(AppInfo),
-    rebar_api:debug("AppEbin: ~p", [AppEbin]),
-    rebar3_lfe_clean:delete_files(AppEbin).
+clean() ->
+    Files = ["erl_crash.dump", "rebar3.crashdump", "rebar.lock"],
+    [rebar3_lfe_clean:delete_file(File) || File <- Files].

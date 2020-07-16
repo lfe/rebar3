@@ -5,6 +5,9 @@
 -spec init(rebar_state:t()) -> {ok, rebar_state:t()}.
 init(State) ->
   Commands = [ fun rebar3_lfe_prv_clean:init/1,
+               fun rebar3_lfe_prv_clean_all:init/1,
+               fun rebar3_lfe_prv_clean_build:init/1,
+               fun rebar3_lfe_prv_clean_cache:init/1,
                fun rebar3_lfe_prv_compile:init/1,
                fun rebar3_lfe_prv_escriptize:init/1,
                fun rebar3_lfe_prv_release:init/1,
