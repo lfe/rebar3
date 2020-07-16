@@ -51,14 +51,13 @@ info(Description) ->
 
 versions(Apps) ->
     rebar_api:debug("Getting versions ...", []),
-    [{apps, [version_data(AppInfo) || AppInfo <- Apps]},
+    [{apps, [app_version_data(AppInfo) || AppInfo <- Apps]},
      {languages, language_versions()},
      {tooling, rebar_versions()}].
 
-version_data(AppInfo) ->
+app_version_data(AppInfo) ->
   rebar_api:debug("AppInfo: ~p", [AppInfo]),
-  AppName = rebar_app_info:name(AppInfo),
-  rebar_api:debug("Getting versions for ~p", [AppName]),
+  
   AppFile = rebar_app_info:app_file(AppInfo),
   rebar_api:debug("AppFile: ~p", [AppFile]),
   AppDetails = rebar_app_info:app_details(AppInfo),
@@ -67,7 +66,7 @@ version_data(AppInfo) ->
   rebar_api:debug("AppVersOrig: ~p", [AppVersOrig]),
   % AppVers = rebar_app_info:vsn(AppInfo),
   % rebar_api:debug("AppVers: ~p", [AppVers]),
-  {erlang:list_to_atom(erlang:binary_to_list(AppName)), AppVersOrig}.
+  {rebar3_lfe_utils:app_name(AppInfo), AppVersOrig}.
 
 language_versions() ->
     [{lfe, app_version(lfe)},
