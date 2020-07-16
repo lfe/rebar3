@@ -67,7 +67,7 @@ version_data(AppInfo) ->
   rebar_api:debug("AppVersOrig: ~p", [AppVersOrig]),
   % AppVers = rebar_app_info:vsn(AppInfo),
   % rebar_api:debug("AppVers: ~p", [AppVers]),
-  {erlang:binary_to_atom(AppName), AppVersOrig}.
+  {erlang:list_to_atom(erlang:binary_to_list(AppName)), AppVersOrig}.
 
 language_versions() ->
     [{lfe, app_version(lfe)},

@@ -54,4 +54,4 @@ jobs:
     - name: Ping LFE/OTP Release 
       run: cd priv/testing/example-release && rebar3 lfe run-release ping
     - name: Versions Command Output 
-      run: cd priv/testing/example-release && rebar3 lfe versions
+      run: cd priv/testing/example-release && DEBUG=1 rebar3 lfe versions
