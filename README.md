@@ -13,8 +13,8 @@
 * [Use](#use-)
   * [Creating and Using a Library](#creating-and-using-a-library-)
   * [Creating and Running a `main` Script](#creating-and-running-a-main-script-)
-  * [Creating and Running an LFE/OTP Application](#creating-and-running-an-lfeotp-application-)
   * [Creating and Running an LFE escript Application](#creating-and-running-an-lfe-escript-application-)
+  * [Creating and Running an LFE/OTP Application](#creating-and-running-an-lfeotp-application-)
   * [Creating and Running an LFE/OTP Release](#creating-and-running-an-lfeotp-release-)
 
 ## Features [&#x219F;](#contents)
@@ -105,6 +105,33 @@ Running script '/usr/local/bin/rebar3' with args [<<"42">>] ...
 'hello-world'
 ```
 
+### Creating and Running an LFE escript Application [&#x219F;](#contents)
+
+```shell
+$ rebar3 new lfe-escript myapp
+```
+
+```text
+===> Writing myapp/README.md
+===> Writing myapp/LICENSE
+===> Writing myapp/rebar.config
+===> Writing myapp/.gitignore
+===> Writing myapp/src/myapp.lfe
+===> Writing myapp/src/myapp.app.src
+```
+
+```shell
+$ cd myapp
+$ rebar3 lfe compile
+$ rebar3 escriptize
+```
+
+```lisp
+$ rebar3 lfe run-escript 1 2 5 no '3!'
+Got args: ("1" "2" "5" "no" "3!")
+Answer: 42
+```
+
 ### Creating and Running an LFE/OTP Application [&#x219F;](#contents)
 
 ```shell
@@ -134,33 +161,6 @@ lfe> (erlang:whereis 'myapp-sup)
 #Pid<0.205.0>
 lfe> (myapp:echo "testing the supervised gen_server ...")
 "testing the supervised gen_server ..."
-```
-
-### Creating and Running an LFE escript Application [&#x219F;](#contents)
-
-```shell
-$ rebar3 new lfe-escript myapp
-```
-
-```text
-===> Writing myapp/README.md
-===> Writing myapp/LICENSE
-===> Writing myapp/rebar.config
-===> Writing myapp/.gitignore
-===> Writing myapp/src/myapp.lfe
-===> Writing myapp/src/myapp.app.src
-```
-
-```shell
-$ cd myapp
-$ rebar3 lfe compile
-$ rebar3 escriptize
-```
-
-```lisp
-$ rebar3 lfe run-escript 1 2 5 no '3!'
-Got args: ("1" "2" "5" "no" "3!")
-Answer: 42
 ```
 
 ### Creating and Running an LFE/OTP Release [&#x219F;](#contents)
