@@ -11,11 +11,14 @@
 * [Features](#features-)
 * [Setup](#setup-)
 * [Use](#use-)
-  * [Creating and Using a Library](#creating-and-using-a-library-)
-  * [Creating and Running a `main` Script](#creating-and-running-a-main-script-)
-  * [Creating and Running an LFE escript Application](#creating-and-running-an-lfe-escript-application-)
-  * [Creating and Running an LFE/OTP Application](#creating-and-running-an-lfeotp-application-)
-  * [Creating and Running an LFE/OTP Release](#creating-and-running-an-lfeotp-release-)
+  * [Compiling](#compiling-)
+  * [Running the LFE REPL](#running-the-lfe-repl-)
+  * Creating Projects
+    * [Creating and Using a Library](#creating-and-using-a-library-)
+    * [Creating and Running a `main` Script](#creating-and-running-a-main-script-)
+    * [Creating and Running an LFE escript Application](#creating-and-running-an-lfe-escript-application-)
+    * [Creating and Running an LFE/OTP Application](#creating-and-running-an-lfeotp-application-)
+    * [Creating and Running an LFE/OTP Release](#creating-and-running-an-lfeotp-release-)
 
 ## Features [&#x219F;](#contents)
 
@@ -24,6 +27,7 @@
   * `rebar3 new lfe-main`
   * `rebar3 new lfe-escript`
   * `rebar3 new lfe-app`
+  * `rebar3 new lfe-release`
 * Start up an LFE REPL:
   * `rebar3 lfe repl`
 * Compile LFE source code:
@@ -33,10 +37,11 @@
   * `rebar3 lfe run -- 1 2 5`
   * `rebar3 lfe run -main some/path/main.lfe`
 * Escriptize an LFE escript project:
-  * `rebar3 lfe ecsriptize`
+  * `rebar3 ecsriptize`
 * Run an escriptized LFE escript project:
   * `rebar3 lfe run-ecsript`
-* Create an LFE/OTP release
+* Generate an LFE/OTP release
+  * `rebar3 release`
 
 [More coming soon!](https://github.com/lfe-rebar3/rebar3_lfe/issues?q=is%3Aissue+is%3Aopen+label%3Afeature)
 
@@ -53,7 +58,25 @@ Add the plugin to your ``rebar.config``:
 
 ## Use [&#x219F;](#contents)
 
-### Creating and Using a Library [&#x219F;](#contents)
+### Compiling [&#x219F;](#contents)
+
+Change directory to your LFE project, and then:
+
+```shell
+$ rebar3 lfe compile
+```
+
+### Running the LFE REPL [&#x219F;](#contents)
+
+Change directory to your LFE project, and then:
+
+```shell
+$ rebar3 lfe repl
+```
+
+### Creating Projects
+
+#### Creating and Using a Library [&#x219F;](#contents)
 
 ```shell
 $ rebar3 new lfe-lib mything
@@ -79,7 +102,7 @@ lfe> (mything:my-fun)
 hello-world
 ```
 
-### Creating and Running a `main` Script [&#x219F;](#contents)
+#### Creating and Running a `main` Script [&#x219F;](#contents)
 
 ```shell
 $ rebar3 new lfe-main mymain
@@ -105,7 +128,7 @@ Running script '/usr/local/bin/rebar3' with args [<<"42">>] ...
 'hello-world'
 ```
 
-### Creating and Running an LFE escript Application [&#x219F;](#contents)
+#### Creating and Running an LFE escript Application [&#x219F;](#contents)
 
 ```shell
 $ rebar3 new lfe-escript myapp
@@ -132,7 +155,7 @@ Got args: ("1" "2" "5" "no" "3!")
 Answer: 42
 ```
 
-### Creating and Running an LFE/OTP Application [&#x219F;](#contents)
+#### Creating and Running an LFE/OTP Application [&#x219F;](#contents)
 
 ```shell
 $ rebar3 new lfe-app myapp
@@ -163,7 +186,7 @@ lfe> (myapp:echo "testing the supervised gen_server ...")
 "testing the supervised gen_server ..."
 ```
 
-### Creating and Running an LFE/OTP Release [&#x219F;](#contents)
+#### Creating and Running an LFE/OTP Release [&#x219F;](#contents)
 
 ```shell
 $ rebar3 new lfe-release prod-app
