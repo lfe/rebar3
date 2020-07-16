@@ -75,7 +75,7 @@ Add the plugin to your ``rebar.config``:
 ```erlang
 {plugins, [
   {rebar3_lfe,
-    {git, "https://github.com/lfe-rebar3/rebar2_lfe.git", {tag, "0.2.0"}}}
+    {git, "https://github.com/lfe-rebar3/rebar2_lfe.git", {tag, "0.3.0-dev"}}}
 ]}.
 ```
 

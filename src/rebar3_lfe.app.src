@@ -1,6 +1,6 @@
 {application, 'rebar3_lfe',
  [{description, "A comprehensive LFE rebar3 plugin for all your LFE tooling needs"},
-  {vsn, "0.2.0"},
+  {vsn, "0.3.0-dev"},
   {registered, []},
   {applications, [kernel, stdlib, lfe]},
   {env,[]},
