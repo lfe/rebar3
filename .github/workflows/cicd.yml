@@ -55,3 +55,9 @@ jobs:
       run: cd priv/testing/example-release && rebar3 lfe run-release ping
     - name: Versions Command Output 
       run: cd priv/testing/example-release && DEBUG=1 rebar3 lfe versions
+    - name: Clean Command
+      run: cd priv/testing/example-release && rebar3 lfe clean 
+    - name: Clean-build Command
+      run: cd priv/testing/example-release && rebar3 lfe clean-build
+    - name: Clean-all Command
+      run: cd priv/testing/example-release && rebar3 lfe clean-all
