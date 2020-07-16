@@ -6,7 +6,6 @@
 
 -define(PROVIDER, escriptize).
 -define(NAMESPACE, lfe).
--define(NAMESPACE_PROVIDER, {?NAMESPACE, ?PROVIDER}).
 %% Re-examine the DEPS definition once the following ticket is addressed:
 %% * https://github.com/lfe-rebar3/rebar3_lfe/issues/21
 -define(DEPS, [compile, {default, escriptize}]).
