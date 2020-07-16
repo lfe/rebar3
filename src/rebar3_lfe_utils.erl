@@ -13,7 +13,8 @@
          lfe_config/1,
          first_value/2,
          update_app_file/1,
-         app_name/1]).
+         app_name/1,
+         app_name_str/1]).
 
 config(OutDir, Config) ->
     Key = lfe_opts,
@@ -129,15 +130,24 @@ update_app_file(Dir) ->
       rebar_api:debug("~p.app (BEFORE):~n~s", [AppName, SpecBefore]),
       rebar_api:debug("~p.app (AFTER):~n~s", [AppName, SpecAfter]),
 
-      ok = rebar_file_utils:write_file_if_contents_differ( AppFile
-                                                         , SpecAfter
-                                                         , utf8
-                                                         ),
+      ok = rebar_file_utils:write_file_if_contents_differ(AppFile, SpecAfter, utf8),
       ok;
     [] -> ok
   end.
 
 app_name(AppInfo) ->
+  rebar_api:debug("Getting app name (atom) ...", []),
+  AppName = erlang:list_to_atom(app_name_str(AppInfo)),
+  rebar_api:debug("AppName: ~p", [AppName]),
+  AppName.
+
+app_name_str(AppInfo) ->
+  rebar_api:debug("Getting app name (string) ...", []),
   AppName = rebar_app_info:name(AppInfo),
   rebar_api:debug("AppName: ~p", [AppName]),
-  erlang:list_to_atom(erlang:binary_to_list(AppName)).
+  case erlang:is_binary(AppName) of
+      true -> erlang:binary_to_list(AppName);
+      false ->
+          rebar_api:error("Unexpected type for app name: ~p", [AppName]),
+          "unknown"
+  end.

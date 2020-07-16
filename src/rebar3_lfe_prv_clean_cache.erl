@@ -7,9 +7,6 @@
 -define(PROVIDER, 'clean-cache').
 -define(NAMESPACE, lfe).
 -define(DEPS, [{default, clean}]).
--define(LIB, "lib").
--define(PLUGINS, "plugins").
--define(PLUGIN, "rebar3_lfe").
 
 %% =============================================================================
 %% Plugin API
@@ -33,9 +30,7 @@ init(State) ->
 
 -spec do(rebar_state:t()) -> {ok, rebar_state:t()} | {error, string()}.
 do(State) ->
-    Opts = rebar_state:opts(State),
-    Apps = rebar_state:project_apps(State),
-    [clean(Opts, AppInfo) || AppInfo <- Apps],
+    rebar3_lfe_clean:apps_cache(State),
     {ok, State}.
 
 -spec format_error(any()) -> iolist().
@@ -54,17 +49,3 @@ info(Description) ->
         "and/or lib directories. It also deletes the rebar3_lfe plugin~n"
         "caches.~n",
         [Description]).
-
-clean(Opts, AppInfo) ->
-    Dirs = cache_dirs(Opts, AppInfo),
-    rebar_api:debug("~p~n", [Dirs]),
-    [rebar_file_utils:rm_rf(Dir) || Dir <- Dirs].
-
-cache_dirs(Opts, AppInfo) ->
-    Global = rebar_dir:global_cache_dir(Opts),
-    AppName = rebar3_lfe_utils:app_name(AppInfo),
-    rebar_api:debug("Global cache dir: ~p~n", [Global]),
-    [filename:join([Global, ?LIB, AppName]),
-     filename:join([Global, ?PLUGINS, AppName]),
-     filename:join([Global, ?LIB, ?PLUGIN]),
-     filename:join([Global, ?PLUGINS, ?PLUGIN])].

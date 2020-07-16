@@ -30,9 +30,7 @@ init(State) ->
 
 -spec do(rebar_state:t()) -> {ok, rebar_state:t()} | {error, string()}.
 do(State) ->
-    clean(),
-    rebar3_lfe_prv_clean_build:do(State),
-    rebar3_lfe_prv_clean_cache:do(State),
+    rebar3_lfe_clean:all(State),
     {ok, State}.
 
 -spec format_error(any()) -> iolist().
@@ -50,7 +48,3 @@ info(Description) ->
         "This deletes the _build directory, all project and plugin caches,~n"
         "as well as the rebar.lock and any crashdump files.~n",
         [Description]).
-
-clean() ->
-    Files = ["erl_crash.dump", "rebar3.crashdump", "rebar.lock"],
-    [rebar3_lfe_clean:delete_file(File) || File <- Files].

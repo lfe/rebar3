@@ -30,8 +30,7 @@ init(State) ->
 
 -spec do(rebar_state:t()) -> {ok, rebar_state:t()} | {error, string()}.
 do(State) ->
-    Apps = rebar_state:project_apps(State),
-    [clean(AppInfo) || AppInfo <- Apps],
+    rebar3_lfe_clean:apps_build(State),
     {ok, State}.
 
 -spec format_error(any()) -> iolist().
@@ -48,9 +47,3 @@ info(Description) ->
         "~n"
         "This entirely deletes the ./_build directory created by rebar3.~n",
         [Description]).
-
-clean(AppInfo) ->
-    rebar_api:debug("AppInfo: ~p", [AppInfo]),
-    BuildDir = rebar_app_info:get(AppInfo, base_dir, "_build"),
-    rebar_api:debug("BuildDir: ~p~n", [BuildDir]),
-    rebar_file_utils:rm_rf(BuildDir).

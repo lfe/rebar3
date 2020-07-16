@@ -30,8 +30,7 @@ init(State) ->
 
 -spec do(rebar_state:t()) -> {ok, rebar_state:t()} | {error, string()}.
 do(State) ->
-    Apps = rebar_state:project_apps(State),
-    [clean(AppInfo) || AppInfo <- Apps],
+    rebar3_lfe_clean:apps_beam_files(State),
     {ok, State}.
 
 -spec format_error(any()) -> iolist().
@@ -48,9 +47,3 @@ info(Description) ->
         "~n"
         "This deletes the compiled .ebin files for a project's apps.~n",
         [Description]).
-
-clean(AppInfo) ->
-    rebar_api:debug("AppInfo: ~p", [AppInfo]),
-    AppEbin = rebar_app_info:ebin_dir(AppInfo),
-    rebar_api:debug("AppEbin: ~p", [AppEbin]),
-    rebar3_lfe_clean:delete_files(AppEbin).

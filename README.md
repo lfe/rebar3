@@ -272,6 +272,12 @@ global and local:
 $ rebar3 lfe clean-cache
 ```
 
+Perform all clean tasks:
+
+```shell
+$ rebar3 lfe clean-all
+```
+
 ### Metadata
 
 #### Get Versions
