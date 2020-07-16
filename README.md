@@ -61,6 +61,8 @@ project, with many updates and using all the latest approaches developed in
 * Cleanup
   * `rebar3 lfe clean`
   * `rebar3 lfe clean-build`
+  * `rebar3 lfe clean-cache`
+  * `rebar3 lfe clean-all`
 * Metadata
   * `rebar3 lfe versions`
 
@@ -73,7 +75,7 @@ Add the plugin to your ``rebar.config``:
 ```erlang
 {plugins, [
   {rebar3_lfe,
-    {git, "https://github.com/lfe-rebar3/rebar2_lfe.git", {branch, "master"}}}
+    {git, "https://github.com/lfe-rebar3/rebar2_lfe.git", {tag, "0.2.0"}}}
 ]}.
 ```
 

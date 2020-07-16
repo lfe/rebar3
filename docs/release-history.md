@@ -6,7 +6,7 @@
 - Created templates for `new lfe-lib` and `new lfe-main`
 - Added new commands `lfe repl` and `lfe run`
 
-## 0.2.0 (in progress)
+## 0.2.0
 
 - Added CI/CD support (Github Actions)
 - Created templates for `new lfe-app`, `new lfe-escript` and `new lfe-release`
