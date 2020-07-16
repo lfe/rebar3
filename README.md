@@ -20,6 +20,8 @@
     * [Creating and Running an LFE escript Application](#creating-and-running-an-lfe-escript-application-)
     * [Creating and Running an LFE/OTP Application](#creating-and-running-an-lfeotp-application-)
     * [Creating and Running an LFE/OTP Release](#creating-and-running-an-lfeotp-release-)
+  * Metadata
+    * [Get Versions](#get-versions-)
 
 ## About [&#x219F;](#contents)
 
@@ -55,6 +57,8 @@ project, with many updates and using all the latest approaches developed in
   * `rebar3 lfe run-ecsript`
 * Generate an LFE/OTP release
   * `rebar3 release`
+* Metadata
+  * `rebar3 lfe versions`
 
 [More coming soon!](https://github.com/lfe-rebar3/rebar3_lfe/issues?q=is%3Aissue+is%3Aopen+label%3Afeature)
 
@@ -242,6 +246,28 @@ non-shell commands) via the LFE rebar3 plugin:
 $ rebar3 lfe run-release ping
 pong
 ```
+
+### Metadata
+
+#### Get Versions
+
+```shell
+$ rebar3 lfe versions
+```
+
+```lisp
+(#(apps
+   (#(prod-app git)))
+ #(languages
+   (#(lfe "1.3-dev")
+    #(erlang "23")
+    #(emulator "11.0")
+    #(driver_version "3.3")))
+ #(tooling 
+   (#(rebar "3.10.0") 
+    #(rebar3_lfe "0.1.0"))))
+```
+
 
 <!-- Named page links below: /-->
 

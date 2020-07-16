@@ -12,7 +12,9 @@
          relative/1,
          lfe_config/1,
          first_value/2,
-         update_app_file/1]).
+         update_app_file/1,
+         app_data/1,
+         app_version/1]).
 
 %% The following spec was commented out in this commit:
 %% * https://github.com/lfe-rebar3/compile/commit/cde13fdceec399c36635fe259074b7a01fcf3430
@@ -139,3 +141,13 @@ update_app_file(Dir) ->
       ok;
     [] -> ok
   end.
+
+app_data(App) ->
+    AppFile = rebar_app_info:app_file(App),
+    case rebar_config:consult_app_file(AppFile) of
+        {ok, [{application, _AppName, AppData}]} -> AppData;
+        Err -> Err
+    end.
+
+app_version(App) ->
+    proplists:get_value(vsn, app_data(App)).
