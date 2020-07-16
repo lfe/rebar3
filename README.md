@@ -58,6 +58,8 @@ project, with many updates and using all the latest approaches developed in
   * `rebar3 lfe run-ecsript`
 * Generate an LFE/OTP release
   * `rebar3 release`
+* Run an LFE/OTP release project's release script (`COMMAND` can be `start` , `stop` , `status`, `ping`, etc.):
+  * `rebar3 lfe run-release COMMAND`
 * Cleanup
   * `rebar3 lfe clean`
   * `rebar3 lfe clean-build`
