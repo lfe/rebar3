@@ -255,7 +255,7 @@ $ rebar3 lfe run-release ping
 pong
 ```
 
-### Cleanup
+### Cleanup [&#x219F;](#contents)
 
 Remove the apps' `ebin/*` files:
 
@@ -282,7 +282,7 @@ Perform all clean tasks:
 $ rebar3 lfe clean-all
 ```
 
-### Metadata
+### Metadata [&#x219F;](#contents)
 
 #### Get Versions
 
