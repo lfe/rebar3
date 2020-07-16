@@ -263,8 +263,8 @@ $ rebar3 lfe versions
     #(erlang "23")
     #(emulator "11.0")
     #(driver_version "3.3")))
- #(tooling 
-   (#(rebar "3.10.0") 
+ #(tooling
+   (#(rebar "3.10.0")
     #(rebar3_lfe "0.1.0"))))
 ```
 
