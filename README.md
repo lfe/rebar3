@@ -67,7 +67,7 @@ Add the plugin to your ``rebar.config`` (stable):
 ```erlang
 {plugins, [
   {rebar3_lfe,
-    {git, "https://github.com/lfe-rebar3/rebar2_lfe.git", {tag, "0.2.0"}}}
+    {git, "https://github.com/lfe-rebar3/rebar3_lfe.git", {tag, "0.2.0"}}}
 ]}.
 ```
 
@@ -76,7 +76,7 @@ Or, if you want to use the current development branch (unstable):
 ```erlang
 {plugins, [
   {rebar3_lfe,
-    {git, "https://github.com/lfe-rebar3/rebar2_lfe.git", {tag, "0.3.0-dev"}}}
+    {git, "https://github.com/lfe-rebar3/rebar3_lfe.git", {branch, "release/0.3.x"}}}
 ]}.
 ```
 
