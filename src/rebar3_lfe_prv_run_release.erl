@@ -53,21 +53,6 @@ info(Description) ->
         "COMMAND being any of the following:~n",
         [Description]).
 
-% run(State) ->
-%     Path = rebar_state:dir(State),
-%     io:format("Path: ~p~n", [Path]),
-%     Args = rebar_state:command_args(State),
-%     io:format("Args: ~p~n", [Args]),
-%     ReleaseName = release_name(State),
-%     io:format("ReleaseName: ~p~n", [ReleaseName]),
-%     OutputDir = output_dir(State),
-%     io:format("OutputDir: ~p~n", [OutputDir]),
-%     Cmd = string:join([Path | Args], " "),
-%     io:format("Cmd: ~p~n", [Cmd]),
-%     % Result = os:cmd(Cmd),
-%     Result = "hey",
-%     io:format("~s~n", [Result]).
-
 %% =============================================================================
 %% Internal functions
 %% =============================================================================
