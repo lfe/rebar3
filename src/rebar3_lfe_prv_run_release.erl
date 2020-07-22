@@ -50,7 +50,8 @@ info(Description) ->
         "~n"
         "This runs an LFE release project's release script, taking the~n"
         "same arguments that the generated release script takes, with~n"
-        "COMMAND being any of the following:~n",
+        "COMMAND being any of the supported non-interactive release script~n"
+        "commands.~n",
         [Description]).
 
 %% =============================================================================
