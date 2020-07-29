@@ -89,7 +89,9 @@ repl(Config) ->
     rebar_api:debug("\tStarting LFE REPL ...", []),
     rebar_api:debug("\t\tPlain args: ~p", [init:get_plain_arguments()]),
     rebar_api:debug("\t\tSetting shell args ...", []),
-    Config1 = rebar_state:set(Config, shell, [{shell_args, ['tty_sl -c -e',{lfe_shell,start,[]}]}]),
+    ShellConfig = rebar_state:get(Config, shell, []),
+    REPLConfig = [{shell_args, ['tty_sl -c -e',{lfe_shell,start,[]}]}],
+    Config1 = rebar_state:set(Config, shell, lists:append(REPLConfig, ShellConfig)),
     rebar_api:debug("\t\tCalling underlying rebar3 shell 'do' function ...", []),
     rebar_prv_shell:do(Config1),
     Config1.
