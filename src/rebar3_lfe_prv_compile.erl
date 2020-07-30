@@ -70,7 +70,9 @@ compile_app(AppInfo) ->
     rebar_api:debug("OutDir: ~p", [OutDir]),
     rebar_api:debug("FirstFiles: ~p", [FirstFiles]),
     rebar_api:debug("Config: ~p", [dict:fetch(lfe_opts, Config)]),
+    rebar3_lfe_package:generate_sources(SourceDirs),
     [compile_dir(Config, FirstFiles, Dir, OutDir) || Dir <- SourceDirs],
+    rebar3_lfe_package:clean_sources(SourceDirs),
     rebar_api:debug("Finished compile.", []),
     code:add_patha(rebar3_lfe_utils:out_dir(rebar_app_info:dir(AppInfo))).
 
