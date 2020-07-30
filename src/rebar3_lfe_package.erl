@@ -12,16 +12,16 @@
 %%% Some examples of how files and directories will be transformed in their
 %%% final form as `.beam` files:
 %%% 
-%%% ./src/my.package.lfe              -> ebin/my.package.beam
-%%% ./src/my/package.lfe              -> ebin/my.package.beam
-%%% ./src/my/other/package.lfe        -> ebin/my.otherpackage.beam
+%%% ./src/my.package1.lfe             -> ebin/my.package1.beam
+%%% ./src/my/package2.lfe             -> ebin/my.package2.beam
+%%% ./src/my/other/package.lfe        -> ebin/my.other.package.beam
 %%% ./src/my/really/deep/package1.lfe -> ebin/my.really.deep.package1.beam
 %%% ./src/my/really/deep.package2.lfe -> ebin/my.really.deep.package2.beam
 %%% ./src/my/really.deep.package3.lfe -> ebin/my.really.deep.package3.beam
 %%% ./src/my.really.deep.package4.lfe -> ebin/my.really.deep.package4.beam
 %%% 
-%%% So, in essence, this module is responseible for transforming a nested
-%%% directory structure into a single file, as well as providing the fucntions
+%%% So, in essence, this module is responsible for transforming a nested
+%%% directory structure into a single file, as well as providing the functions
 %%% necessary to perform any cleanup of intermediary, temporary files.
 %%% 
 -module(rebar3_lfe_package).
