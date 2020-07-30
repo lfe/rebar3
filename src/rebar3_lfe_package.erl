@@ -50,7 +50,6 @@ package_to_source(SourcePath, Filepath) ->
     rebar_api:debug("SourcePath, Filepath: ~p, ~p", [SourcePath, Filepath]),
     [_ | Tail] = re:split(Filepath, "^" ++ SourcePath ++ "/"),
     rebar_api:debug("Tail: ~p", [Tail]),
-    % BaseName = filename:rootname(filename:rootname(Tail, ".lfe"), ".erl"),
     Replaced = re:replace(Tail, "/", ".", [global, {return, list}]),
     rebar_api:debug("Replaced: ~p", [Replaced]),
     filename:join([SourcePath, Replaced]).
