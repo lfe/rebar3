@@ -14,7 +14,8 @@
          first_value/2,
          update_app_file/1,
          app_name/1,
-         app_name_str/1]).
+         app_name_str/1,
+         set_diff/2]).
 
 config(OutDir, Config) ->
     Key = lfe_opts,
@@ -151,3 +152,7 @@ app_name_str(AppInfo) ->
           rebar_api:error("Unexpected type for app name: ~p", [AppName]),
           "unknown"
   end.
+
+set_diff(BigList, SmallList) ->
+    sets:to_list(sets:subtract(sets:from_list(BigList), 
+    sets:from_list(SmallList))).
