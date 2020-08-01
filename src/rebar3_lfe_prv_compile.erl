@@ -11,7 +11,7 @@
 -define(NAMESPACE, lfe).
 -define(PROVIDER, compile).
 -define(NAMESPACE_PROVIDER, {?NAMESPACE, ?PROVIDER}).
--define(DEPS, [{default, lock}, {default, app_discovery}]).
+-define(DEPS, [{default, lock}]).
 -define(LFE, <<lfe>>).
 
 %% =============================================================================
