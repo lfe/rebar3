@@ -1,11 +1,11 @@
 -module(rebar3_lfe_prv_run_escript).
 
--export([init/1, 
-         do/1, 
+-export([init/1,
+         do/1,
          format_error/1]).
 
--define(PROVIDER, 'run-escript').
 -define(NAMESPACE, lfe).
+-define(PROVIDER, 'run-escript').
 %% Re-examine the DEPS definition once the following ticket is addressed:
 %% * https://github.com/lfe-rebar3/rebar3_lfe/issues/21
 -define(DEPS, [{default, escriptize}]).

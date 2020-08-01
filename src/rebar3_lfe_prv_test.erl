@@ -6,7 +6,7 @@
 
 -define(NAMESPACE, lfe).
 -define(PROVIDER, ltest).
--define(DEPS, [{lfe, compile}, compile]).
+-define(DEPS, [compile]).
 -define(DEFAULT_TEST_TYPE, unit).
 
 %% ===================================================================
@@ -33,8 +33,8 @@ init(State) ->
     {ok, State1}.
 
 -spec do(rebar_state:t()) -> {ok, rebar_state:t()} | {error, string()}.
-do(Config) ->
-    {ok, test(Config)}.
+do(State) ->
+    {ok, test(State)}.
 
 -spec format_error(any()) -> iolist().
 format_error({unknown_app, Unknown}) ->

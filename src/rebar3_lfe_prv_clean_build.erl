@@ -1,11 +1,11 @@
 -module(rebar3_lfe_prv_clean_build).
 
--export([init/1, 
-         do/1, 
+-export([init/1,
+         do/1,
          format_error/1]).
 
--define(PROVIDER, 'clean-build').
 -define(NAMESPACE, lfe).
+-define(PROVIDER, 'clean-build').
 -define(DEPS, [{default, clean}]).
 
 %% =============================================================================

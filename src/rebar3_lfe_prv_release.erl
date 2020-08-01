@@ -1,11 +1,11 @@
 -module(rebar3_lfe_prv_release).
 
--export([init/1, 
-         do/1, 
+-export([init/1,
+         do/1,
          format_error/1]).
 
--define(PROVIDER, release).
 -define(NAMESPACE, lfe).
+-define(PROVIDER, release).
 -define(DEPS, [{?NAMESPACE, compile}]).
 
 %% =============================================================================
