@@ -12,6 +12,7 @@ init(State) ->
                fun rebar3_lfe_prv_compile:init/1,
                fun rebar3_lfe_prv_confabulate:init/1,
                fun rebar3_lfe_prv_escriptize:init/1,
+               fun rebar3_lfe_prv_ltest:init/1,
                fun rebar3_lfe_prv_release:init/1,
                fun rebar3_lfe_prv_repl:init/1,
                fun rebar3_lfe_prv_run:init/1,

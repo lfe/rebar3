@@ -1,4 +1,4 @@
--module(rebar3_lfe_prv_test).
+-module(rebar3_lfe_prv_ltest).
 
 -export([init/1,
          do/1,
