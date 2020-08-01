@@ -1,6 +1,6 @@
 -module(rebar3_lfe_clean).
 
--export([delete_files/1, 
+-export([delete_files/1,
          delete_file/1,
          beam_files/1,
          apps_beam_files/1,
@@ -14,8 +14,8 @@
 -define(LIB, "lib").
 -define(PLUGINS, "plugins").
 -define(PLUGIN, "rebar3_lfe").
--define(ERL_REBAR_FILES, ["erl_crash.dump", 
-                          "rebar3.crashdump", 
+-define(ERL_REBAR_FILES, ["erl_crash.dump",
+                          "rebar3.crashdump",
                           "rebar.lock"]).
 
 %% For whatever reason, rebar_file_utils:delete_each doesn't seem to work?
@@ -79,7 +79,7 @@ cache_dirs(Opts, AppInfo) ->
      filename:join([Global, ?PLUGINS, ?PLUGIN])].
 
 erl_rebar_files() ->
-    [rebar3_lfe_clean:delete_file(File) || File <- ?ERL_REBAR_FILES].
+    [delete_file(File) || File <- ?ERL_REBAR_FILES].
 
 all(State) ->
     erl_rebar_files(),
