@@ -1,7 +1,7 @@
 -module(rebar3_lfe_prv_versions).
 
--export([init/1, 
-         do/1, 
+-export([init/1,
+         do/1,
          format_error/1]).
 
 -define(PROVIDER, versions).
@@ -52,12 +52,11 @@ info(Description) ->
 versions(Apps) ->
     rebar_api:debug("Getting versions ...", []),
     [{apps, [app_version_data(AppInfo) || AppInfo <- Apps]},
-     {languages, language_versions()},
-     {tooling, rebar_versions()}].
+     {languages, rebar3_lfe_version:language_versions()},
+     {tooling, rebar3_lfe_version:rebar_versions()}].
 
 app_version_data(AppInfo) ->
   rebar_api:debug("AppInfo: ~p", [AppInfo]),
-  
   AppFile = rebar_app_info:app_file(AppInfo),
   rebar_api:debug("AppFile: ~p", [AppFile]),
   AppDetails = rebar_app_info:app_details(AppInfo),
@@ -67,22 +66,3 @@ app_version_data(AppInfo) ->
   % AppVers = rebar_app_info:vsn(AppInfo),
   % rebar_api:debug("AppVers: ~p", [AppVers]),
   {rebar3_lfe_utils:app_name(AppInfo), AppVersOrig}.
-
-language_versions() ->
-    [{lfe, app_version(lfe)},
-     {erlang, erlang:system_info(otp_release)},
-     {emulator, erlang:system_info(version)},
-     {driver_version, erlang:system_info(driver_version)}
-    ].
-
-rebar_versions() ->
-    [{rebar, app_version(rebar)},
-     {rebar3_lfe, app_version(rebar3_lfe)}
-    ].
-
-app_version(AppName) ->
-  application:load(AppName),
-  case application:get_key(AppName, vsn) of
-    {ok, Vsn} -> Vsn;
-    Default -> Default
-  end.
