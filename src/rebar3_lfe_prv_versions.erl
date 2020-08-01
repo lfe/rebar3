@@ -4,8 +4,8 @@
          do/1,
          format_error/1]).
 
--define(PROVIDER, versions).
 -define(NAMESPACE, lfe).
+-define(PROVIDER, versions).
 -define(DEPS, [compile]).
 
 %% =============================================================================

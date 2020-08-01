@@ -8,6 +8,7 @@
 
 -define(PROVIDER, 'run-release').
 -define(NAMESPACE, lfe).
+-define(PROVIDER, 'run-release').
 %% Re-examine the DEPS definition once the following ticket is addressed:
 %% * https://github.com/lfe-rebar3/rebar3_lfe/issues/21
 -define(DEPS, [compile]).

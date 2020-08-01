@@ -1,9 +1,11 @@
 -module(rebar3_lfe_prv_run).
 
--export([init/1, do/1, format_error/1]).
+-export([init/1,
+         do/1,
+         format_error/1]).
 
--define(PROVIDER, run).
 -define(NAMESPACE, lfe).
+-define(PROVIDER, run).
 -define(DEPS, [compile]).
 
 %% =============================================================================
@@ -17,7 +19,7 @@ init(State) ->
                }
              ],
   Description = "Run the project's main function.",
-  Provider = providers:create([ 
+  Provider = providers:create([
       {namespace, ?NAMESPACE},
       {name, ?PROVIDER},
       {module, ?MODULE},

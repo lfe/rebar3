@@ -1,15 +1,15 @@
 -module(rebar3_lfe_prv_compile).
 
--export([init/1, 
-         do/1, 
+-export([init/1,
+         do/1,
          format_error/1]).
--export([compile/1, 
-         compile_app/1, 
-         compile_dir/4, 
+-export([compile/1,
+         compile_app/1,
+         compile_dir/4,
          compile_file/3]).
 
--define(PROVIDER, compile).
 -define(NAMESPACE, lfe).
+-define(PROVIDER, compile).
 -define(NAMESPACE_PROVIDER, {?NAMESPACE, ?PROVIDER}).
 -define(DEPS, [{default, lock}]).
 -define(LFE, <<lfe>>).
