@@ -27,7 +27,7 @@ init(State) ->
                 {example, "rebar3 lfe ltest"},
                 {short_desc, Description},
                 {desc, info(Description)},
-                {opts, []}
+                {opts, opts(State)}
             ])
     ),
     {ok, State1}.
@@ -55,25 +55,11 @@ info(Description) ->
             "~n",
             [Description]).
 
-%% Calculate effective test type based on command parsed args, rebar.config and
-%% default test-type value.
-effective_test_type(State) ->
-    Args = rebar_state:command_parsed_args(State),
-    CmdArgs = element(1, Args),
-    StateArgs = rebar_state:get(State, ?PROVIDER, []),
-    TestTypeCmd = proplists:get_value('test-type', CmdArgs),
-    TestTypeState = proplists:get_value('test-type', StateArgs),
-    case TestTypeCmd of
-        undefined ->
-            case TestTypeState of
-                undefined -> ?DEFAULT_TEST_TYPE;
-                _ -> TestTypeState
-            end;
-        _ -> TestTypeCmd
-    end.
-
-test(Config) ->
-    case effective_test_type(Config) of
+test(State) ->
+    rebar_api:debug("Running the test command ...", []),
+    {Opts, _} = rebar_state:command_parsed_args(State),
+    rebar_api:debug("Got opts: ~p", [Opts]),
+    case proplists:get_value('test-type', Opts, all) of
         all -> 'ltest-runner':all();
         unit -> 'ltest-runner':unit();
         system -> 'ltest-runner':system();
@@ -81,4 +67,17 @@ test(Config) ->
         UnknownType ->
             rebar_api:error("Unknown test-type value: ~p", [UnknownType])
     end,
-    {ok, Config}.
+    {ok, State}.
+
+% {ok, State} = rebar3_lfe_prv_ltest:init(rebar_state:new()).
+% rebar3_lfe_prv_ltest:do(State).
+% rebar_state:command_parsed_args(rebar_state:new()).
+% rebar_prv_eunit:eunit_opts(rebar_state:new()).
+
+opts(State) ->
+    lists:append(
+        rebar_prv_eunit:eunit_opts(State),
+        [{'test-type', $t, "test-type", atom, "type of tests to run; "
+            "legal valuues are unit, system, integration, or all"},
+         {color, undefined, "color", boolean, "whether to display tests "
+             "in ANSI-highlighted colors."}]).
