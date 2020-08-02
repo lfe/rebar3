@@ -92,7 +92,7 @@ relative(Filename) ->
     re:replace(Filename, Cwd, ".", [{return,list}]).
 
 lfe_config(State) ->
-  rebar_state:get(State, lfe).
+  rebar_state:get(State, lfe, []).
 
 first_value([], _) -> no_value;
 first_value([Fun | Rest], State) ->
@@ -154,5 +154,5 @@ app_name_str(AppInfo) ->
   end.
 
 set_diff(BigList, SmallList) ->
-    sets:to_list(sets:subtract(sets:from_list(BigList), 
+    sets:to_list(sets:subtract(sets:from_list(BigList),
     sets:from_list(SmallList))).
