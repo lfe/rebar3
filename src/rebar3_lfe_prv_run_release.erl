@@ -1,8 +1,10 @@
 -module(rebar3_lfe_prv_run_release).
 
--export([init/1, 
-         do/1, 
+-export([init/1,
+         do/1,
          format_error/1]).
+
+-include("rebar3_lfe.hrl").
 
 -define(PROVIDER, 'run-release').
 -define(NAMESPACE, lfe).
@@ -37,6 +39,8 @@ do(State) ->
     {ok, State}.
 
 -spec format_error(any()) -> iolist().
+format_error(release_script_not_found) ->
+    "The release script was not found; be sure to run rebar3 release first.";
 format_error(Reason) ->
     io_lib:format("~p", [Reason]).
 
@@ -64,14 +68,24 @@ run(State) ->
     Args = rebar_state:command_args(State),
     rebar_api:debug("Args: ~p~n", [Args]),
     ReleaseScript = release_script(State),
-    Cmd = string:join([ReleaseScript | Args], " "),
-    rebar_api:debug("Cmd: ~p~n", [Cmd]),
-    Result = os:cmd(Cmd),
-    io:format("~s~n", [Result]).
+    case filelib:is_file(ReleaseScript) of
+        true ->
+            run_release_script(ReleaseScript, Args);
+        false ->
+            rebar_api:debug("Release script not found: ~s", [ReleaseScript]),
+            throw(?PRV_ERROR(release_script_not_found))
+    end.
+
 
 % %% =============================================================================
 % %% Internal functions
 % %% =============================================================================
+
+run_release_script(ReleaseScript, Args) ->
+    Cmd = string:join([ReleaseScript | Args], " "),
+    rebar_api:debug("Cmd: ~p~n", [Cmd]),
+    Result = os:cmd(Cmd),
+    io:format("~s~n", [Result]).
 
 release_name(State) ->
     RelxConfig = rebar_state:get(State, relx, []),
