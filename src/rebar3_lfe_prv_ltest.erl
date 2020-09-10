@@ -46,6 +46,14 @@ format_error(Reason) ->
 %% Internal functions
 %% =============================================================================
 
+opts(State) ->
+    lists:append(
+        rebar_prv_eunit:eunit_opts(State),
+        [{'test-type', $t, "test-type", atom, "type of tests to run; "
+            "legal valuues are unit, system, integration, or all"},
+         {color, undefined, "color", boolean, "whether to display tests "
+             "in ANSI-highlighted colors."}]).
+
 info(Description) ->
     io_lib:format(
             "~n~s~n"
@@ -69,15 +77,9 @@ test(State) ->
     end,
     {ok, State}.
 
-% {ok, State} = rebar3_lfe_prv_ltest:init(rebar_state:new()).
-% rebar3_lfe_prv_ltest:do(State).
-% rebar_state:command_parsed_args(rebar_state:new()).
-% rebar_prv_eunit:eunit_opts(rebar_state:new()).
+%% {ok, State} = rebar3_lfe_prv_ltest:init(rebar_state:new()).
+%% rebar3_lfe_prv_ltest:do(State).
+%% rebar_state:command_parsed_args(rebar_state:new()).
+%% rebar_prv_eunit:eunit_opts(rebar_state:new()).
 
-opts(State) ->
-    lists:append(
-        rebar_prv_eunit:eunit_opts(State),
-        [{'test-type', $t, "test-type", atom, "type of tests to run; "
-            "legal valuues are unit, system, integration, or all"},
-         {color, undefined, "color", boolean, "whether to display tests "
-             "in ANSI-highlighted colors."}]).
+
