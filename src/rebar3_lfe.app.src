@@ -4,7 +4,27 @@
   {registered, []},
   {applications, [kernel, stdlib, lfe]},
   {env,[]},
-  {modules, [rebar3_lfe]},
+  {modules, [%% support modules
+             rebar3_lfe_clean,
+             rebar3_lfe_package,
+             rebar3_lfe_utils,
+             rebar3_lfe_version,
+             %% command modules
+             rebar3_lfe_prv_clean,
+             rebar3_lfe_prv_clean_all,
+             rebar3_lfe_prv_clean_build,
+             rebar3_lfe_prv_clean_cache,
+             rebar3_lfe_prv_compile,
+             rebar3_lfe_prv_escriptize,
+             rebar3_lfe_prv_release,
+             rebar3_lfe_prv_repl,
+             rebar3_lfe_prv_run,
+             rebar3_lfe_prv_run_escript,
+             rebar3_lfe_prv_run_release,
+             rebar3_lfe_prv_versions,
+             %% main module
+             rebar3_lfe
+  ]},
 
   %% Hex.pm metadata
   {pkg_name, rebar3_lfe},
