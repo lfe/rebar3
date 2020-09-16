@@ -1,5 +1,5 @@
 (defmodule {{name}}-app
-  (behaviour gen_server)
+  (behaviour application)
   (export
     ;; app implementation
     (start 2)
