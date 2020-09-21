@@ -40,7 +40,8 @@
 
 generate_sources(SourceDirs) ->
     AllFiles = [generate_source(Path) || Path <- SourceDirs],
-    rebar_api:debug("All package files: ~p", [AllFiles]).
+    rebar_api:debug("All package files: ~p", [AllFiles]),
+    AllFiles.
 
 generate_source(Path) ->
     Files = files(filename:absname(Path)),
