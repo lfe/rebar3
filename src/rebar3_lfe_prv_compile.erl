@@ -50,7 +50,7 @@ format_error(Reason) ->
 
 compile(State) ->
     rebar_api:debug("Compiling LFE apps ...", []),
-    rebar_paths:set_paths(deps, State), 
+    rebar_paths:set_paths([deps], State), 
     Apps = rebar3_lfe_utils:get_apps(State),
     [compile_app(AppInfo) || AppInfo <- Apps],
     {ok, State}.
