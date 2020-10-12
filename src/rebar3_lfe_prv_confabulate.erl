@@ -85,7 +85,7 @@ debug_get_value(Key, List, Default, Description) ->
 append_datum(Filename, RawDatum) ->
     {Datum, _Line} = RawDatum,
     rebar_api:debug("\tGot datum: ~p", [Datum]),
-    DatumBytes = list_to_binary(io_lib:format("~p", [Datum])),
+    DatumBytes = list_to_binary(io_lib:format("~p.~n", [Datum])),
     rebar_api:debug("\tGot datum bytes: ~p", [DatumBytes]),
     case file:read_file_info(Filename) of
         {ok, _FileInfo} ->
