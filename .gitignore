@@ -16,3 +16,10 @@ deps
 _build/
 _checkouts/
 rebar.lock
+rebar3.crashdump
+
+# Emacs
+*~
+\#*\#
+.\#*
+
