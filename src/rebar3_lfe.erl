@@ -9,6 +9,7 @@ init(State) ->
                fun rebar3_lfe_prv_clean_build:init/1,
                fun rebar3_lfe_prv_clean_cache:init/1,
                fun rebar3_lfe_prv_compile:init/1,
+               fun rebar3_lfe_prv_confabulate:init/1,
                fun rebar3_lfe_prv_escriptize:init/1,
                fun rebar3_lfe_prv_release:init/1,
                fun rebar3_lfe_prv_repl:init/1,
@@ -19,3 +20,10 @@ init(State) ->
              ],
   FoldFun  = fun(F, {ok, StateAcc}) -> F(StateAcc) end,
   lists:foldl(FoldFun, {ok, State}, Commands).
+
+%% Useful for debugging new plugins:
+%%
+%% {ok, State} = rebar3_lfe:init(rebar_state:new()).
+%% rebar3_lfe_prv_ltest:do(State).
+%% rebar_state:command_parsed_args(rebar_state:new()).
+%% rebar_prv_eunit:eunit_opts(rebar_state:new()).
