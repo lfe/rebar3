@@ -82,7 +82,8 @@ debug_get_value(Key, List, Default, Description) ->
             Value
     end.
 
-append_datum(Filename, Datum) ->
+append_datum(Filename, RawDatum) ->
+    {Datum, _Line} = RawDatum,
     DatumStr = list_to_binary(io_lib:format("~p", Datum)),
     case file:read_file_info(Filename) of
         {ok, _FileInfo} ->
