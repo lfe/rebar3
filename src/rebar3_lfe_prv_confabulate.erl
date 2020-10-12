@@ -86,13 +86,17 @@ convert_file(LfeFilename) ->
     {ok, Data} = lfe_io:parse_file(LfeFilename),
     ErlFilename = filename:rootname(LfeFilename) ++ ".erl",
     delete_file(ErlFilename),
+    rebar_api:debug("Writing parsed data from ~p to ~p ...", [LfeFilename,
+        ErlFilename]),
     lists:map(fun(D) -> append_datum(ErlFilename, D) end, Data).
 
 append_datum(Filename, Datum) ->
     case file:read_file_info(Filename) of
         {ok, _FileInfo} ->
+            rebar_api:debug("Appending data to file ..."),
             file:write_file(Filename, Datum, [append]);
         {error, enoent} ->
+            rebar_api:debug("File doesn't exist; creating it and adding data ..."),
             file:write_file(Filename, Datum);
         {error, Err} ->
             rebar_api:debug("Could not write to ~p: ~p", [Filename, Err])
@@ -101,6 +105,7 @@ append_datum(Filename, Datum) ->
 delete_file(Filename) ->
      case file:read_file_info(Filename) of
          {ok, _FileInfo} ->
+             rebar_api:debug("Deleting file ~p ...", [Filename]),
              file:delete(Filename);
          _ -> ok
      end.
