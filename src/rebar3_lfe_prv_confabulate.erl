@@ -89,7 +89,11 @@ append_datum(Filename, Datum) ->
             file:write_file(Filename, Datum, [append]);
         {error, enoent} ->
             rebar_api:debug("File doesn't exist; creating it and adding data ...", []),
-            file:write_file(Filename, Datum);
+            case file:write_file(Filename, Datum) of
+                ok -> ok;
+                {error, Err} -> rebar_api:debug("Could not write to ~p: ~p",
+                    [Filename, Err])
+            end;
         {error, Err} ->
             rebar_api:debug("Could not write to ~p: ~p", [Filename, Err])
     end.
