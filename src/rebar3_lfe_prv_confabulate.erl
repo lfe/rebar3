@@ -4,8 +4,6 @@
          do/1,
          format_error/1]).
 
--include("rebar3/src/rebar.hrl").
-
 -define(NAMESPACE, lfe).
 -define(PROVIDER, confabulate).
 -define(DEPS, []).
@@ -76,7 +74,7 @@ debug_get_value(Key, List, Default, Description) ->
     case proplists:get_value(Key, List, Default) of
         Default -> Default;
         Value ->
-            ?DEBUG(Description, []),
+            rebar_log:log(Description, []),
             Value
     end.
 
@@ -90,6 +88,6 @@ append_datum(Filename, Datum) ->
         {ok, _FileInfo} ->
             file:write_file(Filename, Datum, [append]);
         {error, Err} ->
-            ?DEBUG("Could not write to ~p: ~p", [Filename, Err])
+            rebar_log:log("Could not write to ~p: ~p", [Filename, Err])
     end.
   
