@@ -56,17 +56,21 @@ info(Description) ->
         "~n",
         [Description]).
 
-confabulate(Config) ->
+confabulate(State) ->
     rebar_api:debug("\tProcessing LFE file(s) ...", []),
     rebar_api:debug("\t\tPlain args: ~p", [init:get_plain_arguments()]),
     %% Get files to convert
-    Files = filelib:wildcard(find_path_option(Config)),
+    Path = find_path_option(State),
+    rebar_api:debug("\tGot path: ~p", [Path]),
+    Files = filelib:wildcard(Path),
+    rebar_api:debug("\tGot files: ~p", [Files]),
     %% Iterate over list of files, performing conversion
     lists:map(fun convert_file/1, Files),
-    Config.
+    State.
 
 find_path_option(State) ->
     {Opts, _} = rebar_state:command_parsed_args(State),
+    rebar_api:debug("\tGot opts: ~p", [Opts]),
     debug_get_value(path, Opts, no_value,
                     "Found path from command line option.").
                     
@@ -74,7 +78,7 @@ debug_get_value(Key, List, Default, Description) ->
     case proplists:get_value(Key, List, Default) of
         Default -> Default;
         Value ->
-            rebar_log:log(Description, []),
+            rebar_api:debug(Description, []),
             Value
     end.
 
@@ -88,6 +92,6 @@ append_datum(Filename, Datum) ->
         {ok, _FileInfo} ->
             file:write_file(Filename, Datum, [append]);
         {error, Err} ->
-            rebar_log:log("Could not write to ~p: ~p", [Filename, Err])
+            rebar_api:debug("Could not write to ~p: ~p", [Filename, Err])
     end.
   
