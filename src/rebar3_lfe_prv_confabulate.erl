@@ -73,7 +73,7 @@ find_path_option(State) ->
     rebar_api:debug("\tGot opts: ~p", [Opts]),
     debug_get_value(path, Opts, no_value,
                     "Found path from command line option.").
-                    
+
 debug_get_value(Key, List, Default, Description) ->
     case proplists:get_value(Key, List, Default) of
         Default -> Default;
@@ -81,14 +81,6 @@ debug_get_value(Key, List, Default, Description) ->
             rebar_api:debug(Description, []),
             Value
     end.
-
-convert_file(LfeFilename) ->
-    {ok, Data} = lfe_io:parse_file(LfeFilename),
-    ErlFilename = filename:rootname(LfeFilename) ++ ".erl",
-    delete_file(ErlFilename),
-    rebar_api:debug("Writing parsed data from ~p to ~p ...", [LfeFilename,
-        ErlFilename]),
-    lists:map(fun(D) -> append_datum(ErlFilename, D) end, Data).
 
 append_datum(Filename, Datum) ->
     case file:read_file_info(Filename) of
@@ -101,7 +93,7 @@ append_datum(Filename, Datum) ->
         {error, Err} ->
             rebar_api:debug("Could not write to ~p: ~p", [Filename, Err])
     end.
-  
+
 delete_file(Filename) ->
      case file:read_file_info(Filename) of
          {ok, _FileInfo} ->
@@ -109,3 +101,12 @@ delete_file(Filename) ->
              file:delete(Filename);
          _ -> ok
      end.
+
+convert_file(LfeFilename) ->
+    {ok, Data} = lfe_io:parse_file(LfeFilename),
+    rebar_api:debug("Parsed LFE data: ~p", [Data]),
+    ErlFilename = filename:rootname(LfeFilename) ++ ".erl",
+    delete_file(ErlFilename),
+    rebar_api:debug("Writing parsed data from ~p to ~p ...", [LfeFilename,
+        ErlFilename]),
+    lists:map(fun(D) -> append_datum(ErlFilename, D) end, Data).
