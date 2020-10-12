@@ -85,10 +85,10 @@ debug_get_value(Key, List, Default, Description) ->
 append_datum(Filename, Datum) ->
     case file:read_file_info(Filename) of
         {ok, _FileInfo} ->
-            rebar_api:debug("Appending data to file ..."),
+            rebar_api:debug("Appending data to file ...", []),
             file:write_file(Filename, Datum, [append]);
         {error, enoent} ->
-            rebar_api:debug("File doesn't exist; creating it and adding data ..."),
+            rebar_api:debug("File doesn't exist; creating it and adding data ...", []),
             file:write_file(Filename, Datum);
         {error, Err} ->
             rebar_api:debug("Could not write to ~p: ~p", [Filename, Err])
