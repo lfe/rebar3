@@ -84,14 +84,16 @@ debug_get_value(Key, List, Default, Description) ->
 
 append_datum(Filename, RawDatum) ->
     {Datum, _Line} = RawDatum,
-    DatumStr = list_to_binary(io_lib:format("~p", Datum)),
+    rebar_api:debug("\tGot datum: ~p", [Datum]),
+    DatumBytes = list_to_binary(io_lib:format("~p", [Datum])),
+    rebar_api:debug("\tGot datum bytes: ~p", [DatumBytes]),
     case file:read_file_info(Filename) of
         {ok, _FileInfo} ->
             rebar_api:debug("Appending data to file ...", []),
-            file:write_file(Filename, DatumStr, [append]);
+            file:write_file(Filename, DatumBytes, [append]);
         {error, enoent} ->
             rebar_api:debug("File doesn't exist; creating it and adding data ...", []),
-            case file:write_file(Filename, DatumStr) of
+            case file:write_file(Filename, DatumBytes) of
                 ok -> ok;
                 {error, Err} -> rebar_api:debug("Could not write to ~p: ~p",
                     [Filename, Err])
