@@ -4,7 +4,8 @@
          do/1,
          format_error/1]).
 
--define(NAMESPACE, lfe).
+-include("rebar3_lfe.hrl").
+
 -define(PROVIDER, run).
 -define(DEPS, [compile]).
 
@@ -12,7 +13,6 @@
 %% Public API
 %% =============================================================================
 
--spec init(rebar_state:t()) -> {ok, rebar_state:t()}.
 init(State) ->
   Opts     = [ { main, $m, "main", string
                , "Provide project file that contains a main function"
@@ -32,12 +32,10 @@ init(State) ->
     ]),
   {ok, rebar_state:add_provider(State, Provider)}.
 
--spec do(rebar_state:t()) -> {ok, rebar_state:t()} | {error, string()}.
 do(State) ->
   run(State),
   {ok, State}.
 
--spec format_error(any()) ->  iolist().
 format_error(Reason) ->
   io_lib:format("~p", [Reason]).
 

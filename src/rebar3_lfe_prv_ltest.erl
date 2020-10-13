@@ -4,7 +4,8 @@
          do/1,
          format_error/1]).
 
--define(NAMESPACE, lfe).
+-include("rebar3_lfe.hrl").
+
 -define(PROVIDER, ltest).
 -define(DEPS, [compile]).
 -define(DEFAULT_TEST_TYPE, unit).

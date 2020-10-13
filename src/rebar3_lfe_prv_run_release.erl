@@ -7,8 +7,6 @@
 -include("rebar3_lfe.hrl").
 
 -define(PROVIDER, 'run-release').
--define(NAMESPACE, lfe).
--define(PROVIDER, 'run-release').
 %% Re-examine the DEPS definition once the following ticket is addressed:
 %% * https://github.com/lfe-rebar3/rebar3_lfe/issues/21
 -define(DEPS, [compile]).
@@ -18,7 +16,6 @@
 %% Plugin API
 %% =============================================================================
 
--spec init(rebar_state:t()) -> {ok, rebar_state:t()}.
 init(State) ->
   Description = "Run an LFE release",
   Provider = providers:create([
@@ -34,12 +31,10 @@ init(State) ->
   ]),
   {ok, rebar_state:add_provider(State, Provider)}.
 
--spec do(rebar_state:t()) -> {ok, rebar_state:t()} | {error, string()}.
 do(State) ->
     run(State),
     {ok, State}.
 
--spec format_error(any()) -> iolist().
 format_error(release_script_not_found) ->
     "The release script was not found; be sure to run rebar3 release first.";
 format_error(Reason) ->

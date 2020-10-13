@@ -4,7 +4,8 @@
          do/1,
          format_error/1]).
 
--define(NAMESPACE, lfe).
+-include("rebar3_lfe.hrl").
+
 -define(PROVIDER, confabulate).
 -define(DEPS, []).
 
@@ -12,7 +13,6 @@
 %% Public API
 %% ===================================================================
 
--spec init(rebar_state:t()) -> {ok, rebar_state:t()}.
 init(State) ->
     Description = "Convert the given LFE data file(s) to Erlang file(s).",
     State1 = rebar_state:add_provider(
@@ -31,11 +31,9 @@ init(State) ->
     ),
     {ok, State1}.
 
--spec do(rebar_state:t()) -> {ok, rebar_state:t()} | {error, string()}.
 do(Config) ->
     {ok, confabulate(Config)}.
 
--spec format_error(any()) -> iolist().
 format_error({unknown_app, Unknown}) ->
     io_lib:format("Applications list for confabulate contains an unrecognizable application definition: ~p", [Unknown]);
 format_error(Reason) ->

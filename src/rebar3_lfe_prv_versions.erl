@@ -4,7 +4,8 @@
          do/1,
          format_error/1]).
 
--define(NAMESPACE, lfe).
+-include("rebar3_lfe.hrl").
+
 -define(PROVIDER, versions).
 -define(DEPS, [compile]).
 
@@ -12,7 +13,6 @@
 %% Plugin API
 %% =============================================================================
 
--spec init(rebar_state:t()) -> {ok, rebar_state:t()}.
 init(State) ->
   Description = "Get various versions",
   Provider = providers:create([
@@ -28,13 +28,11 @@ init(State) ->
   ]),
   {ok, rebar_state:add_provider(State, Provider)}.
 
--spec do(rebar_state:t()) -> {ok, rebar_state:t()} | {error, string()}.
 do(State) ->
     Apps = rebar_state:project_apps(State),
     lfe_io:format("~p~n", [versions(Apps)]),
     {ok, State}.
 
--spec format_error(any()) -> iolist().
 format_error(Reason) ->
     io_lib:format("~p", [Reason]).
 

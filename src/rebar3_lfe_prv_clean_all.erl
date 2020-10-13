@@ -4,7 +4,8 @@
          do/1,
          format_error/1]).
 
--define(NAMESPACE, lfe).
+-include("rebar3_lfe.hrl").
+
 -define(PROVIDER, 'clean-all').
 -define(DEPS, [{default, clean}]).
 
@@ -12,7 +13,6 @@
 %% Plugin API
 %% =============================================================================
 
--spec init(rebar_state:t()) -> {ok, rebar_state:t()}.
 init(State) ->
   Description = "Execute all clean commands",
   Provider = providers:create([
@@ -28,12 +28,10 @@ init(State) ->
   ]),
   {ok, rebar_state:add_provider(State, Provider)}.
 
--spec do(rebar_state:t()) -> {ok, rebar_state:t()} | {error, string()}.
 do(State) ->
     rebar3_lfe_clean:all(State),
     {ok, State}.
 
--spec format_error(any()) -> iolist().
 format_error(Reason) ->
     io_lib:format("~p", [Reason]).
 
