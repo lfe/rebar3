@@ -34,6 +34,8 @@ init(State) ->
   {ok, rebar_state:add_provider(State, Provider)}.
 
 do(State) ->
+    rebar_paths:set_paths([deps, plugins], State),
+    %%rebar3_lfe_utils:run_prehooks(State, ?PROVIDER),
     compile(State).
 
 format_error({missing_artifact, File}) ->

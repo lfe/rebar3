@@ -14,21 +14,22 @@
 %% =============================================================================
 
 init(State) ->
-  Description = "Get various versions",
-  Provider = providers:create([
-      {namespace,  ?NAMESPACE},
-      {name,       ?PROVIDER},
-      {module,     ?MODULE},
-      {bare,       true},
-      {deps,       ?DEPS},
-      {example,    "rebar3 lfe version"},
-      {opts,       []},
-      {short_desc, Description},
-      {desc,       info(Description)}
-  ]),
-  {ok, rebar_state:add_provider(State, Provider)}.
+    Description = "Get various versions",
+    Provider = providers:create([
+        {namespace,  ?NAMESPACE},
+        {name,       ?PROVIDER},
+        {module,     ?MODULE},
+        {bare,       true},
+        {deps,       ?DEPS},
+        {example,    "rebar3 lfe version"},
+        {opts,       []},
+        {short_desc, Description},
+        {desc,       info(Description)}
+    ]),
+    {ok, rebar_state:add_provider(State, Provider)}.
 
 do(State) ->
+    rebar_paths:set_paths([deps, plugins], State),
     Apps = rebar_state:project_apps(State),
     lfe_io:format("~p~n", [versions(Apps)]),
     {ok, State}.

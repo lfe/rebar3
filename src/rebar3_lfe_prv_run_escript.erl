@@ -16,19 +16,19 @@
 %% =============================================================================
 
 init(State) ->
-  Description = "Run an LFE escript",
-  Provider = providers:create([
-      {namespace,  ?NAMESPACE},
-      {name,       ?PROVIDER},
-      {module,     ?MODULE},
-      {bare,       true},
-      {deps,       ?DEPS},
-      {example,    "rebar3 lfe run-escript"},
-      {opts,       []},
-      {short_desc, Description},
-      {desc,       info(Description)}
-  ]),
-  {ok, rebar_state:add_provider(State, Provider)}.
+    Description = "Run an LFE escript",
+    Provider = providers:create([
+        {namespace,  ?NAMESPACE},
+        {name,       ?PROVIDER},
+        {module,     ?MODULE},
+        {bare,       true},
+        {deps,       ?DEPS},
+        {example,    "rebar3 lfe run-escript"},
+        {opts,       []},
+        {short_desc, Description},
+        {desc,       info(Description)}
+    ]),
+    {ok, rebar_state:add_provider(State, Provider)}.
 
 do(State) ->
     run(State),
@@ -50,6 +50,7 @@ info(Description) ->
         [Description]).
 
 run(State) ->
+    rebar_paths:set_paths([deps, plugins], State),
     Escript = rebar_state:escript_path(State),
     Args = rebar_state:command_args(State),
     Cmd = string:join([Escript | Args], " "),
