@@ -8,17 +8,16 @@
          compile_dir/4,
          compile_file/3]).
 
--define(NAMESPACE, lfe).
+-include("rebar3_lfe.hrl").
+
 -define(PROVIDER, compile).
 -define(NAMESPACE_PROVIDER, {?NAMESPACE, ?PROVIDER}).
 -define(DEPS, [{default, lock}]).
--define(LFE, <<lfe>>).
 
 %% =============================================================================
 %% Plugin API
 %% =============================================================================
 
--spec init(rebar_state:t()) -> {ok, rebar_state:t()}.
 init(State) ->
   Description = "Compile LFE project",
   Provider = providers:create([
@@ -34,11 +33,9 @@ init(State) ->
   ]),
   {ok, rebar_state:add_provider(State, Provider)}.
 
--spec do(rebar_state:t()) -> {ok, rebar_state:t()} | {error, string()}.
 do(State) ->
     compile(State).
 
--spec format_error(any()) -> iolist().
 format_error({missing_artifact, File}) ->
     io_lib:format("Missing artifact ~s", [File]);
 format_error(Reason) ->

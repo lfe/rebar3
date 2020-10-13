@@ -4,7 +4,8 @@
          do/1,
          format_error/1]).
 
--define(NAMESPACE, lfe).
+-include("rebar3_lfe.hrl").
+
 -define(PROVIDER, release).
 -define(DEPS, [{?NAMESPACE, compile}]).
 
@@ -12,7 +13,6 @@
 %% Public API
 %% =============================================================================
 
--spec init(rebar_state:t()) -> {ok, rebar_state:t()}.
 init(State) ->
   Description = "Build a release for the LFE project",
   Provider = providers:create([
@@ -28,13 +28,11 @@ init(State) ->
   ]),
   {ok, rebar_state:add_provider(State, Provider)}.
 
--spec do(rebar_state:t()) -> {ok, rebar_state:t()} | {error, string()}.
 do(State) ->
   update_all_app_files(State),
   %% Generate release
   rebar_relx:do(rlx_prv_release, "release", ?PROVIDER, State).
 
--spec format_error(any()) -> iolist().
 format_error(Reason) ->
   io_lib:format("~p", [Reason]).
 

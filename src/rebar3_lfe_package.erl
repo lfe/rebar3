@@ -33,7 +33,8 @@
          clean_sources/1,
          clean_source/1]).
 
--define(FILE_REGEX, ".*[le][fr][el]$").
+-include("rebar3_lfe.hrl").
+
 -define(RECURSE, true).
 -define(DONT_RECURSE, false).
 -define(DEFAULT_FILE_LIST, []).

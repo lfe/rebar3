@@ -11,12 +11,7 @@
          erl_rebar_files/0,
          all/1]).
 
--define(LIB, "lib").
--define(PLUGINS, "plugins").
--define(PLUGIN, "rebar3_lfe").
--define(ERL_REBAR_FILES, ["erl_crash.dump",
-                          "rebar3.crashdump",
-                          "rebar.lock"]).
+-include("rebar3_lfe.hrl").
 
 %% For whatever reason, rebar_file_utils:delete_each doesn't seem to work?
 %% Maybe I just used it wrong; anyway, reverted use of that to the custom
