@@ -29,6 +29,7 @@ init(State) ->
   {ok, rebar_state:add_provider(State, Provider)}.
 
 do(State) ->
+    rebar_paths:set_paths([deps, plugins], State),
     rebar3_lfe_clean:apps_build(State),
     {ok, State}.
 

@@ -31,6 +31,8 @@ init(State) ->
   {ok, rebar_state:add_provider(State, Provider)}.
 
 do(State) ->
+    rebar_paths:set_paths([deps, plugins], State),
+    %%rebar3_lfe_utils:run_prehooks(State, ?PROVIDER),
     %% We can re-enable this once the following bug is fixed:
     %% * https://github.com/lfe-rebar3/rebar3_lfe/issues/21
     %% rebar_prv_escriptize:do(State).

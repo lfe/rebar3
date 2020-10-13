@@ -15,7 +15,9 @@
          update_app_file/1,
          app_name/1,
          app_name_str/1,
-         set_diff/2]).
+         set_diff/2,
+         debug_get_value/4,
+         run_prehooks/2]).
 
 config(OutDir, Config) ->
     Key = lfe_opts,
@@ -156,3 +158,16 @@ app_name_str(AppInfo) ->
 set_diff(BigList, SmallList) ->
     sets:to_list(sets:subtract(sets:from_list(BigList),
     sets:from_list(SmallList))).
+
+debug_get_value(Key, List, Default, Description) ->
+    case proplists:get_value(Key, List, Default) of
+        Default -> Default;
+        Value ->
+            rebar_api:debug(Description, []),
+            Value
+    end.
+
+run_prehooks(State, Provider) ->
+    Providers = rebar_state:providers(State),
+    Cwd = rebar_dir:get_cwd(),
+    rebar_hooks:run_project_and_app_hooks(Cwd, pre, Provider, Providers, State).

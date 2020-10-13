@@ -17,19 +17,19 @@
 %% =============================================================================
 
 init(State) ->
-  Description = "Run an LFE release",
-  Provider = providers:create([
-      {namespace,  ?NAMESPACE},
-      {name,       ?PROVIDER},
-      {module,     ?MODULE},
-      {bare,       true},
-      {deps,       ?DEPS},
-      {example,    "rebar3 lfe run-release COMMAND"},
-      {opts,       []},
-      {short_desc, Description},
-      {desc,       info(Description)}
-  ]),
-  {ok, rebar_state:add_provider(State, Provider)}.
+    Description = "Run an LFE release",
+    Provider = providers:create([
+        {namespace,  ?NAMESPACE},
+        {name,       ?PROVIDER},
+        {module,     ?MODULE},
+        {bare,       true},
+        {deps,       ?DEPS},
+        {example,    "rebar3 lfe run-release COMMAND"},
+        {opts,       []},
+        {short_desc, Description},
+        {desc,       info(Description)}
+    ]),
+    {ok, rebar_state:add_provider(State, Provider)}.
 
 do(State) ->
     run(State),
@@ -59,6 +59,7 @@ info(Description) ->
 %% =============================================================================
 
 run(State) ->
+    rebar_paths:set_paths([deps, plugins], State),
     Path = rebar_state:dir(State),
     rebar_api:debug("Path: ~p~n", [Path]),
     Args = rebar_state:command_args(State),

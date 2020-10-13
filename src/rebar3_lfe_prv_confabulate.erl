@@ -57,6 +57,7 @@ info(Description) ->
 confabulate(State) ->
     rebar_api:debug("\tProcessing LFE file(s) ...", []),
     rebar_api:debug("\t\tPlain args: ~p", [init:get_plain_arguments()]),
+    rebar_paths:set_paths([deps, plugins], State),
     %% Get files to convert
     Path = find_path_option(State),
     rebar_api:debug("\tGot path: ~p", [Path]),
@@ -69,16 +70,8 @@ confabulate(State) ->
 find_path_option(State) ->
     {Opts, _} = rebar_state:command_parsed_args(State),
     rebar_api:debug("\tGot opts: ~p", [Opts]),
-    debug_get_value(path, Opts, no_value,
-                    "Found path from command line option.").
-
-debug_get_value(Key, List, Default, Description) ->
-    case proplists:get_value(Key, List, Default) of
-        Default -> Default;
-        Value ->
-            rebar_api:debug(Description, []),
-            Value
-    end.
+    rebar3_lfe_utils:debug_get_value(path, Opts, no_value,
+        "Found path from command line option.").
 
 append_datum(Filename, RawDatum) ->
     {Datum, _Line} = RawDatum,
