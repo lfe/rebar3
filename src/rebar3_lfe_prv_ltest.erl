@@ -89,8 +89,18 @@ info(Description) ->
 test(State) ->
     rebar_api:debug("Running the test command ...", []),
     rebar_paths:set_paths([deps, plugins], State),
-    LtestOpts = find_ltest_options(State),
+    LtestRebarOpts = find_ltest_rebar_options(State),
+    LtestOpts = ltest_options(LtestRebarOpts),
+    rebar_api:debug("\tltest/eunit opts: ~p", [LtestOpts]),
     rebar_api:debug("\tStarting test run ...", []),
+    %% XXX let's create a new API in ltest for these, since we need to change
+    %%     things and don't want to break older consumers of ltest.
+    %%     How about:
+    %%     * ltest:all/1
+    %%     * ltest:unit/1
+    %%     * ltest:system/1
+    %%     * ltest:integration/1
+    %%     where the argument is just the options for runnint the tests ...?
     case maps:get('test-type', LtestOpts) of
         all -> 'ltest-runner':all();
         unit -> 'ltest-runner':unit();
@@ -102,18 +112,25 @@ test(State) ->
     rebar_api:debug("\tFinished test run.", []),
     {ok, State}.
 
-%% {ok, State} = rebar3_lfe_prv_ltest:init(rebar_state:new()).
-%% rebar3_lfe_prv_ltest:do(State).
-%% rebar_state:command_parsed_args(rebar_state:new()).
-%% rebar_prv_eunit:eunit_opts(rebar_state:new()).
-
-find_ltest_options(State) ->
+find_ltest_rebar_options(State) ->
     {Opts, _} = rebar_state:command_parsed_args(State),
-    MapOpts1 = maps:from_list(Opts),
-    TestType = maps:get('test-type', MapOpts1, ?DEFAULT_TEST_TYPE),
-    MapOpts2 = case maps:is_key('test-type', MapOpts1) of
-        true -> maps:update('test-type', TestType, MapOpts1);
-        _ -> maps:put('test-type', TestType, MapOpts1)
+    Defaults = #{
+        color => true,
+        'test-listener' => 'ltest-listener',
+        'test-type' => ?DEFAULT_TEST_TYPE
+    },
+    MapOpts = maps:merge(Defaults, maps:from_list(Opts)),
+    rebar_api:debug("\tGot opts: ~p", [MapOpts]),
+    MapOpts.
+
+ltest_options(RebarOpts) ->
+    Listener = maps:get('test-listener', RebarOpts),
+    Tty = case Listener of
+        default -> [];
+        _ -> [no_tty]
     end,
-    rebar_api:debug("\tGot opts: ~p", [MapOpts2]),
-    MapOpts2.
+    Report = case maps:get(color, RebarOpts) of
+        true -> {report, {Listener, [colored]}};
+        _ -> {report, {Listener}}
+    end,
+    lists:append(Tty, [Report]).
