@@ -89,48 +89,17 @@ info(Description) ->
 test(State) ->
     rebar_api:debug("Running the test command ...", []),
     rebar_paths:set_paths([deps, plugins], State),
-    LtestRebarOpts = find_ltest_rebar_options(State),
-    LtestOpts = ltest_options(LtestRebarOpts),
-    rebar_api:debug("\tltest/eunit opts: ~p", [LtestOpts]),
+    LtestOpts = find_ltest_options(State),
     rebar_api:debug("\tStarting test run ...", []),
-    %% XXX let's create a new API in ltest for these, since we need to change
-    %%     things and don't want to break older consumers of ltest.
-    %%     How about:
-    %%     * ltest:all/1
-    %%     * ltest:unit/1
-    %%     * ltest:system/1
-    %%     * ltest:integration/1
-    %%     where the argument is just the options for runnint the tests ...?
-    case maps:get('test-type', LtestOpts) of
-        all -> 'ltest-runner':all();
-        unit -> 'ltest-runner':unit();
-        system -> 'ltest-runner':system();
-        integration -> 'test-runner':integration();
-        UnknownType ->
-            rebar_api:error("Unknown test-type value: ~p", [UnknownType])
-    end,
+    ltest:run(LtestOpts),
     rebar_api:debug("\tFinished test run.", []),
     {ok, State}.
 
-find_ltest_rebar_options(State) ->
+find_ltest_options(State) ->
     {Opts, _} = rebar_state:command_parsed_args(State),
-    Defaults = #{
-        color => true,
-        'test-listener' => 'ltest-listener',
-        'test-type' => ?DEFAULT_TEST_TYPE
-    },
-    MapOpts = maps:merge(Defaults, maps:from_list(Opts)),
+    rebar_api:debug("\tGot CLI opts: ~p", [Opts]),
+    DefaultOpts = ltest:'default-opts'(),
+    rebar_api:debug("\tGot default opts: ~p", [DefaultOpts]),
+    MapOpts = maps:merge(DefaultOpts, maps:from_list(Opts)),
     rebar_api:debug("\tGot opts: ~p", [MapOpts]),
     MapOpts.
-
-ltest_options(RebarOpts) ->
-    Listener = maps:get('test-listener', RebarOpts),
-    Tty = case Listener of
-        default -> [];
-        _ -> [no_tty]
-    end,
-    Report = case maps:get(color, RebarOpts) of
-        true -> {report, {Listener, [colored]}};
-        _ -> {report, {Listener}}
-    end,
-    lists:append(Tty, [Report]).
