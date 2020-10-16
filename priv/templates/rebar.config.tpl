@@ -5,7 +5,7 @@
 ]}.
 
 {plugins, [
-  {rebar3_lfe, {git, "https://github.com/lfe-rebar3/rebar3_lfe", {branch, "master"}}}
+  {rebar3_lfe, {git, "https://github.com/lfe-rebar3/rebar3_lfe", {branch, "release/0.3.x"}}}
 ]}.
 
 {provider_hooks, [
