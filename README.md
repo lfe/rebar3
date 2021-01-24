@@ -34,6 +34,11 @@ project, with many updates and using all the latest approaches developed in
   * `rebar3 new lfe-escript`
   * `rebar3 new lfe-app`
   * `rebar3 new lfe-release`
+* Create new LFE behaviour files:
+  * `rebar3 new lfe-sup name=my-sup`
+  * `rebar3 new lfe-server name=my-server`
+  * `rebar3 new lfe-statem-handle-event name=my-statem`
+  * `rebar3 new lfe-statem-state-functions name=my-statem`
 * Start up an LFE REPL:
   * `rebar3 lfe repl`
 * Compile LFE source code:

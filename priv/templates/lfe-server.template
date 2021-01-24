@@ -1,0 +1,6 @@
+{description, "Add an LFE gen_server behaviour"}.
+{variables, [
+    {name, "my-lfe-server", "Name of the LFE gen_server"}
+]}.
+
+{template, "server.lfe.tpl", "./src/{{name}}.lfe"}.
