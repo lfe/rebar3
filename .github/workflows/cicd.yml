@@ -36,36 +36,36 @@ jobs:
     - name: Compile
       run: ./rebar3 compile
     - name: Get Supported 'new' Templates
-      run: cd priv/testing && ./rebar3 new
+      run: cd priv/testing && ../../rebar3 new
     - name: Create LFE Library Project
-      run: cd priv/testing && ./rebar3 new lfe-lib example-lib
+      run: cd priv/testing && ../../rebar3 new lfe-lib example-lib
     - name: Compile LFE Library Project
-      run: cd priv/testing/example-lib && DEBUG=1 ./rebar3 lfe compile
+      run: cd priv/testing/example-lib && DEBUG=1 ../../../rebar3 lfe compile
     - name: Create LFE Main Project
-      run: cd priv/testing && rebar3 new lfe-main example-main
+      run: cd priv/testing && ../../rebar3 new lfe-main example-main
     - name: Run LFE Main Project's Script
-      run: cd priv/testing/example-main && ./rebar3 lfe run -- 42
+      run: cd priv/testing/example-main && ../../../rebar3 lfe run -- 42
     - name: Create LFE/OTP Application Project
-      run: cd priv/testing && ./rebar3 new lfe-app example-app
+      run: cd priv/testing && ../../rebar3 new lfe-app example-app
     - name: Compile LFE Application Project
-      run: cd priv/testing/example-app && DEBUG=1 ./rebar3 lfe compile
+      run: cd priv/testing/example-app && DEBUG=1 ../../../rebar3 lfe compile
     - name: Create LFE escript Project
-      run: cd priv/testing && ./rebar3 new lfe-escript example-escript
+      run: cd priv/testing && ../../rebar3 new lfe-escript example-escript
     - name: Escriptize LFE escript Project
-      run: cd priv/testing/example-escript && ./rebar3 lfe escriptize
+      run: cd priv/testing/example-escript && ../../../rebar3 lfe escriptize
     - name: Run LFE escript Project
-      run: cd priv/testing/example-escript && ./rebar3 lfe run-escript 1 2 5
+      run: cd priv/testing/example-escript && ../../../rebar3 lfe run-escript 1 2 5
     - name: Create LFE/OTP Release Project
-      run: cd priv/testing && ./rebar3 new lfe-release example-release
+      run: cd priv/testing && ../../rebar3 new lfe-release example-release
     - name: Build LFE/OTP Release
-      run: cd priv/testing/example-release && ./rebar3 release
+      run: cd priv/testing/example-release && ../../../rebar3 release
     - name: Start LFE/OTP Release 
-      run: cd priv/testing/example-release && ./rebar3 lfe run-release start && sleep 5
+      run: cd priv/testing/example-release && ../../../rebar3 lfe run-release start && sleep 5
     - name: Ping LFE/OTP Release 
-      run: cd priv/testing/example-release && ./rebar3 lfe run-release ping
+      run: cd priv/testing/example-release && ../../../rebar3 lfe run-release ping
     - name: Versions Command Output 
-      run: cd priv/testing/example-release && ./rebar3 lfe versions
+      run: cd priv/testing/example-release && ../../../rebar3 lfe versions
     - name: Clean Command
-      run: cd priv/testing/example-lib && ./rebar3 lfe clean
+      run: cd priv/testing/example-lib && ../../../rebar3 lfe clean
     - name: Clean-build Command
-      run: cd priv/testing/example-app && ./rebar3 lfe clean-build
+      run: cd priv/testing/example-app && ../../../rebar3 lfe clean-build
