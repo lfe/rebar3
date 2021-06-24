@@ -37,5 +37,5 @@
       {"Hex", "https://hex.pm/packages/rebar3_lfe"},
       {"LFE", "https://github.com/rvirding/lfe"}
   ]},
-  {exlucde_files, ["priv/testing/*"]}
+  {exclude_files, ["priv/testing/*"]}
  ]}.
