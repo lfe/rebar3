@@ -103,7 +103,7 @@ Detailed usage is provided in the [project documentation](https://lfe-rebar3.git
 [lfe]: https://github.com/rvirding/lfe
 [lfe badge]: https://img.shields.io/badge/lfe-2.0-blue.svg
 [erlang badge]: https://img.shields.io/badge/erlang-19%E2%88%9224-blue.svg
-[versions]: https://github.com/lfe-rebar3/rebar3_lfe/blob/master/.travis.yml
+[versions]: https://github.com/lfe-rebar3/rebar3_lfe/blob/master/.github/workflows/cicd.yml
 [github tag]: https://github.com/lfe-rebar3/rebar3_lfe/tags
 [github tag badge]: https://img.shields.io/github/tag/lfe-rebar3/rebar3_lfe.svg
 [github downloads]: https://img.shields.io/github/downloads/atom/atom/total.svg
