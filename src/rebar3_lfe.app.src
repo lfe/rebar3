@@ -1,6 +1,6 @@
 {application, 'rebar3_lfe',
  [{description, "A comprehensive LFE rebar3 plugin for all your LFE tooling needs"},
-  {vsn, "0.3.0-rc1"},
+  {vsn, "0.3.0"},
   {registered, []},
   {applications, [kernel, stdlib, lfe]},
   {env,[]},
@@ -15,7 +15,9 @@
              rebar3_lfe_prv_clean_build,
              rebar3_lfe_prv_clean_cache,
              rebar3_lfe_prv_compile,
+             rebar3_lfe_prv_confabulate,
              rebar3_lfe_prv_escriptize,
+             rebar3_lfe_prv_ltest,
              rebar3_lfe_prv_release,
              rebar3_lfe_prv_repl,
              rebar3_lfe_prv_run,
@@ -30,10 +32,10 @@
   {pkg_name, rebar3_lfe},
   {licenses, ["Apache 2.0"]},
   {maintainers, ["Duncan McGreggor"]},
-  { links,
-    [ {"GitHub", "https://github.com/lfe-rebar3/rebar3_lfe"},
+  {links, [
+      {"GitHub", "https://github.com/lfe-rebar3/rebar3_lfe"},
       {"Hex", "https://hex.pm/packages/rebar3_lfe"},
       {"LFE", "https://github.com/rvirding/lfe"}
-    ]
-  }
+  ]},
+  {exlucde_files, ["priv/testing/*"]}
  ]}.

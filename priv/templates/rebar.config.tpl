@@ -1,11 +1,11 @@
 {erl_opts, [debug_info]}.
 
 {deps, [
-  {lfe, {git, "https://github.com/rvirding/lfe", {branch, "develop"}}}
+  {lfe, "2.0.0"}
 ]}.
 
 {plugins, [
-  {rebar3_lfe, {git, "https://github.com/lfe-rebar3/rebar3_lfe", {branch, "master"}}}
+  {rebar3_lfe, "0.3.0"}
 ]}.
 
 {provider_hooks, [
@@ -15,7 +15,7 @@
 {profiles, [
   {test, [
     {deps, [
-      {ltest, {git, "https://github.com/lfex/ltest", {branch, "master"}}}
+      {ltest, "0.13.0"}
     ]},
     {eunit_opts, [verbose]},
     {erl_opts, [{src_dirs, ["src", "test"]}]}
