@@ -1,28 +1,67 @@
 {erl_opts, [debug_info]}.
 
 {deps, [
-  {lfe, {git, "http://github.com/rvirding/lfe", {branch, "develop"}}}
+    {lfe, "2.0.0"}
 ]}.
 
 {plugins, [
-  {rebar3_lfe, {git, "http://github.com/lfe-rebar3/rebar3_lfe", {branch, "master"}}}
+    {rebar3_lfe, "0.3.0"}
 ]}.
 
-{relx, [{release, {'{{name}}', "0.1.0"},
-         ['{{name}}',
-          lfe,
-          sasl]},
+{provider_hooks, [
+    {pre, [{compile, {lfe, compile}}]}
+]}.
 
-        {sys_config, "./config/sys.config"},
-        {vm_args, "./config/vm.args"},
+{xref_checks,[
+    undefined_function_calls,undefined_functions,locals_not_used,
+    deprecated_function_calls,deprecated_functions
+]}.
 
-        {dev_mode, true},
-        {include_erts, false},
+{relx, [
+    {release, {'{{name}}', "0.1.0"}, [
+        '{{name}}',
+        lfe,
+        sasl
+    ]},
 
-        {extended_start_script, true}]
-}.
+    {sys_config, "./config/sys.config"},
+    {vm_args, "./config/vm.args"},
 
-{profiles, [{prod, [{relx, [{dev_mode, false},
-                            {include_erts, true}]}]
-            }]
-}.
+    {dev_mode, true},
+    {include_erts, false},
+
+    {extended_start_script, true}
+]}.
+
+{profiles, [
+    {prod, [
+        {relx, [
+            {dev_mode, false},
+            {include_erts, true}
+       ]}
+    ]},
+    {test, [
+        {deps, [
+            {proper, "1.3.0"}
+        ]},
+        {plugins, [
+            {rebar3_proper, "0.12.0"}
+        ]},
+        {eunit_opts, [verbose]},
+        {erl_opts, [{src_dirs, ["src", "test"]}]}
+    ]}
+]}.
+
+{alias, [
+    {coverage, [
+        {proper, "-c"},
+        {cover, "-v --min_coverage=0"}
+    ]},
+    {check, [
+        compile,
+        xref,
+        %%dialyzer,
+        eunit,
+        coverage
+    ]}
+]}.
