@@ -38,6 +38,12 @@ project, with many updates and using all the latest approaches developed in
   * `rebar3 lfe repl`
 * Compile LFE source code:
   * `rebar3 lfe compile`
+* Run tests using the LFE testing library (wrapper for eunit)
+  * `rebar3 lfe ltest`
+  * `rebar3 lfe ltest -tunit`
+  * `rebar3 lfe ltest -tsystem`
+  * `rebar3 lfe ltest -tintegration`
+  * `rebar3 lfe ltest -tall`
 * Run an LFE project's `main/1` function as an lfescript (run `rebar3 new lfe-main` to see an example):
   * `rebar3 lfe run`
   * `rebar3 lfe run -- 1 2 5`
@@ -50,6 +56,8 @@ project, with many updates and using all the latest approaches developed in
   * `rebar3 release`
 * Run an LFE/OTP release project's release script (`COMMAND` can be `start` , `stop` , `status`, `ping`, etc.):
   * `rebar3 lfe run-release COMMAND`
+* Convert LFE data files to Erlang data file
+  * `rebar3 lfe confabulate lfe-data.lfe erl_data.erl`
 * Cleanup
   * `rebar3 lfe clean`
   * `rebar3 lfe clean-build`
@@ -66,8 +74,7 @@ Add the plugin to your ``rebar.config`` (stable):
 
 ```erlang
 {plugins, [
-  {rebar3_lfe,
-    {git, "https://github.com/lfe-rebar3/rebar3_lfe.git", {tag, "0.2.0"}}}
+    {rebar3_lfe, "0.3.0"}
 ]}.
 ```
 
@@ -75,8 +82,8 @@ Or, if you want to use the current development branch (unstable):
 
 ```erlang
 {plugins, [
-  {rebar3_lfe,
-    {git, "https://github.com/lfe-rebar3/rebar3_lfe.git", {branch, "release/0.3.x"}}}
+    {rebar3_lfe,
+        {git, "https://github.com/lfe-rebar3/rebar3_lfe.git", {branch, "release/0.4.x"}}}
 ]}.
 ```
 
@@ -84,7 +91,7 @@ Or, if you want to use the current development branch (unstable):
 
 Detailed usage is provided in the [project documentation](https://lfe-rebar3.github.io/).
 
-<!-- Named page links below: /-->
+[//]: ---Named-Links---
 
 [logo]: https://avatars2.githubusercontent.com/u/15242004?s=250
 [logo-large]: https://avatars2.githubusercontent.com/u/15242004
