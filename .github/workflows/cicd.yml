@@ -35,6 +35,16 @@ jobs:
       run: DEBUG=1 ./rebar3 --version
     - name: Compile
       run: ./rebar3 compile
+#    - name: Xref Checks
+#      run: ./rebar3 xref
+#    - name: Dialyzer
+#      run: ./rebar3 dialyzer
+    - name: Run Unit Tests
+      run: ./rebar3 as test eunit
+    - name: Run Proper Tests
+      run: ./rebar3 as test do proper -c
+    - name: Check Coverage
+      run: ./rebar3 as test cover -v --min_coverage=0
     - name: Get Supported 'new' Templates
       run: cd priv/testing && ../../rebar3 new
     - name: Create LFE Library Project
