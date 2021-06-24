@@ -1,5 +1,6 @@
 (defmodule {{name}}
-  (export (my-fun 0)))
+  (export
+   (my-fun 0)))
 
 ;;; -----------
 ;;; library API

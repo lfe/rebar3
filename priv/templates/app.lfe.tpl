@@ -1,9 +1,9 @@
 (defmodule {{name}}-app
   (behaviour application)
+  ;; app implementation
   (export
-    ;; app implementation
-    (start 2)
-    (stop 0)))
+   (start 2)
+   (stop 0)))
 
 ;;; --------------------------
 ;;; application implementation

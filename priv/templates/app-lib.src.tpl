@@ -1,14 +1,14 @@
-{application, '{{name}}',
- [{description, "{{description}}"},
-  {vsn, git},
-  {registered, []},
-  {applications,
-   [kernel,
-    stdlib
-   ]},
-  {env,[]},
-  {modules, []},
+{application, '{{name}}', [
+    {description, "{{description}}"},
+    {vsn, git},
+    {registered, []},
+    {applications, [
+        kernel,
+        stdlib
+    ]},
+    {env,[]},
+    {modules, []},
 
-  {licenses, ["Apache 2.0"]},
-  {links, []}
+    {licenses, ["Apache 2.0"]},
+    {links, []}
  ]}.

@@ -1,10 +1,11 @@
 (defmodule {{name}}-sup
-  (behaviour supervisor)
+  (beehaviour supervisor)
+  ;; supervisor implementation
   (export
-    ;; supervisor implementation
-    (start_link 0)
-    (stop 0)
-    ;; callback implementation
+   (start_link 0)
+   (stop 0))
+  ;; callback implementation
+  (export
     (init 1)))
 
 ;;; ----------------
