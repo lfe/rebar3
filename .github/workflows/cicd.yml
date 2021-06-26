@@ -15,10 +15,7 @@ jobs:
 
     strategy:
       matrix:
-        # XXX There's a bug in LFE 2.0 for Erlang 19 and 20
-        #     See: https://github.com/lfe/lfe/pull/429
-        #otp_version: [19, 20, 21, 22, 23, 24]
-        otp_version: [21, 22, 23, 24]
+        otp_version: [19, 20, 21, 22, 23, 24]
         # otp_version: [22]
         os: [ubuntu-latest]
     
