@@ -2,30 +2,34 @@
  [{description, "A comprehensive LFE rebar3 plugin for all your LFE tooling needs"},
   {vsn, "0.4.0-dev"},
   {registered, []},
-  {applications, [kernel, stdlib, lfe]},
+  {applications, [
+    kernel,
+    stdlib,
+    lfe]},
   {env,[]},
-  {modules, [%% support modules
-             rebar3_lfe_clean,
-             rebar3_lfe_package,
-             rebar3_lfe_utils,
-             rebar3_lfe_version,
-             %% command modules
-             rebar3_lfe_prv_clean,
-             rebar3_lfe_prv_clean_all,
-             rebar3_lfe_prv_clean_build,
-             rebar3_lfe_prv_clean_cache,
-             rebar3_lfe_prv_compile,
-             rebar3_lfe_prv_confabulate,
-             rebar3_lfe_prv_escriptize,
-             rebar3_lfe_prv_ltest,
-             rebar3_lfe_prv_release,
-             rebar3_lfe_prv_repl,
-             rebar3_lfe_prv_run,
-             rebar3_lfe_prv_run_escript,
-             rebar3_lfe_prv_run_release,
-             rebar3_lfe_prv_versions,
-             %% main module
-             rebar3_lfe
+  {modules, [
+    %% main module
+    rebar3_lfe,
+    %% support modules
+    rebar3_lfe_clean,
+    rebar3_lfe_package,
+    rebar3_lfe_utils,
+    rebar3_lfe_version,
+    %% command modules
+    rebar3_lfe_prv_clean,
+    rebar3_lfe_prv_clean_all,
+    rebar3_lfe_prv_clean_build,
+    rebar3_lfe_prv_clean_cache,
+    rebar3_lfe_prv_compile,
+    rebar3_lfe_prv_confabulate,
+    rebar3_lfe_prv_escriptize,
+    rebar3_lfe_prv_ltest,
+    rebar3_lfe_prv_release,
+    rebar3_lfe_prv_repl,
+    rebar3_lfe_prv_run,
+    rebar3_lfe_prv_run_escript,
+    rebar3_lfe_prv_run_release,
+    rebar3_lfe_prv_versions
   ]},
 
   %% Hex.pm metadata
@@ -35,7 +39,7 @@
   {links, [
       {"GitHub", "https://github.com/lfe-rebar3/rebar3_lfe"},
       {"Hex", "https://hex.pm/packages/rebar3_lfe"},
-      {"LFE", "https://github.com/rvirding/lfe"}
+      {"LFE", "https://github.com/lfe/lfe"}
   ]},
   {exclude_files, ["priv/testing/*"]}
  ]}.
