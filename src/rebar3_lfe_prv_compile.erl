@@ -4,7 +4,7 @@
          do/1,
          format_error/1]).
 -export([compile/1,
-         compile_app/1,
+         compile_app/1, compile_app/2,
          compile_dir/4,
          compile_file/3]).
 
@@ -51,12 +51,15 @@ compile(State) ->
     rebar_api:debug("Compiling LFE apps ...", []),
     rebar_paths:set_paths([deps], State), 
     Apps = rebar3_lfe_utils:get_apps(State),
-    [compile_app(AppInfo) || AppInfo <- Apps],
+    [compile_app(AppInfo, State) || AppInfo <- Apps],
     {ok, State}.
 
 compile_app(AppInfo) ->
+    compile_app(AppInfo, []).
+
+compile_app(AppInfo, State) ->
     rebar_api:info("Compiling ~ts", [rebar_app_info:name(AppInfo)]),
-    rebar3_lfe_utils:copy_app_src(AppInfo),
+    rebar3_lfe_utils:copy_app_src(AppInfo, State),
     Opts = rebar_app_info:opts(AppInfo),
     AppDir = rebar_app_info:dir(AppInfo),
     OtherSrcDirs = rebar_dir:src_dirs(Opts),

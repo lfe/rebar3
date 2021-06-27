@@ -1,7 +1,7 @@
 -module(rebar3_lfe_utils).
 
 -export([config/2,
-         copy_app_src/1,
+         copy_app_src/1, copy_app_src/2,
          out_dir/0, out_dir/1,
          include_dir/0, include_dir/1,
          ensure_dir/1,
@@ -29,15 +29,30 @@ config(OutDir, Config) ->
     end.
 
 copy_app_src(AppInfo) ->
+    copy_app_src(AppInfo, []).
+
+copy_app_src(AppInfo, State) ->
     rebar_api:debug("\t\tEntered copy_app_src/1 ...", []),
     AppOutDir = rebar_app_info:out_dir(AppInfo),
     AppSrcFile = rebar_app_info:app_file_src(AppInfo),
-    AppFile = rebar_app_utils:app_src_to_app(AppOutDir, AppSrcFile),
+    AppFile = app_file(AppOutDir, AppSrcFile, State),
     rebar_api:debug("\t\tAppOutDir: ~p", [AppOutDir]),
     rebar_api:debug("\t\tAppSrcFile: ~p", [AppSrcFile]),
     rebar_api:debug("\t\tAppFile: ~p", [AppFile]),
     rebar_api:debug("\t\tCopying ~p to ~p ...", [AppSrcFile, AppFile]),
     copy_file(AppSrcFile, AppFile).
+
+app_file(OutDir, SrcFile, State) ->
+    %% Rebar screwed us over, here: they changed the arity of
+    %% rebar_app_utils:app_src_to_app between their 3.15 and 3.16 release,
+    %% so we have to do crazy here:
+    UtilsExports = proplists:get_value(exports, rebar_app_utils:module_info()),
+    App2AppArity = proplists:get_value(app_src_to_app, UtilsExports),
+    case App2AppArity of
+        2 -> rebar_app_utils:app_src_to_app(OutDir, SrcFile);
+        3 -> rebar_app_utils:app_src_to_app(OutDir, SrcFile, State);
+        A -> {error, io_lib:format("Unexpected arity: rebar_app_utils:app_src_to_app/~p", [A])}
+    end.
 
 copy_file(Src, Dst) ->
     case file:copy(Src, Dst) of
