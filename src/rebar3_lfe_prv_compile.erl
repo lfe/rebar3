@@ -62,8 +62,11 @@ compile_app(AppInfo, State) ->
     rebar3_lfe_utils:copy_app_src(AppInfo, State),
     Opts = rebar_app_info:opts(AppInfo),
     AppDir = rebar_app_info:dir(AppInfo),
-    OtherSrcDirs = rebar_dir:src_dirs(Opts),
-    SourceDirs = rebar3_lfe_utils:get_src_dirs(AppDir, ["src"] ++ OtherSrcDirs),
+    OtherSrcDirs1 = rebar_dir:src_dirs(Opts),
+    OtherSrcDirs = rebar3_lfe_utils:get_src_dirs(AppDir, OtherSrcDirs1),
+
+    SourceDirs1 = rebar3_lfe_utils:get_src_dirs(AppDir, ["src"]),
+    SourceDirs = SourceDirs1 ++ OtherSrcDirs,
     OutDir = rebar3_lfe_utils:relative_out_dir(AppInfo),
     FirstFiles = rebar3_lfe_utils:get_first_files(Opts, AppDir),
     Config = rebar3_lfe_utils:config(OutDir, Opts),
