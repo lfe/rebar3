@@ -51,8 +51,15 @@ info(Description) ->
 
 run(State) ->
     rebar_paths:set_paths([deps, plugins], State),
-    Escript = rebar_state:escript_path(State),
+    Escript = escript(State),
     Args = rebar_state:command_args(State),
     Cmd = string:join([Escript | Args], " "),
     Result = os:cmd(Cmd),
     io:format("~s~n", [Result]).
+
+escript(Script) when is_binary(Script) ->
+    binary_to_list(Script);
+escript(Script) when is_list(Script) ->
+    Script;
+escript(State) ->
+    escript(rebar_state:escript_path(State)).
