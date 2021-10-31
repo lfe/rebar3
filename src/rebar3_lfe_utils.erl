@@ -88,7 +88,7 @@ first_value([Fun | Rest], State) ->
 %% @doc Updates the list of modules in the .app file for the specified
 %% directory.
 %%
-%% The .app file will be update to include all modules in its
+%% The .app file will be updated to include all modules in its
 %% `modules' entry. The modules listed are resolved by looking for all
 %% files with the extension `.beam' in `Dir'.
 -spec update_app_file(file:name()) -> ok.
