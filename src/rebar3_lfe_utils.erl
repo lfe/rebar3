@@ -3,7 +3,6 @@
 -export([app_name/1,
          app_name_str/1,
          config/2,
-         %%copy_app_src/1, copy_app_src/2,
          debug_get_value/4,
          ensure_dir/1,
          first_value/2,
