@@ -2,7 +2,7 @@
 
 [![Build Status][gh-actions-badge]][gh-actions]
 [![LFE Versions][lfe badge]][lfe]
-[![Erlang Versions][erlang badge]][versions]
+[![Erlang Versions][erlang badge]][version]
 [![Tags][github tags badge]][github tags]
 
 [![Project Logo][logo]][logo-large]
