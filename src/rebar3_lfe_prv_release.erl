@@ -32,7 +32,7 @@ do(State) ->
     rebar_paths:set_paths([deps, plugins], State),
     update_all_app_files(State),
     %% Generate release
-    rebar_relx:do(rlx_prv_release, "release", ?PROVIDER, State).
+    do_build(?PROVIDER, State).
 
 format_error(Reason) ->
     io_lib:format("~p", [Reason]).
@@ -40,6 +40,12 @@ format_error(Reason) ->
 %% =============================================================================
 %% Internal functions
 %% =============================================================================
+
+do_build(Provider, State) ->
+    try rebar_relx:do(Provider, State)
+    catch _:undef ->
+      rebar_relx:do(rlx_prv_release, atom_to_list(Provider), Provider, State)
+    end.
 
 info(Description) ->
     io_lib:format(
