@@ -1,0 +1,6 @@
+{description, "Add an LFE supervisor behaviour"}.
+{variables, [
+    {name, "my-lfe-sup", "Name of the LFE supervisor"}
+]}.
+
+{template, "sup.lfe.tpl", "./src/{{name}}.lfe"}.

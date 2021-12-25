@@ -1,0 +1,6 @@
+{description, "Single LFE gen_statem (state functions) template"}.
+{variables, [
+    {name, "my-lfe-statem", "Name of the LFE gen_statem"}
+]}.
+
+{template, "statem-state-functions.lfe.tpl", "./src/{{name}}.lfe"}.
