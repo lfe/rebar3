@@ -104,9 +104,8 @@ Detailed usage is provided in the [project documentation](https://lfe-rebar3.git
 [gitlab]: https://gitlab.com/lfe-rebar3/rebar3_lfe
 [gh-actions-badge]: https://github.com/lfe-rebar3/rebar3_lfe/workflows/ci%2Fcd/badge.svg
 [gh-actions]: https://github.com/lfe-rebar3/rebar3_lfe/actions
-[lfe]: https://github.com/rvirding/lfe
-[lfe]: https://github.com/rvirding/lfe
-[lfe badge]: https://img.shields.io/badge/lfe-2.0-blue.svg
+[lfe]: https://github.com/lfe/lfe
+[lfe badge]: https://img.shields.io/badge/lfe-2.1.0-blue.svg
 [erlang badge]: https://img.shields.io/badge/erlang-19%E2%88%9224-blue.svg
 [versions]: https://github.com/lfe-rebar3/rebar3_lfe/blob/master/.github/workflows/cicd.yml
 [github tag]: https://github.com/lfe-rebar3/rebar3_lfe/tags
