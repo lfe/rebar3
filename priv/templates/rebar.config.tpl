@@ -1,12 +1,12 @@
 {erl_opts, [debug_info]}.
 
 {deps, [
-    {lfe, "2.0.1"},
-    {ltest, "0.13.1"}
+    {lfe, "2.1.0"},
+    {ltest, "0.13.2"}
 ]}.
 
 {plugins, [
-    {rebar3_lfe, "0.4.0"}
+    {rebar3_lfe, "0.4.1"}
 ]}.
 
 {provider_hooks, [
