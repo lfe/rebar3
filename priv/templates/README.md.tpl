@@ -56,11 +56,11 @@ Copyright © {{copyright_year}}, {{author_name}} <{{author_email}}>.
 [logo-large]: https://avatars1.githubusercontent.com/u/3434967
 [github]: https://github.com/ORG/{{name}}
 [gitlab]: https://gitlab.com/ORG/{{name}}
--[gh-actions-badge]: https://github.com/ORG/{{name}}/workflows/Go/badge.svg
-[gh-actions]: https://github.com/ORG/{{name}}/actions
+[gh-actions-badge]: https://github.com/ORG/{{name}}/workflows/build/badge.svg
+[gh-actions]: https://github.com/ORG/{{name}}/actions?query=workflow%3Abuild+
 [lfe]: https://github.com/lfe/lfe
-[lfe badge]: https://img.shields.io/badge/lfe-2.0-blue.svg
-[erlang badge]: https://img.shields.io/badge/erlang-19%20to%2024-blue.svg
+[lfe badge]: https://img.shields.io/badge/lfe-2.1-blue.svg
+[erlang badge]: https://img.shields.io/badge/erlang-19%20to%2025-blue.svg
 [version]: https://github.com/ORG/{{name}}/blob/master/.github/workflows/cicd.yml
 [github tags]: https://github.com/ORG/{{name}}/tags
 [github tags badge]: https://img.shields.io/github/tag/ORG/{{name}}.svg
