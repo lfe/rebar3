@@ -1,5 +1,5 @@
 (defmodule {{name}}-sup
-  (beehaviour supervisor)
+  (behaviour supervisor)
   ;; supervisor implementation
   (export
    (start_link 0)
