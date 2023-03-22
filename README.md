@@ -92,6 +92,40 @@ Or, if you want to use the current development branch (unstable):
 ]}.
 ```
 
+### Upgrading `rebar3_lfe` Globally
+
+You may need to upgrade `rebar3_lfe` at some point, as older versions will not work with newer versions of `rebar3`.
+
+In order to successfully upgrade the plugin globally, first edit `~/.config/rebar3/rebar.config` (replace `release/0.4.x` with the desired branch):
+
+```erlang
+{plugins, [
+  {rebar3_lfe, {git, "https://github.com/lfe-rebar3/rebar3_lfe.git", {branch, "release/0.4.x"}}}
+]}.
+```
+
+Then clear the rebar3 plugin cache:
+
+```
+$ rm -rf ~/.cache/rebar3/plugins/*lfe*
+```
+
+Finally, run:
+
+```
+$ rebar3 plugins upgrade rebar3_lfe
+```
+
+You can check whether the version upgrade was successful with:
+
+```
+$ rebar3 lfe versions
+(#(apps ())
+ #(languages
+   (#(lfe "2.1.1") #(erlang "25") #(emulator "13.0") #(driver_version "3.3")))
+ #(tooling (#(rebar "3.18.0") #(rebar3_lfe "0.4.3"))))
+ ```
+
 ## Documentation [&#x219F;](#contents)
 
 Detailed usage is provided in the [project documentation](https://lfe-rebar3.github.io/).
