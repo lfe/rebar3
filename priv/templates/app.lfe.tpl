@@ -3,7 +3,7 @@
   ;; app implementation
   (export
    (start 2)
-   (stop 0)))
+   (stop 1)))
 
 ;;; --------------------------
 ;;; application implementation
@@ -14,6 +14,6 @@
   (logger:info "Starting {{name}} application ...")
   ({{name}}-sup:start_link))
 
-(defun stop ()
+(defun stop (_state)
   ({{name}}-sup:stop)
   'ok)
