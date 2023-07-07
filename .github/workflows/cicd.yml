@@ -15,7 +15,7 @@ jobs:
 
     strategy:
       matrix:
-        otp_version: [19, 20, 21, 22, 23, 24, 25, 26]
+        otp_version: [19, 20, 21, 22, 23]
         # otp_version: [22]
         os: ['ubuntu-latest']
 
@@ -81,8 +81,8 @@ jobs:
 
     strategy:
       matrix:
-        otp_version: [24]
-        rebar3-version: ['3.16.1']
+        otp_version: [24, 25, 26]
+        rebar3-version: ['3.22']
         os: [ubuntu-latest]
 
     container:
