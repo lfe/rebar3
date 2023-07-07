@@ -82,7 +82,7 @@ jobs:
     strategy:
       matrix:
         otp_version: [24, 25, 26]
-        rebar3-version: ['3.22']
+        rebar3-version: ['3.22.0']
         os: [ubuntu-latest]
 
     container:
