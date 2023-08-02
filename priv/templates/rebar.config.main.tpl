@@ -1,12 +1,12 @@
 {erl_opts, [debug_info]}.
 
 {deps, [
-    {lfe, "2.1.1"},
-    {ltest, "0.13.4"}
+    {lfe, "2.1.2"},
+    {ltest, "0.13.5"}
 ]}.
 
 {plugins, [
-    {rebar3_lfe, "0.4.4"}
+    {rebar3_lfe, "0.4.5"}
 ]}.
 
 {lfe, [
@@ -25,10 +25,10 @@
 {profiles, [
     {test, [
         {deps, [
-            {proper, "1.3.0"}
+            {proper, "1.4.0"}
         ]},
         {plugins, [
-            {rebar3_proper, "0.12.0"}
+            {rebar3_proper, "0.12.1"}
         ]},
         {eunit_opts, [verbose]},
         {erl_opts, [{src_dirs, ["src", "test"]}]}
