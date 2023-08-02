@@ -37,7 +37,7 @@
   {licenses, ["Apache 2.0"]},
   {maintainers, ["Duncan McGreggor"]},
   {links, [
-      {"GitHub", "https://github.com/lfe-rebar3/rebar3_lfe"},
+      {"GitHub", "https://github.com/lfe/rebar3"},
       {"Hex", "https://hex.pm/packages/rebar3_lfe"},
       {"LFE", "https://github.com/lfe/lfe"}
   ]},
