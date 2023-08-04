@@ -23,9 +23,12 @@ init(State) ->
   FoldFun  = fun(F, {ok, StateAcc}) -> F(StateAcc) end,
   lists:foldl(FoldFun, {ok, State}, Commands).
 
-%% Useful for debugging new plugins:
+%% Useful for debugging new plugins in an erl shell:
 %%
 %% {ok, State} = rebar3_lfe:init(rebar_state:new()).
 %% rebar3_lfe_prv_ltest:do(State).
 %% rebar_state:command_parsed_args(rebar_state:new()).
 %% rebar_prv_eunit:eunit_opts(rebar_state:new()).
+
+%%{ok, State} = rebar3_lfe:init(rebar_state:new()).
+%%rebar3_lfe_prv_repl:do(State).
