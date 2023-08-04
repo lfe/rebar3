@@ -79,7 +79,7 @@ Add the plugin to your ``rebar.config`` (stable):
 
 ```erlang
 {plugins, [
-    {rebar3_lfe, "0.4.4"}
+    {rebar3_lfe, "0.4.6"}
 ]}.
 ```
 
