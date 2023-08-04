@@ -58,7 +58,7 @@ compile_app(AppInfo) ->
     compile_app(AppInfo, []).
 
 compile_app(AppInfo, State) ->
-    rebar_api:info("Compiling ~ts", [rebar_app_info:name(AppInfo)]),
+    rebar_api:debug("Compiling ~ts", [rebar_app_info:name(AppInfo)]),
     %%rebar3_lfe_utils:copy_app_src(AppInfo, State),
     rebar_otp_app:compile(State, AppInfo),
     Opts = rebar_app_info:opts(AppInfo),
