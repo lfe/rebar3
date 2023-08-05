@@ -91,7 +91,6 @@ info(Description) ->
         "\t'lfe -pa ebin -pa deps/*/ebin'.~n",
         [Description]).
 
-
 repl(State) ->
     rebar_api:debug("\tStarting LFE REPL ...", []),
     rebar_paths:set_paths([deps, plugins], State),
@@ -105,21 +104,6 @@ repl(State) ->
             State1 = rebar_state:set(State, shell, ShellArgs),
             shell(State1),
             State1;
-            %%ShellArgs = #{initial_shell => {rebar3_lfe_repl,start,[ReplCfg]}},
-            %%ShellArgs = #{initial_shell => {lfe_shell,start,[]}},
-            %%ShellArgs  = {rebar3_lfe_repl,start,[ReplCfg]},
-            %%rebar_api:debug("\t\tShellArgs: ~p", [ShellArgs]),
-            %%ok = shell:start_interactive(ShellArgs),
-            %%ShellArgs1 = [{shell_args, ShellArgs}],
-            %%State1 = rebar_state:set(State, shell, ShellArgs1),
-            %%rebar_prv_shell:do(State1),
-            %%true = register(rebar_agent, self()),
-            %%{ok, GenState} = rebar_agent:init(State),
-            %%init ! {'EXIT', self(), normal},
-            %%gen_server:enter_loop(rebar_agent, [], GenState, {local, rebar_agent}, hibernate),
-            %%State1;
-            %%_ = supervisor:terminate_child(kernel_sup, user),
-            %%user_drv:start(ShellArgs);
        true ->
             ShellArgs = [{shell_args, ['tty_sl -c -e',{rebar3_lfe_repl,start,[ReplCfg]}]}],
             rebar_api:debug("\t\tShellArgs config: ~p", [ShellArgs]),
