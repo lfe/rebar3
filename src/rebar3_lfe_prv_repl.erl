@@ -100,7 +100,7 @@ repl(State) ->
     OTPRelease = erlang:system_info(otp_release),
     if OTPRelease >= "26" ->
             rebar_api:debug("\t\tRunning newer Erlang ...", []),
-            ShellArgs  = [{shell_args, #{initial_shell => {rebar3_lfe_repl,start,[ReplCfg]}}}],
+            ShellArgs  = [{shell_args, [{rebar3_lfe_repl,start,[ReplCfg]}]}],
             State1 = rebar_state:set(State, shell, ShellArgs),
             shell(State1),
             State1;
@@ -135,7 +135,7 @@ shell(State) ->
     setup_name(State),
     setup_paths(State),
     ShellArgs = debug_get_value(shell_args, rebar_state:get(State, shell, []), undefined,
-                                "Found user_drv args from command line option."),
+                                "Found shell args from command line option or plugin."),
     setup_shell(ShellArgs),
     maybe_run_script(State),
     %% apps must be started after the change in shell because otherwise
@@ -153,7 +153,6 @@ shell(State) ->
     gen_server:enter_loop(rebar_agent, [], GenState, {local, rebar_agent}, hibernate).
 
 setup_shell(ShellArgs) ->
-    user_drv:start(#{initial_shell => noshell}),
     code:ensure_loaded(shell),
     case erlang:function_exported(shell, start_interactive, 0) of
         false ->
@@ -163,6 +162,7 @@ setup_shell(ShellArgs) ->
             NewUser = try erlang:open_port({spawn,"tty_sl -c -e"}, []) of
                           Port when is_port(Port) ->
                               true = port_close(Port),
+                              rebar_api:debug("*** Getting ready to setup new shell ...", []),
                               setup_new_shell(ShellArgs)
                       catch
                           error:X ->
@@ -178,7 +178,8 @@ setup_shell(ShellArgs) ->
     end.
 
 start_interactive(ShellArgs) ->
-    user_drv:start_shell(ShellArgs).
+    rebar_api:debug("*** Starting the shell w/Erlang apply ...", []),
+    apply(shell, start_interactive, ShellArgs).
 
 maybe_remove_logger() ->
     case erlang:function_exported(logger, module_info, 0) of
