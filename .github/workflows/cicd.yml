@@ -15,7 +15,11 @@ jobs:
 
     strategy:
       matrix:
-        otp_version: [19, 20, 21, 22, 23]
+        # XXX had to comment out 19 and 20 for now, due to copying in the code
+        # from rebar3 to work around Erlang 26:
+        # * https://github.com/lfe/rebar3/issues/79
+        #otp_version: [19, 20, 21, 22, 23]
+        otp_version: [21, 22, 23]
         # otp_version: [22]
         os: ['ubuntu-latest']
 
