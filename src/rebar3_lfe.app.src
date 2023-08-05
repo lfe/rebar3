@@ -13,6 +13,7 @@
     %% support modules
     rebar3_lfe_clean,
     rebar3_lfe_package,
+    rebar3_lfe_repl,
     rebar3_lfe_utils,
     rebar3_lfe_version,
     %% command modules
@@ -35,7 +36,6 @@
   %% Hex.pm metadata
   {pkg_name, rebar3_lfe},
   {licenses, ["Apache 2.0"]},
-  {maintainers, ["Duncan McGreggor"]},
   {links, [
       {"GitHub", "https://github.com/lfe/rebar3"},
       {"Hex", "https://hex.pm/packages/rebar3_lfe"},

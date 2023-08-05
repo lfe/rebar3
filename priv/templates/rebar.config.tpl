@@ -5,10 +5,6 @@
     {ltest, "0.13.5"}
 ]}.
 
-{plugins, [
-    {rebar3_lfe, "0.4.7"}
-]}.
-
 {provider_hooks, [
     {pre, [{compile, {lfe, compile}}]}
 ]}.
