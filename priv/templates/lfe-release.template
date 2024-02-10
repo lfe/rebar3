@@ -8,6 +8,7 @@
 {template, "LICENSE.tpl", "{{name}}/LICENSE"}.
 {template, "rebar.config.release.tpl", "{{name}}/rebar.config"}.
 {template, "gitignore.tpl", "{{name}}/.gitignore"}.
+{template, "cicd.yml", "{{name}}/.github/workflows/cicd.yml"}.
 
 {template, "server.lfe.tpl", "{{name}}/apps/{{name}}/src/{{name}}.lfe"}.
 {template, "app.lfe.tpl", "{{name}}/apps/{{name}}/src/{{name}}-app.lfe"}.

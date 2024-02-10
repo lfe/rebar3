@@ -1,0 +1,65 @@
+name: ci/cd
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, 'release/*' ]
+  pull_request:
+    branches: [ main, 'release/*' ]
+  # Build once a month, just to be sure things are still working
+  schedule:
+    - cron: "19 3 26 * *"
+
+jobs:
+
+  core-builds:
+    name: Erlang ${{ matrix.otp_version }} build
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        otp_version: ['24.3', '25.3', '26.1']
+
+    steps:
+    - uses: actions/checkout@v2
+    - uses: erlef/setup-beam@v1
+      with:
+        otp-version: ${{ matrix.otp_version }}
+        rebar3-version: '3.22'
+    - name: Compile
+      run: rebar3 compile
+    - name: Xref Checks
+      run: rebar3 xref
+    - name: Dialyzer
+      run: rebar3 dialyzer
+    - name: Proper Tests
+      run: rebar3 as test do compile, proper --regressions
+    - name: Run Unit Tests
+      run: rebar3 as test lfe ltest -tall
+
+  older-builds:
+    name: Old Erlang ${{ matrix.otp_version }} build
+    runs-on: ubuntu-20.04
+
+    strategy:
+      matrix:
+        otp_version: ['21.3', '22.3', '23.3']
+
+    steps:
+    - uses: actions/checkout@v2
+    - uses: erlef/setup-beam@v1
+      with:
+        otp-version: ${{ matrix.otp_version }}
+        rebar3-version: '3.15'
+    - name: Compile
+      run: rebar3 compile
+    - name: Xref Checks
+      run: rebar3 xref
+    - name: Dialyzer
+      run: rebar3 dialyzer
+    - name: Compile Tests
+      run: rebar3 as test compile
+    - name: Proper Tests
+      run: rebar3 as test proper --regressions
+    - name: Run Unit Tests
+      run: rebar3 as test lfe ltest -tall
