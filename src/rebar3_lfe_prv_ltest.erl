@@ -34,7 +34,14 @@ init(State) ->
     {ok, State1}.
 
 do(State) ->
-    test(State).
+    case code:ensure_loaded(ltest) of
+        {module, ltest} ->
+            test(State);
+        _ ->
+            {error, "Could not find ltest. This typically means that you have "
+                    "not installed ltest as an explicit project depencency. Add "
+                    "{ltest, \"~> 0.13.5\"} to the deps section of your rebar.config."}
+    end.
 
 format_error({unknown_app, Unknown}) ->
     io_lib:format("Applications list for test contains an unrecognizable application definition: ~p", [Unknown]);
