@@ -79,7 +79,7 @@ Add the plugin to your ``rebar.config`` (stable):
 
 ```erlang
 {plugins, [
-    {rebar3_lfe, "0.4.8"}
+    {rebar3_lfe, "0.4.10"}
 ]}.
 ```
 
@@ -113,7 +113,3 @@ Detailed usage is provided in the [project documentation](https://lfe-rebar3.git
 [hex badge]: https://img.shields.io/hexpm/v/rebar3_lfe.svg?maxAge=2592000
 [hex package]: https://hex.pm/packages/rebar3_lfe
 [hex downloads]: https://img.shields.io/hexpm/dt/rebar3_lfe.svg
-
-<!-- Unused badges:
-[![Downloads][hex downloads]][hex package]
- /-->
