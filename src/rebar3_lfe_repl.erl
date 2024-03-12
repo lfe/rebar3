@@ -1,35 +1,51 @@
 -module(rebar3_lfe_repl).
 
--export([start/0, start/1]).
+-export([default_opts/0]).
+
+-export([start/0, start/1, start/3]).
 
 -export([lfe_version/0, quit_message/0]).
 
-start(#{nobanner := NoBnr, version := Vsn, quit_message := QuitMsg, banner_template := BnrTmpl}) ->
-    case BnrTmpl of
-        "" ->
-            start(NoBnr, Vsn, QuitMsg);
-        _ ->
-            Banner = banner(BnrTmpl, Vsn, QuitMsg),
-            start(NoBnr, Banner)
-    end.
+-define(DEFAULT_OPTS,
+  #{start_module => lfe_shell,
+    nobanner => false,
+    banner => "",
+    banner_template => "",
+    banner_args => [],    
+    %% Legacy k/vs:
+    version => lfe_version(),
+    quit_message => quit_message()
+}).
+
+default_opts() ->
+    ?DEFAULT_OPTS.
 
 start() ->
-    Vsn = lfe_version(),
-    QuitMsg = quit_message(),
-    start(false, Vsn, QuitMsg).
+    start(?DEFAULT_OPTS).
 
-start(NoBnr, Vsn, QuitMsg) ->
-    Banner = banner(Vsn, QuitMsg),
-    start(NoBnr, Banner).
+start(UserOpts) ->
+    Opts = maps:merge(?DEFAULT_OPTS, UserOpts),
+    rebar_api:debug("Got opts: ~p", [Opts]),
+    #{start_module := ReplMod,
+      nobanner := NoBnr,
+      banner := Bnr1,
+      banner_template := BnrTmpl,
+      banner_args := BnrArgs,
+      version := Vsn,
+      quit_message := QuitMsg      
+    } = Opts,
+    Bnr2 = banner(Bnr1, BnrTmpl, BnrArgs, Vsn, QuitMsg),
+    start(ReplMod, NoBnr, Bnr2).
 
-start(NoBnr, Bnr) ->
+start(ReplMod, NoBnr, Bnr) ->
     case NoBnr of
         true ->
             ok;
         _ ->
             ok = io:put_chars(erlang:whereis(user), Bnr)
     end,
-    lfe_shell:start().
+    rebar_api:debug("Calling %s:start ...", [ReplMod]),
+    ReplMod:start().
 
 %% XXX When the banner functions are public, delete everything below this line:
 %% * https://github.com/lfe/lfe/issues/476
@@ -47,7 +63,7 @@ start(NoBnr, Bnr) ->
 %%banner(Vsn) ->
 %%    banner(Vsn, quit_message()).
 
-banner(Vsn, QuitMsg) ->
+banner([Vsn, QuitMsg]) ->
     ?GRN("   ..-~") ++ ?YLW(".~_") ++ ?GRN("~---..") ++ "\n" ++
        ?GRN("  (      ") ++ ?YLW("\\\\") ++ ?GRN("     )") ++ "    |   A Lisp-2+ on the Erlang VM\n" ++
        ?GRN("  |`-.._") ++ ?YLW("/") ++ ?GRN("_") ++ ?YLW("\\\\") ++ ?GRN("_.-':") ++ "    |   Type " ++ ?GRN("(help)") ++ " for usage info.\n" ++
@@ -59,9 +75,16 @@ banner(Vsn, QuitMsg) ->
         Vsn ++ " " ++  QuitMsg ++ "\n" ++
        ?GRN("     `-") ++ ?RED("E") ++ ?GRN("___.-'") ++ "\n\n".
 
-banner(Tmpl, Vsn, QuitMsg) ->
-    [io_lib:format(Tmpl, [Vsn, QuitMsg])].
+banner(Tmpl, Args) ->
+    [io_lib:format(Tmpl, Args)].
 
+banner("", "", _, Vsn, QuitMsg) ->
+    banner([Vsn, QuitMsg]);
+banner("", BnrTmpl, BnrArgs, _, _) ->
+    banner(BnrTmpl, BnrArgs);
+banner(Bnr, _, _, _, _) ->
+    Bnr.
+    
 quit_message() ->
     %% We can update this later to check for env variable settings for
     %% shells that require a different control character to abort, such
