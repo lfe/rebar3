@@ -8,12 +8,6 @@
 
 -define(PROVIDER, repl).
 -define(DEPS, [compile]).
--define(DEFAULT_CFG,
-        #{nobanner => false,
-          version => rebar3_lfe_repl:lfe_version(),
-          quit_message => rebar3_lfe_repl:quit_message(),
-          banner_template => ""
-         }).
 %% ===================================================================
 %% Public API
 %% ===================================================================
@@ -72,6 +66,9 @@ opts() ->
       {relvsn, $v, "relvsn", string,
         "Version of the release to use for the shell "
         "session"},
+      {start_module, $s, "start_module", atom,
+        "The module to use to override the default shell; "
+        "must define a start/0."},
       {start_clean, undefined, "start_clean", boolean,
         "Cancel any applications in the 'apps' list "
         "or release."},
@@ -96,16 +93,22 @@ repl(State) ->
     rebar_paths:set_paths([deps, plugins], State),
     LfeCfg = rebar_state:get(State, lfe, []),
     rebar_api:debug("\t\tLFECfg: ~p", [LfeCfg]),
-    ReplCfg = make_config(LfeCfg),
+    ReplOpts = cfg_opts(LfeCfg),
+    rebar_api:debug("\t\tReplOpts: ~p", [ReplOpts]),
+    {PluginOpts, _} = rebar_state:command_parsed_args(State),
+    Overrides = make_opts(PluginOpts),
+    rebar_api:debug("\t\tOverrides: ~p", [Overrides]),
+    Opts = maps:merge(ReplOpts, Overrides),
+    rebar_api:debug("\t\tOpts: ~p", [Opts]),
     OTPRelease = erlang:system_info(otp_release),
     if OTPRelease >= "26" ->
             rebar_api:debug("\t\tRunning newer Erlang ...", []),
-            ShellArgs  = [{shell_args, [{rebar3_lfe_repl,start,[ReplCfg]}]}],
+            ShellArgs  = [{shell_args, [{rebar3_lfe_repl,start,[Opts]}]}],
             State1 = rebar_state:set(State, shell, ShellArgs),
             shell(State1),
             State1;
        true ->
-            ShellArgs = [{shell_args, ['tty_sl -c -e',{rebar3_lfe_repl,start,[ReplCfg]}]}],
+            ShellArgs = [{shell_args, ['tty_sl -c -e',{rebar3_lfe_repl,start,[Opts]}]}],
             rebar_api:debug("\t\tShellArgs config: ~p", [ShellArgs]),
             State1 = rebar_state:set(State, shell, ShellArgs),
             rebar_api:debug("\t\tCalling underlying rebar3 shell 'do' function ...", []),
@@ -113,8 +116,11 @@ repl(State) ->
             State1
     end.
 
-make_config(Parsed) ->
-    maps:merge(?DEFAULT_CFG, maps:from_list(proplists:get_value(repl, Parsed, []))).
+cfg_opts(Parsed) ->
+    make_opts(proplists:get_value(repl, Parsed, [])).
+
+make_opts(Proplist) ->
+    maps:from_list(Proplist).
 
 %%% With Erlang 26.0 and rebar3 3.22.1+, the LFE REPL no longer loads. This is
 %%% due to the following change combined with the changes in Erlang 26:
@@ -153,6 +159,7 @@ shell(State) ->
     gen_server:enter_loop(rebar_agent, [], GenState, {local, rebar_agent}, hibernate).
 
 setup_shell(ShellArgs) ->
+    rebar_api:debug("Setting up shell ...", []),
     code:ensure_loaded(shell),
     case erlang:function_exported(shell, start_interactive, 0) of
         false ->
@@ -179,6 +186,7 @@ setup_shell(ShellArgs) ->
 
 start_interactive(ShellArgs) ->
     rebar_api:debug("*** Starting the shell w/Erlang apply ...", []),
+    rebar_api:debug("(using args: ~p", [ShellArgs]),
     apply(shell, start_interactive, ShellArgs).
 
 maybe_remove_logger() ->
