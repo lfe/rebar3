@@ -4,6 +4,8 @@
          do/1,
          format_error/1]).
 
+-export([repl/1]).
+
 -include("rebar3_lfe.hrl").
 
 -define(PROVIDER, repl).
