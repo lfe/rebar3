@@ -88,6 +88,7 @@ info(Description) ->
 xrepl(State) ->
     %% TODO: This is going to overide any config that was set; let's
     %%       do something better ...
-    Cfg = [{repl, [{start_module,xrepl}]}],
+    Cfg = [{repl, [{start_module, xrepl},
+                   {nobanner, true}]}],
     State1 = rebar_state:set(State, lfe, Cfg),
     rebar3_lfe_prv_repl:repl(State1).
