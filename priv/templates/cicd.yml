@@ -3,63 +3,51 @@ name: ci/cd
 on:
   workflow_dispatch:
   push:
-    branches: [ main, 'release/*' ]
+    branches:
   pull_request:
-    branches: [ main, 'release/*' ]
+    branches:
   # Build once a month, just to be sure things are still working
   schedule:
-    - cron: "19 3 26 * *"
+    - cron: "0 3 1 * *"
 
 jobs:
-
-  core-builds:
-    name: Erlang ${{ matrix.otp_version }} build
+  main:
+    name: Erlang v${{ matrix.otp_version }}
     runs-on: ubuntu-latest
-
     strategy:
       matrix:
-        otp_version: ['24.3', '25.3', '26.1']
+        otp_version: ["24.3", "25.3", "26.1"]
 
     steps:
-    - uses: actions/checkout@v2
-    - uses: erlef/setup-beam@v1
-      with:
-        otp-version: ${{ matrix.otp_version }}
-        rebar3-version: '3.22'
-    - name: Compile
-      run: rebar3 compile
-    - name: Xref Checks
-      run: rebar3 xref
-    - name: Dialyzer
-      run: rebar3 dialyzer
-    - name: Proper Tests
-      run: rebar3 as test do compile, proper --regressions
-    - name: Run Unit Tests
-      run: rebar3 as test lfe ltest -tall
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: ${{ matrix.otp_version }}
+          rebar3-version: "3.22"
 
-  older-builds:
-    name: Old Erlang ${{ matrix.otp_version }} build
+      - run: rebar3 compile
+      - run: rebar3 xref
+      - run: rebar3 dialyzer
+      - run: rebar3 as test do compile, proper --regressions
+      - run: rebar3 as test lfe ltest -tall
+
+  legacy:
+    name: Erlang v${{ matrix.otp_version }}
     runs-on: ubuntu-20.04
-
     strategy:
       matrix:
-        otp_version: ['21.3', '22.3', '23.3']
+        otp_version: ["21.3", "22.3", "23.3"]
 
     steps:
-    - uses: actions/checkout@v2
-    - uses: erlef/setup-beam@v1
-      with:
-        otp-version: ${{ matrix.otp_version }}
-        rebar3-version: '3.15'
-    - name: Compile
-      run: rebar3 compile
-    - name: Xref Checks
-      run: rebar3 xref
-    - name: Dialyzer
-      run: rebar3 dialyzer
-    - name: Compile Tests
-      run: rebar3 as test compile
-    - name: Proper Tests
-      run: rebar3 as test proper --regressions
-    - name: Run Unit Tests
-      run: rebar3 as test lfe ltest -tall
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: ${{ matrix.otp_version }}
+          rebar3-version: "3.15"
+
+      - run: rebar3 compile
+      - run: rebar3 xref
+      - run: rebar3 dialyzer
+      - run: rebar3 as test compile
+      - run: rebar3 as test proper --regressions
+      - run: rebar3 as test lfe ltest -tall

@@ -31,3 +31,5 @@ logs
 rebar/*
 rebar3.crashdump
 tramp
+.env
+.envrc
