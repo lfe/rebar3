@@ -143,7 +143,7 @@
 ;;--------------------------------------------------------------------
 
 (defun format_status ((_opts (= (list _process-dict state-name data) data-list))
-    (list #('data (list #("State", #(state-name data)))))))
+    (list `#(data (list #("State" #(,state-name ,data)))))))
 
 ;;--------------------------------------------------------------------
 ;; @private
