@@ -30,3 +30,5 @@ rebar3.crashdump
 *.elc
 auto-save-list
 tramp
+.claude
+
