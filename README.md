@@ -17,14 +17,13 @@
 * [Setup](#setup-)
 * [Documentation](#documentation-)
 
-
 ## About [&#x219F;](#contents)
 
 This plugin originally started life as a shell script (`lfetool` -- there's
 even a T-shirt for it!), then it toyed with integrating with `rebar` (the
 original). Around that time, though, `rebar3` was under initial development,
 and LFE took a chance on it as an early adopter. This lead to a whole series of
-LFE plugins, but after a few years momentum was lost. 
+LFE plugins, but after a few years momentum was lost.
 
 Those early `rebar3` efforts have been combined into a single plugin in this
 project, with many updates and using all the latest approaches developed in
@@ -103,17 +102,13 @@ Detailed usage is provided in the [project documentation](https://lfe-rebar3.git
 
 [logo]: https://avatars2.githubusercontent.com/u/15242004?s=250
 [logo-large]: https://avatars2.githubusercontent.com/u/15242004
-[github]: https://github.com/lfe-rebar3/rebar3_lfe
-[gitlab]: https://gitlab.com/lfe-rebar3/rebar3_lfe
 [gh-actions-badge]: https://github.com/lfe-rebar3/rebar3_lfe/workflows/ci%2Fcd/badge.svg
 [gh-actions]: https://github.com/lfe-rebar3/rebar3_lfe/actions
 [lfe]: https://github.com/lfe/lfe
-[lfe-badge]: https://img.shields.io/badge/lfe-2.1+-blue.svg
-[erlang-badge]: https://img.shields.io/badge/erlang-21+-blue.svg
+[lfe-badge]: https://img.shields.io/badge/lfe-2.2+-blue.svg
+[erlang-badge]: https://img.shields.io/badge/erlang-24+-blue.svg
 [versions]: https://github.com/lfe-rebar3/rebar3_lfe/blob/master/.github/workflows/cicd.yml
 [github-tag]: https://github.com/lfe-rebar3/rebar3_lfe/tags
 [github-tag-badge]: https://img.shields.io/github/tag/lfe-rebar3/rebar3_lfe.svg
-[github-downloads]: https://img.shields.io/github/downloads/atom/atom/total.svg
-[hex-badge]: https://img.shields.io/hexpm/v/rebar3_lfe.svg?maxAge=2592000
 [hex-package]: https://hex.pm/packages/rebar3_lfe
 [hex-downloads]: https://img.shields.io/hexpm/dt/rebar3_lfe.svg
