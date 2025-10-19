@@ -6,13 +6,15 @@
 -export([compile/1,
          compile_app/1, compile_app/2,
          compile_dir/4,
-         compile_file/3,
-         compile_each/3,
-         needs_compile/3,
-         check_header_dependencies/3,
-         get_header_dependencies/1,
-         extract_includes/1,
-         resolve_header_path/2]).
+         compile_file/3]).
+
+%% Internal functions for dependency checking (not exported):
+%% should_compile_file/3
+%% check_header_dependencies_changed/3
+%% get_include_paths_from_source/1
+%% extract_include_paths/1
+%% is_header_newer_than/3
+%% resolve_include_path/2
 
 -include("rebar3_lfe.hrl").
 
@@ -95,49 +97,32 @@ compile_app(AppInfo, State) ->
 compile_dir(Config, FirstFiles, SourceDir, TargetDir) ->
     rebar3_lfe_utils:ensure_dir(TargetDir),
 
-    % Get app directory for header resolution
+    %% Determine the app directory (parent of source directory)
+    %% This is used to resolve include paths
     AppDir = filename:dirname(SourceDir),
 
-    % Find all LFE source files
-    AllFiles = rebar_utils:find_files(SourceDir, ".*\\.lfe$"),
+    %% Create a wrapped compile function that checks dependencies
+    %% before actually compiling
+    CompileFun = fun(Source, Target, Cfg) ->
+        case should_compile_file(Source, Target, AppDir) of
+            true ->
+                %% File needs compilation (source or header changed)
+                compile_file(Source, Target, Cfg);
+            false ->
+                %% File is up to date, skip compilation
+                ok
+        end
+    end,
 
-    % Filter to files that need compilation
-    FilesToCompile = lists:filter(
-        fun(Source) -> needs_compile(Source, TargetDir, AppDir) end,
-        AllFiles
-    ),
-
-    case FilesToCompile of
-        [] ->
-            rebar_api:debug("All LFE files in ~s are up to date", [SourceDir]),
-            ok;
-        _ ->
-            rebar_api:debug("Compiling ~p LFE file(s) in ~s",
-                          [length(FilesToCompile), SourceDir]),
-
-            % Separate first files that need compilation
-            FilteredFirstFiles = [F || F <- FirstFiles, lists:member(F, FilesToCompile)],
-            OtherFiles = FilesToCompile -- FilteredFirstFiles,
-
-            % Compile first files in order, then the rest
-            compile_each(FilteredFirstFiles ++ OtherFiles, TargetDir, Config)
-    end.
-
-%% compile_each(Files, TargetDir, Config) -> ok | {error, Reason}.
-%%  Compile each file in order, stopping on first error.
-compile_each([], _TargetDir, _Config) ->
-    ok;
-compile_each([Source | Rest], TargetDir, Config) ->
-    Module = filename:basename(Source, ".lfe"),
-    Target = filename:join(TargetDir, Module ++ ".beam"),
-    case compile_file(Source, Target, Config) of
-        ok ->
-            compile_each(Rest, TargetDir, Config);
-        {ok, _Warnings} ->
-            compile_each(Rest, TargetDir, Config);
-        Error ->
-            Error
-    end.
+    %% Let rebar_base_compiler do ALL the file discovery and management.
+    %% It will find the .lfe files, respect FirstFiles ordering, and call
+    %% our wrapped CompileFun for each one.
+    %%
+    %% CRITICAL: We are NOT scanning directories ourselves. We are merely
+    %% wrapping the compile function with an additional check.
+    rebar_base_compiler:run(Config, FirstFiles,
+                            SourceDir, ".lfe", TargetDir, ".beam",
+                            CompileFun).
 
 compile_file(Source, Target, Config) ->
     rebar_api:debug("Compiling ~s ...",
@@ -159,147 +144,221 @@ compile_file(Source, Target, Config) ->
     end.
 
 %% =============================================================================
-%% Header Dependency Tracking (Quick-Fix for 0.4.x)
+%% Header Dependency Checking (The Non-Recursive Edition)
 %% =============================================================================
 %%
-%% This is a timestamp-based approach to header dependency tracking added in
-%% version 0.4.x as a quick-fix for the critical bug where include file changes
-%% don't trigger recompilation.
+%% This section implements timestamp-based header dependency checking WITHOUT
+%% any directory traversal whatsoever. We rely entirely on rebar_base_compiler
+%% to tell us which files exist, and we merely check if those files' dependencies
+%% have changed.
 %%
-%% Limitations of this approach:
-%% - Does not track transitive dependencies (A includes B, B includes C)
-%% - No cross-application header tracking
-%% - No integration with rebar3's DAG system
-%% - include-lib resolution is simplified
-%%
-%% For a comprehensive solution, see the 1.0 rewrite which will adopt rebar3's
-%% Custom Compiler Modules interface with full DAG integration.
+%% Critical architectural decision: NO CODE IN THIS SECTION SCANS DIRECTORIES.
+%% If you find yourself tempted to traverse a directory tree, step away from
+%% the keyboard and contemplate the nature of infinite recursion until the
+%% temptation passes.
 %%
 
-%% needs_compile(Source, OutDir, AppDir) -> boolean().
-%%  Determine if a source file needs recompilation by checking:
-%%  1. If the .beam file exists
-%%  2. If the source is newer than the .beam
-%%  3. If any included headers are newer than the .beam
--spec needs_compile(file:filename(), file:filename(), file:filename()) -> boolean().
-needs_compile(Source, OutDir, AppDir) ->
-    Module = filename:basename(Source, ".lfe"),
-    BeamFile = filename:join(OutDir, Module ++ ".beam"),
-
-    case filelib:is_file(BeamFile) of
+%% should_compile_file(Source, Target, AppDir) -> boolean().
+%%  Determines whether a source file needs compilation by checking:
+%%  1. Does the target (.beam file) exist at all?
+%%  2. Is the source newer than the target?
+%%  3. Are any header files this source includes newer than the target?
+%%
+%%  This function does NOT scan directories. It only checks timestamps
+%%  of specific files that are explicitly mentioned.
+-spec should_compile_file(file:filename(), file:filename(),
+                          file:filename()) -> boolean().
+should_compile_file(Source, Target, AppDir) ->
+    case filelib:is_file(Target) of
         false ->
-            rebar_api:debug("~s needs compile: beam file missing", [Source]),
+            %% No beam file exists, must compile
+            rebar_api:debug("~s needs compilation: target does not exist",
+                          [Source]),
             true;
         true ->
             SourceTime = filelib:last_modified(Source),
-            BeamTime = filelib:last_modified(BeamFile),
+            TargetTime = filelib:last_modified(Target),
 
-            case SourceTime > BeamTime of
+            SourceNewer = SourceTime > TargetTime,
+            HeadersNewer = case SourceNewer of
                 true ->
-                    rebar_api:debug("~s needs compile: source newer than beam", [Source]),
-                    true;
+                    %% Source is already newer, no need to check headers
+                    false;
                 false ->
-                    case check_header_dependencies(Source, BeamTime, AppDir) of
-                        true ->
-                            rebar_api:debug("~s needs compile: header dependency changed", [Source]),
-                            true;
-                        false ->
-                            rebar_api:debug("~s up to date", [Source]),
-                            false
-                    end
-            end
+                    %% Source is not newer, check if headers are
+                    check_header_dependencies_changed(Source, TargetTime, AppDir)
+            end,
+
+            Result = SourceNewer orelse HeadersNewer,
+
+            case Result of
+                true when SourceNewer ->
+                    rebar_api:debug("~s needs compilation: source is newer",
+                                  [Source]);
+                true when HeadersNewer ->
+                    rebar_api:debug("~s needs compilation: header dependency changed",
+                                  [Source]);
+                false ->
+                    rebar_api:debug("~s is up to date", [Source])
+            end,
+
+            Result
     end.
 
-%% check_header_dependencies(Source, BeamTime, AppDir) -> boolean().
-%%  Check if any header files included by Source are newer than BeamTime.
-%%  Returns true if any header is newer (needs recompile) or missing (to report error).
--spec check_header_dependencies(file:filename(), calendar:datetime(),
-                                 file:filename()) -> boolean().
-check_header_dependencies(Source, BeamTime, AppDir) ->
-    Headers = get_header_dependencies(Source),
-    lists:any(
-        fun(Header) ->
-            FullPath = resolve_header_path(Header, AppDir),
-            case filelib:is_file(FullPath) of
-                true ->
-                    HeaderTime = filelib:last_modified(FullPath),
-                    IsNewer = HeaderTime > BeamTime,
-                    case IsNewer of
-                        true ->
-                            rebar_api:debug("Header ~s is newer than beam", [FullPath]);
-                        false ->
-                            ok
-                    end,
-                    IsNewer;
-                false ->
-                    rebar_api:debug("Header ~s not found, forcing recompile", [FullPath]),
-                    true  % Missing header will trigger recompile and report error
-            end
-        end,
-        Headers
-    ).
+%% check_header_dependencies_changed(Source, TargetTime, AppDir) -> boolean().
+%%  Check if any header file this source depends on is newer than TargetTime.
+%%  Returns true if any header is newer (needs recompile) or missing (let
+%%  compilation fail with proper error).
+%%
+%%  NOTE: This function reads ONE file (the Source) and checks timestamps
+%%  of the headers it explicitly lists. It does not scan directories.
+-spec check_header_dependencies_changed(file:filename(), calendar:datetime(),
+                                        file:filename()) -> boolean().
+check_header_dependencies_changed(Source, TargetTime, AppDir) ->
+    %% Parse the source file to find include directives
+    HeaderPaths = get_include_paths_from_source(Source),
 
-%% get_header_dependencies(SourceFile) -> [string()].
-%%  Parse an LFE source file and extract all included header file paths.
-%%  Matches both (include-file "path") and (include-lib "app/path") forms.
--spec get_header_dependencies(file:filename()) -> [string()].
-get_header_dependencies(SourceFile) ->
+    case HeaderPaths of
+        [] ->
+            %% No includes found, no headers to check
+            false;
+        _ ->
+            %% Check if any header is newer than the target
+            lists:any(
+                fun(HeaderPath) ->
+                    is_header_newer_than(HeaderPath, TargetTime, AppDir)
+                end,
+                HeaderPaths
+            )
+    end.
+
+%% get_include_paths_from_source(SourceFile) -> [string()].
+%%  Parse an LFE source file and extract the paths from include-file and
+%%  include-lib directives. Returns a list of path strings as they appear
+%%  in the source.
+%%
+%%  This function reads ONLY the specified source file. It does not open
+%%  or traverse any other files or directories.
+-spec get_include_paths_from_source(file:filename()) -> [string()].
+get_include_paths_from_source(SourceFile) ->
     case file:read_file(SourceFile) of
         {ok, Binary} ->
             Content = binary_to_list(Binary),
-            extract_includes(Content);
+            extract_include_paths(Content);
         {error, Reason} ->
-            rebar_api:debug("Could not read ~s for dependency scanning: ~p",
+            %% If we can't read the file, assume no includes
+            %% (compilation will fail later with better error if file truly missing)
+            rebar_api:debug("Could not read ~s for include scanning: ~p",
                           [SourceFile, Reason]),
             []
     end.
 
-%% extract_includes(Content) -> [string()].
-%%  Extract include file paths from LFE source code using regex.
-%%  Matches: (include-file "path/file.lfe") and (include-lib "app/include/file.lfe")
--spec extract_includes(string()) -> [string()].
-extract_includes(Content) ->
-    % Match include-file and include-lib forms
-    % Pattern: (include-file "...") or (include-lib "...")
-    RE = "\\(include-(?:file|lib)\\s+\"([^\"]+)\"\\)",
-    case re:run(Content, RE, [global, {capture, all_but_first, list}]) of
+%% extract_include_paths(SourceContent) -> [string()].
+%%  Use regex to extract include paths from LFE source code.
+%%  Matches: (include-file "path") and (include-lib "path")
+-spec extract_include_paths(string()) -> [string()].
+extract_include_paths(Content) ->
+    %% Pattern matches:
+    %%   (include-file "some/path.lfe")
+    %%   (include-lib "app/include/header.lfe")
+    %% Captures only the path string inside quotes
+    Pattern = "\\(include-(?:file|lib)\\s+\"([^\"]+)\"\\)",
+
+    case re:run(Content, Pattern, [global, {capture, all_but_first, list}]) of
         {match, Matches} ->
+            %% Matches is a list of lists: [["path1"], ["path2"], ...]
             Paths = [Path || [Path] <- Matches],
-            UniquePaths = lists:usort(Paths),
-            case UniquePaths of
-                [] -> ok;
-                _ -> rebar_api:debug("Found includes: ~p", [UniquePaths])
-            end,
-            UniquePaths;
+            %% Remove duplicates (same header included multiple times)
+            lists:usort(Paths);
         nomatch ->
             []
     end.
 
-%% resolve_header_path(Header, AppDir) -> file:filename().
-%%  Resolve a header file path to an absolute path.
-%%  For include-file: checks ./include/ directory, then treats as relative to AppDir
-%%  For include-lib: attempts to resolve via code path (simplified for quick-fix)
--spec resolve_header_path(string(), file:filename()) -> file:filename().
-resolve_header_path(Header, AppDir) ->
-    case filename:pathtype(Header) of
-        relative ->
-            % First try the standard include/ directory
-            IncludePath = filename:join([AppDir, "include", filename:basename(Header)]),
-            case filelib:is_file(IncludePath) of
+%% is_header_newer_than(HeaderPath, Timestamp, AppDir) -> boolean().
+%%  Check if the specified header file is newer than the given timestamp.
+%%  Returns true if:
+%%    - The header exists and is newer than Timestamp
+%%    - The header doesn't exist (will force recompile to get proper error)
+%%  Returns false if:
+%%    - The header exists and is older than Timestamp
+%%
+%%  This function checks ONLY the specified header file. It does not
+%%  scan directories or look for other files.
+-spec is_header_newer_than(string(), calendar:datetime(),
+                           file:filename()) -> boolean().
+is_header_newer_than(HeaderPath, Timestamp, AppDir) ->
+    %% Resolve the header path to an absolute path
+    AbsPath = resolve_include_path(HeaderPath, AppDir),
+
+    case filelib:is_file(AbsPath) of
+        true ->
+            HeaderTime = filelib:last_modified(AbsPath),
+            IsNewer = HeaderTime > Timestamp,
+
+            case IsNewer of
                 true ->
-                    IncludePath;
+                    rebar_api:debug("Header ~s is newer than target", [AbsPath]);
                 false ->
-                    % Try as relative to app directory
-                    AppRelPath = filename:join(AppDir, Header),
-                    case filelib:is_file(AppRelPath) of
-                        true -> AppRelPath;
-                        false -> Header  % Return as-is, will fail later
+                    ok
+            end,
+
+            IsNewer;
+        false ->
+            %% Header file not found - trigger recompile so the actual
+            %% compilation can report the missing include error properly
+            rebar_api:debug("Header ~s not found, will trigger recompile",
+                          [AbsPath]),
+            true
+    end.
+
+%% resolve_include_path(IncludePath, AppDir) -> file:filename().
+%%  Convert an include path (as written in source) to an absolute filesystem path.
+%%  Handles both include-file and include-lib style paths.
+%%
+%%  For include-file: tries ./include/ first, then relative to AppDir
+%%  For include-lib: tries to resolve via code path (simplified for quick-fix)
+%%
+%%  This function checks specific file paths. It does not scan directories.
+-spec resolve_include_path(string(), file:filename()) -> file:filename().
+resolve_include_path(Path, AppDir) ->
+    case filename:pathtype(Path) of
+        absolute ->
+            %% Already absolute, use as-is
+            Path;
+
+        relative ->
+            %% Could be include-file style: "header.lfe" or "subdir/header.lfe"
+            %% Try standard include/ directory first
+            IncludeDir = filename:join(AppDir, "include"),
+            BaseName = filename:basename(Path),
+
+            %% Check: include/basename
+            StandardPath = filename:join(IncludeDir, BaseName),
+            case filelib:is_file(StandardPath) of
+                true ->
+                    StandardPath;
+                false ->
+                    %% Check: include/path (preserving subdirs)
+                    FullIncludePath = filename:join(IncludeDir, Path),
+                    case filelib:is_file(FullIncludePath) of
+                        true ->
+                            FullIncludePath;
+                        false ->
+                            %% Try relative to AppDir
+                            AppRelPath = filename:join(AppDir, Path),
+                            case filelib:is_file(AppRelPath) of
+                                true ->
+                                    AppRelPath;
+                                false ->
+                                    %% Return path as-is, will fail existence check
+                                    Path
+                            end
                     end
             end;
-        absolute ->
-            Header;
+
         volumerelative ->
-            Header
+            %% Windows volume-relative path, treat as absolute
+            Path
     end.
 
 %% =============================================================================

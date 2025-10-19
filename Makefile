@@ -1,8 +1,9 @@
 PROJECT = rebar3_lfe
 ROOT_DIR = $(shell pwd)
-SYS_TEST_DIR = $(ROOT_DIR)/priv/testing
-SYS_TEST_DEPS = $(SYS_TEST_DIR)/_checkouts
-SYS_TEST_REBAR3 = $(SYS_TEST_DEPS)/rebar3_lfe
+#SYS_TEST_DIR = $(ROOT_DIR)/_integration
+SYS_TEST_DIR = /tmp/rebar3_lfe/_integration/_testing
+GLOBAL_INSTALL_DIR = ~/.config/rebar3/plugins
+GLOBAL_INSTALL = $(GLOBAL_INSTALL_DIR)/$(PROJECT)
 
 check: clean
 	@rebar3 lfe compile
@@ -11,7 +12,7 @@ check: clean
 	@rebar3 as test lfe ltest
 
 clean:
-	@rm -rf _build rebar.lock $(SYS_TEST_DEPS)
+	@rm -rf _build rebar.lock $(SYS_TEST_DIR) $(GLOBAL_INSTALL)
 
 publish:
 	@echo "\nPublishing to hex.pm ...\n"
@@ -19,75 +20,79 @@ publish:
 
 $(SYS_TEST_DIR):
 	mkdir -p $(SYS_TEST_DIR)
+	cp priv/testing/rebar.config $(SYS_TEST_DIR)/rebar.config
 
-$(SYS_TEST_DEPS): $(SYS_TEST_DIR)
-	mkdir -p $(SYS_TEST_DEPS)
+$(GLOBAL_INSTALL_DIR):
+	mkdir -p $(GLOBAL_INSTALL_DIR)
 
-$(SYS_TEST_REBAR3): $(SYS_TEST_DEPS)
-	cd $(SYS_TEST_DEPS) && \
-	ln -s ../../../ rebar3_lfe
+setup: $(SYS_TEST_DIR)
+	-git branch -D integration-testing
+	git checkout -b integration-testing
+	git push origin integration-testing -f
+	git switch -
 
-test-new: clean $(SYS_TEST_REBAR3)
+test-new: clean setup
+	rebar3 compile
 	cd $(SYS_TEST_DIR) && \
-	DEBUG=1 rebar3 new
+	rebar3 new
 
-test-new-lfe-lib: clean $(SYS_TEST_REBAR3)
+test-new-lfe-lib: clean setup
 	rebar3 compile
 	cd $(SYS_TEST_DIR) && \
 	rebar3 compile && \
 	rebar3 new lfe-lib example-lib && \
 	cd example-lib && \
-	DEBUG=1 rebar3 lfe compile
+	rebar3 lfe compile
 
-test-new-lfe-main: clean $(SYS_TEST_REBAR3)
+test-new-lfe-main: clean setup
 	rebar3 compile
 	cd $(SYS_TEST_DIR) && \
 	rebar3 compile && \
 	rebar3 new lfe-main example-main && \
 	cd example-main && \
-	DEBUG=1 rebar3 lfe compile && \
+	rebar3 lfe compile && \
 	rebar3 lfe run -- 42
 
-test-new-lfe-app: clean $(SYS_TEST_REBAR3)
+test-new-lfe-app: clean setup
 	rebar3 compile
 	cd $(SYS_TEST_DIR) && \
 	rebar3 compile && \
 	rebar3 new lfe-app example-app && \
 	cd example-app && \
-	DEBUG=1 rebar3 lfe compile
+	rebar3 lfe compile
 
-test-new-lfe-escript: clean $(SYS_TEST_REBAR3)
+test-new-lfe-escript: clean setup
 	rebar3 compile
 	cd $(SYS_TEST_DIR) && \
 	rebar3 compile && \
 	rebar3 new lfe-escript example-escript && \
 	cd example-escript && \
-	DEBUG=1 rebar3 lfe compile && \
+	rebar3 lfe compile && \
 	rebar3 lfe escriptize && \
 	rebar3 lfe run-escript 1 2 5
 
-test-new-lfe-release: clean $(SYS_TEST_REBAR3)
+test-new-lfe-release: clean setup
 	rebar3 compile
 	cd $(SYS_TEST_DIR) && \
 	rebar3 compile && \
 	rebar3 new lfe-release example-release && \
 	cd example-release && \
-	DEBUG=1 rebar3 lfe compile && \
+	rebar3 lfe compile && \
 	rebar3 lfe release
 
-test-versions-cmd: clean $(SYS_TEST_REBAR3)
+test-versions-cmd: clean setup
 	rebar3 compile
 	cd $(SYS_TEST_DIR) && \
 	rebar3 compile && \
 	rebar3 lfe versions
 
-test-clean-cmd: clean $(SYS_TEST_REBAR3)
+test-clean-cmd: clean setup
 	rebar3 compile
 	cd $(SYS_TEST_DIR) && \
 	rebar3 compile && \
 	rebar3 lfe clean
 
-test-clean-build-cmd: clean $(SYS_TEST_REBAR3)
+test-clean-build-cmd: clean setup
 	rebar3 compile
 	cd $(SYS_TEST_DIR) && \
 	rebar3 compile && \

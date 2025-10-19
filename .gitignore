@@ -30,5 +30,10 @@ rebar3.crashdump
 *.elc
 auto-save-list
 tramp
+
+# AI
 .claude
 
+# Misc
+.DS_Store
+_integration
