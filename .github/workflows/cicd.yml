@@ -42,44 +42,30 @@ jobs:
       run: rebar3 as test do proper -c
     - name: Check Coverage
       run: rebar3 as test cover -v --min_coverage=0
-    - name: Setup Testing Environment
-      run: mkdir -p priv/testing/_checkouts && cd priv/testing/_checkouts && ln -s ../../../ rebar3_lfe
     - name: Get Supported 'new' Templates
-      run: cd priv/testing && rebar3 new
-    - name: Create LFE Library Project
-      run: cd priv/testing && rebar3 new lfe-lib example-lib
-    - name: Compile LFE Library Project
-      run: cd priv/testing/example-lib && DEBUG=1 rebar3 lfe compile
-    - name: Create LFE Main Project
-      run: cd priv/testing && rebar3 new lfe-main example-main
-    - name: Run LFE Main Project's Script
-      run: cd priv/testing/example-main && rebar3 lfe run -- 42
-    - name: Create LFE/OTP Application Project
-      run: cd priv/testing && rebar3 new lfe-app example-app
-    - name: Compile LFE Application Project
-      run: cd priv/testing/example-app && DEBUG=1 rebar3 lfe compile
-    - name: Create LFE escript Project
-      run: cd priv/testing && rebar3 new lfe-escript example-escript
-    - name: Escriptize LFE escript Project
-      run: cd priv/testing/example-escript && rebar3 lfe escriptize
-    - name: Run LFE escript Project
-      run: cd priv/testing/example-escript && rebar3 lfe run-escript 1 2 5
-    - name: Create LFE/OTP Release Project
-      run: cd priv/testing && rebar3 new lfe-release example-release
-    - name: Build LFE/OTP Release
-      run: cd priv/testing/example-release && rebar3 release
+      run: make test-new
+    - name: Check New LFE Library Project
+      run: make test-new-lfe-lib
+    - name: Check New LFE Main Project
+      run: make test-new-lfe-main
+    - name: Check New LFE/OTP Application Project
+      run: make test-new-lfe-app
+    - name: Check New LFE escript Project
+      run: make test-new-lfe-escript
+    - name: Check New LFE/OTP Release Project
+      run: make test-new-lfe-release
    # XXX Startup keeps hanging in Github Actions ... probably need to do somehting
    #     different.
    # - name: Start LFE/OTP Release
    #   run: cd priv/testing/example-release && rebar3 lfe run-release start && sleep 5
    # - name: Ping LFE/OTP Release
    #   run: cd priv/testing/example-release && rebar3 lfe run-release ping
-    - name: Versions Command Output
-      run: cd priv/testing/example-release && rebar3 lfe versions
-    - name: Clean Command
-      run: cd priv/testing/example-lib && rebar3 lfe clean
-    - name: Clean-build Command
-      run: cd priv/testing/example-app && rebar3 lfe clean-build
+    - name: Check versions Command Output
+      run: make test-versions-cmd
+    - name: Check clean Command
+      run: make test-clean-cmd
+    - name: Check clean-build Command
+      run: make test-clean-build-cmd
 
   older-builds:
     name: Erlang ${{ matrix.otp-version }}
@@ -111,41 +97,27 @@ jobs:
       run: rebar3 as test do proper -c
     - name: Check Coverage
       run: rebar3 as test cover -v --min_coverage=0
-    - name: Setup Testing Environment
-      run: mkdir -p priv/testing/_checkouts && cd priv/testing/_checkouts && ln -s ../../../ rebar3_lfe
     - name: Get Supported 'new' Templates
-      run: cd priv/testing && rebar3 new
-    - name: Create LFE Library Project
-      run: cd priv/testing && rebar3 new lfe-lib example-lib
-    - name: Compile LFE Library Project
-      run: cd priv/testing/example-lib && DEBUG=1 rebar3 lfe compile
-    - name: Create LFE Main Project
-      run: cd priv/testing && rebar3 new lfe-main example-main
-    - name: Run LFE Main Project's Script
-      run: cd priv/testing/example-main && rebar3 lfe run -- 42
-    - name: Create LFE/OTP Application Project
-      run: cd priv/testing && rebar3 new lfe-app example-app
-    - name: Compile LFE Application Project
-      run: cd priv/testing/example-app && DEBUG=1 rebar3 lfe compile
-    - name: Create LFE escript Project
-      run: cd priv/testing && rebar3 new lfe-escript example-escript
-    - name: Escriptize LFE escript Project
-      run: cd priv/testing/example-escript && rebar3 lfe escriptize
-    - name: Run LFE escript Project
-      run: cd priv/testing/example-escript && rebar3 lfe run-escript 1 2 5
-    - name: Create LFE/OTP Release Project
-      run: cd priv/testing && rebar3 new lfe-release example-release
-    - name: Build LFE/OTP Release
-      run: cd priv/testing/example-release && rebar3 release
+      run: make test-new
+    - name: Check New LFE Library Project
+      run: make test-new-lfe-lib
+    - name: Check New LFE Main Project
+      run: make test-new-lfe-main
+    - name: Check New LFE/OTP Application Project
+      run: make test-new-lfe-app
+    - name: Check New LFE escript Project
+      run: make test-new-lfe-escript
+    - name: Check New LFE/OTP Release Project
+      run: make test-new-lfe-release
    # XXX Startup keeps hanging in Github Actions ... probably need to do somehting
    #     different.
    # - name: Start LFE/OTP Release
    #   run: cd priv/testing/example-release && rebar3 lfe run-release start && sleep 5
    # - name: Ping LFE/OTP Release
    #   run: cd priv/testing/example-release && rebar3 lfe run-release ping
-    - name: Versions Command Output
-      run: cd priv/testing/example-release && rebar3 lfe versions
-    - name: Clean Command
-      run: cd priv/testing/example-lib && rebar3 lfe clean
-    - name: Clean-build Command
-      run: cd priv/testing/example-app && rebar3 lfe clean-build
+    - name: Check versions Command Output
+      run: make test-versions-cmd
+    - name: Check clean Command
+      run: make test-clean-cmd
+    - name: Check clean-build Command
+      run: make test-clean-build-cmd
