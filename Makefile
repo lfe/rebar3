@@ -26,9 +26,23 @@ $(GLOBAL_INSTALL_DIR):
 	mkdir -p $(GLOBAL_INSTALL_DIR)
 
 setup: $(SYS_TEST_DIR)
+setup: $(SYS_TEST_DIR)
 	-git branch -D integration-testing
 	git checkout -b integration-testing
-	git push origin integration-testing -f
+	@git fetch origin
+	@if git rev-parse --verify origin/integration-testing >/dev/null 2>&1; then \
+		LOCAL=$$(git rev-parse integration-testing); \
+		REMOTE=$$(git rev-parse origin/integration-testing); \
+		if [ "$$LOCAL" = "$$REMOTE" ]; then \
+			echo "Remote branch is already up to date"; \
+		else \
+			echo "Remote branch differs, force pushing..."; \
+			git push origin integration-testing -f; \
+		fi \
+	else \
+		echo "Remote branch doesn't exist, creating..."; \
+		git push origin integration-testing; \
+	fi
 	git switch -
 
 test-new: clean setup
