@@ -31,6 +31,8 @@
     rb3lfe_prv_run,
     rb3lfe_prv_escriptize,
     rb3lfe_prv_run_escript,
+    %% Phase 6.2: Release management
+    rb3lfe_prv_run_release,
     %% Legacy modules (to be phased out)
     rebar3_lfe,
     rebar3_lfe_clean,

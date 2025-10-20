@@ -37,7 +37,9 @@ init(State) ->
         %% Phase 6.1: Escript providers
         rb3lfe_prv_run,
         rb3lfe_prv_escriptize,
-        rb3lfe_prv_run_escript
+        rb3lfe_prv_run_escript,
+        %% Phase 6.2: Release management
+        rb3lfe_prv_run_release
     ],
 
     State2 = lists:foldl(

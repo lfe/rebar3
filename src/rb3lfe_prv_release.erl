@@ -44,11 +44,16 @@ do(State) ->
     %% Delegate to rebar3's release provider
     try
         rebar_relx:do(rlx_prv_release, "release", release, State),
+
+        %% Show helpful usage information
+        show_usage_info(State),
+
         {ok, State}
     catch
         error:undef ->
             %% Try older API
             rebar_relx:do(release, State),
+            show_usage_info(State),
             {ok, State}
     end.
 
@@ -115,3 +120,55 @@ info(Description) ->
         "  ]}.~n",
         [Description]
     ).
+
+%% @doc Show usage information after successful build
+-spec show_usage_info(rebar_state:t()) -> ok.
+show_usage_info(State) ->
+    ReleaseName = get_release_name(State),
+    ReleaseDir = get_release_output_dir(State),
+
+    ?INFO("~n", []),
+    ?INFO("Release built successfully!", []),
+    ?INFO("~n", []),
+    ?INFO("To run the release:", []),
+    ?INFO("  rebar3 lfe run-release start      # Start in background", []),
+    ?INFO("  rebar3 lfe run-release console    # Start with console", []),
+    ?INFO("  rebar3 lfe run-release foreground # Start in foreground", []),
+    ?INFO("~n", []),
+    ?INFO("Or run directly:", []),
+    ?INFO("  ~s/~s/bin/~s start", [ReleaseDir, ReleaseName, ReleaseName]),
+    ?INFO("~n", []),
+    ok.
+
+%% @doc Get release name from relx config
+-spec get_release_name(rebar_state:t()) -> string().
+get_release_name(State) ->
+    RelxConfig = rebar_state:get(State, relx, []),
+    case proplists:lookup(release, RelxConfig) of
+        {release, {Name, _Version}, _Apps} when is_atom(Name) ->
+            atom_to_list(Name);
+        {release, {Name, _Version}, _Apps} when is_list(Name) ->
+            Name;
+        none ->
+            case rebar_state:project_apps(State) of
+                [AppInfo | _] ->
+                    atom_to_list(rebar_app_info:name(AppInfo));
+                [] ->
+                    "myapp"
+            end
+    end.
+
+%% @doc Get release output directory
+-spec get_release_output_dir(rebar_state:t()) -> file:filename().
+get_release_output_dir(State) ->
+    RelxConfig = rebar_state:get(State, relx, []),
+    CustomDir = proplists:get_value(output_dir, RelxConfig, undefined),
+    case CustomDir of
+        undefined ->
+            filename:join(rebar_dir:base_dir(State), "rel");
+        Dir ->
+            case filename:pathtype(Dir) of
+                absolute -> Dir;
+                relative -> filename:join(rebar_dir:base_dir(State), Dir)
+            end
+    end.
