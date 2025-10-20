@@ -39,7 +39,9 @@ init(State) ->
         rb3lfe_prv_escriptize,
         rb3lfe_prv_run_escript,
         %% Phase 6.2: Release management
-        rb3lfe_prv_run_release
+        rb3lfe_prv_run_release,
+        %% Phase 6.3: Data conversion
+        rb3lfe_prv_confabulate
     ],
 
     State2 = lists:foldl(
