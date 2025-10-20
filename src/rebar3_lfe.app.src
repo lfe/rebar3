@@ -1,6 +1,6 @@
 {application, 'rebar3_lfe',
- [{description, "A comprehensive LFE rebar3 plugin for all your LFE tooling needs"},
-  {vsn, "0.4.12"},
+ [{description, "The LFE build and software management tool"},
+  {vsn, "0.5.0"},
   {registered, []},
   {applications, [
     kernel,
@@ -8,15 +8,18 @@
     lfe]},
   {env,[]},
   {modules, [
-    %% main module
+    %% Phase 1: New architecture modules
+    rb3lfe,
+    rb3lfe_compiler_mod,
+    rb3lfe_config,
+    rb3lfe_paths,
+    %% Legacy modules (to be phased out)
     rebar3_lfe,
-    %% support modules
     rebar3_lfe_clean,
     rebar3_lfe_package,
     rebar3_lfe_repl,
     rebar3_lfe_utils,
     rebar3_lfe_version,
-    %% command modules
     rebar3_lfe_prv_clean,
     rebar3_lfe_prv_clean_all,
     rebar3_lfe_prv_clean_build,
@@ -35,11 +38,18 @@
 
   %% Hex.pm metadata
   {pkg_name, rebar3_lfe},
-  {licenses, ["Apache 2.0"]},
+  {licenses, ["Apache-2.0"]},
   {links, [
       {"GitHub", "https://github.com/lfe/rebar3"},
       {"Hex", "https://hex.pm/packages/rebar3_lfe"},
-      {"LFE", "https://github.com/lfe/lfe"}
+      {"LFE", "https://lfe.io"}
+  ]},
+  {files, [
+      "src",
+      "include",
+      "README.md",
+      "LICENSE",
+      "rebar.config"
   ]},
   {exclude_files, ["priv/testing/*"]}
  ]}.
