@@ -26,5 +26,25 @@ init(State) ->
 
     ?DEBUG("Registered rb3lfe_compiler_mod with rebar3", []),
 
-    %% Future phases will register providers here
-    {ok, State1}.
+    %% Register all providers
+    Providers = [
+        rb3lfe_prv_compile,
+        rb3lfe_prv_clean,
+        rb3lfe_prv_repl,
+        rb3lfe_prv_ltest,
+        rb3lfe_prv_release,
+        rb3lfe_prv_versions
+    ],
+
+    State2 = lists:foldl(
+        fun(Provider, StateAcc) ->
+            {ok, StateAcc1} = Provider:init(StateAcc),
+            StateAcc1
+        end,
+        State1,
+        Providers
+    ),
+
+    ?DEBUG("Registered ~p providers", [length(Providers)]),
+
+    {ok, State2}.
