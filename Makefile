@@ -1,19 +1,45 @@
 PROJECT = rebar3_lfe
 ROOT_DIR = $(shell pwd)
-#SYS_TEST_DIR = $(ROOT_DIR)/_integration
 SYS_TEST_DIR = /tmp/rebar3_lfe/_integration/_testing
 GLOBAL_INSTALL_DIR = ~/.config/rebar3/plugins
 GLOBAL_INSTALL = $(GLOBAL_INSTALL_DIR)/$(PROJECT)
 
-check: clean
-	@rebar3 lfe compile
-	@rebar3 xref
-	-@rebar3 dialyzer
-	@rebar3 as test lfe ltest
+.PHONY: all compile clean check test coverage benchmarks smoke-tests ci
+
+all: compile
+
+compile:
+	@rebar3 compile
 
 clean:
 	@rm -rf _build rebar.lock $(SYS_TEST_DIR) $(GLOBAL_INSTALL)
 
+check: clean
+	@rebar3 check
+
+test: clean
+	@rebar3 ct
+	-@rebar3 proper -c
+
+coverage: clean
+	@rebar3 as test do ct, cover -v
+
+benchmarks: compile
+	@rebar3 shell --eval "rb3lfe_benchmarks:run_all(), init:stop()."
+
+# Quality checks
+xref:
+	@rebar3 xref
+
+dialyzer:
+	@rebar3 dialyzer
+
+quality: xref dialyzer
+
+# CI/CD helper
+ci: clean compile quality test coverage
+
+# Publish to hex.pm
 publish:
 	@echo "\nPublishing to hex.pm ...\n"
 	@rebar3 hex publish package
