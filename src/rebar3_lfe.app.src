@@ -27,6 +27,10 @@
     rb3lfe_prv_ltest,
     rb3lfe_prv_release,
     rb3lfe_prv_versions,
+    %% Phase 6.1: Escript providers
+    rb3lfe_prv_run,
+    rb3lfe_prv_escriptize,
+    rb3lfe_prv_run_escript,
     %% Legacy modules (to be phased out)
     rebar3_lfe,
     rebar3_lfe_clean,

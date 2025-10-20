@@ -33,7 +33,11 @@ init(State) ->
         rb3lfe_prv_repl,
         rb3lfe_prv_ltest,
         rb3lfe_prv_release,
-        rb3lfe_prv_versions
+        rb3lfe_prv_versions,
+        %% Phase 6.1: Escript providers
+        rb3lfe_prv_run,
+        rb3lfe_prv_escriptize,
+        rb3lfe_prv_run_escript
     ],
 
     State2 = lists:foldl(
