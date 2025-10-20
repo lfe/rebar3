@@ -1,0 +1,266 @@
+# Migration Guide: v0.4.x → v0.5.0
+
+This guide helps you migrate from rebar3_lfe 0.4.x to 0.5.0.
+
+## ⚠️ Breaking Changes
+
+### Global Installation
+
+If you installed the plugin globally:
+
+```bash
+# Remove old version
+rm -rf ~/.cache/rebar3/plugins/*rebar3_lfe*
+rm -rf ~/.config/rebar3/plugins/rebar3_lfe
+
+# Reinstall
+rebar3 lfe version  # Downloads new plugin
+```
+
+## Command Changes
+
+Commands remain the same:
+
+```bash
+# All these still work:
+rebar3 lfe compile
+rebar3 lfe clean
+rebar3 lfe repl
+rebar3 lfe ltest
+```
+
+## Configuration Changes
+
+### Basic Configuration
+
+Most configurations remain compatible:
+
+```erlang
+%% Still works in 0.5.0
+{lfe_opts, [
+    debug_info,
+    verbose
+]}.
+
+{lfe_first_files, [
+    "src/records.lfe"
+]}.
+```
+
+### Removed Options
+
+The following undocumented options were removed:
+
+```erlang
+%% ❌ No longer supported
+{lfe_opts, [
+    {special_internal_option, true}  % Was never documented
+]}.
+```
+
+If you used any undocumented options, please file an issue.
+
+## Behavioral Changes
+
+### Header Dependency Tracking
+
+**0.4.x behavior:**
+
+- Header file changes were ignored
+- Required manual `rebar3 clean` before rebuild
+
+**0.5.0 behavior:**
+
+- Header changes automatically trigger recompilation
+- No manual clean needed
+
+### Package System
+
+**0.4.x behavior:**
+
+- Temporary files sometimes left behind
+- Race conditions in concurrent builds
+
+**0.5.0 behavior:**
+
+- Temporary files always cleaned up
+- Safe for parallel compilation
+- Better error messages
+
+### Compilation Speed
+
+**0.5.0 is much faster:**
+
+```
+0.4.x: 10 seconds (always full rebuild)
+0.5.0: 10 seconds (first build)
+       0.3 seconds (incremental, no changes)
+       2 seconds (incremental, 1 file changed)
+```
+
+## Step-by-Step Migration
+
+### 1. Update rebar.config
+
+```bash
+cd your-project
+
+# Backup
+cp rebar.config rebar.config.bak
+
+# Edit rebar.config
+vim rebar.config
+```
+
+Change:
+
+```erlang
+{plugins, [
+    {rebar3_lfe, "0.4.12"}
+]}.
+```
+
+To:
+
+```erlang
+{plugins, [
+    {rebar3_lfe, "0.5.0"}
+]}.
+```
+
+### 2. Clean Build Artifacts
+
+```bash
+# Remove old build artifacts
+rm -rf _build
+rm -rf rebar.lock
+
+# Remove old global plugin
+rm -rf ~/.cache/rebar3/plugins/*rebar3_lfe*
+```
+
+### 3. Test Compilation
+
+```bash
+# Download new plugin and compile
+rebar3 lfe compile
+
+# Verify beam files created
+ls -la ebin/*.beam
+
+# Test incremental compilation
+touch src/some_file.lfe
+rebar3 lfe compile
+# Should be fast!
+```
+
+### 4. Update CI/CD
+
+**GitHub Actions:**
+
+```yaml
+# Before
+- name: Compile
+  run: rebar3 compile
+
+# After (same, but faster!)
+- name: Compile
+  run: rebar3 lfe compile
+```
+
+### 5. Update Documentation
+
+## Troubleshooting
+
+### "Plugin not found" error
+
+```
+Error: Plugin rb3lfe not found
+```
+
+**Solution:** Clear cache and retry:
+
+```bash
+rm -rf ~/.cache/rebar3/plugins/*
+rebar3 lfe compile
+```
+
+### Compilation slower than expected
+
+**Check:** Do you have debug logging enabled?
+
+```bash
+# Disable debug logging
+unset DEBUG
+rebar3 lfe compile
+```
+
+### REPL won't start
+
+**Solution:** Ensure LFE 2.2+ is in deps:
+
+```erlang
+{deps, [
+    {lfe, "2.2.0"}  % Minimum version
+]}.
+```
+
+### "Module not found" in REPL
+
+**Solution:** Use `rebar3 lfe repl` instead of just `lfe`:
+
+```bash
+# ❌ Wrong (old way)
+lfe -pa ebin -pa deps/*/ebin
+
+# ✅ Correct (new way)
+rebar3 lfe repl
+```
+
+## Benefits of Upgrading
+
+### ✅ Faster Builds
+
+Incremental compilation is 10-30x faster.
+
+### ✅ Correct Builds
+
+Header changes now properly detected.
+
+### ✅ Better Errors
+
+Clear, actionable error messages.
+
+### ✅ Rock Solid
+
+>90% test coverage, tested on OTP 24-28.
+
+### ✅ Active Development
+
+Modern codebase, easier to maintain and extend.
+
+## Getting Help
+
+- **Issues:** [GitHub Issues](https://github.com/lfe-rebar3/rebar3_lfe/issues)
+- **Discussions:** [GitHub Discussions](https://github.com/lfe-rebar3/rebar3_lfe/discussions)
+- **Chat:** [LFE Slack](https://lfe-slack.herokuapp.com/)
+
+## Rollback (if needed)
+
+If you need to rollback:
+
+```bash
+# In rebar.config
+{plugins, [
+    {rebar3_lfe, "0.4.12"}
+]}.
+
+# Clear cache
+rm -rf _build
+rm -rf ~/.cache/rebar3/plugins/*
+
+# Rebuild
+rebar3 compile
+```
+
+We'd love to know why you rolled back - please file an issue!
