@@ -1,4 +1,4 @@
--module(rb3lfe).
+-module(rebar3_lfe).
 
 %% Plugin API
 -export([init/1]).
@@ -34,13 +34,10 @@ init(State) ->
         rb3lfe_prv_ltest,
         rb3lfe_prv_release,
         rb3lfe_prv_versions,
-        %% Phase 6.1: Escript providers
         rb3lfe_prv_run,
         rb3lfe_prv_escriptize,
         rb3lfe_prv_run_escript,
-        %% Phase 6.2: Release management
         rb3lfe_prv_run_release,
-        %% Phase 6.3: Data conversion
         rb3lfe_prv_confabulate
     ],
 
