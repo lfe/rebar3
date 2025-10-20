@@ -8,11 +8,13 @@
     lfe]},
   {env,[]},
   {modules, [
-    %% Phase 1: New architecture modules
+    %% Phase 1 & 2: New architecture modules
     rb3lfe,
     rb3lfe_compiler_mod,
     rb3lfe_config,
     rb3lfe_paths,
+    rb3lfe_dependency_scanner,
+    rb3lfe_dep_cache,
     %% Legacy modules (to be phased out)
     rebar3_lfe,
     rebar3_lfe_clean,

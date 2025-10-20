@@ -3,7 +3,7 @@
 %% Plugin API
 -export([init/1]).
 
--include("rb3lfe.hrl").
+-include_lib("rebar3_lfe/include/rb3lfe.hrl").
 
 %%====================================================================
 %% Plugin API
@@ -15,6 +15,9 @@
 init(State) ->
     ?DEBUG("Initializing rb3lfe plugin...", []),
 
+    %% Initialize dependency cache
+    ok = rb3lfe_dep_cache:init(),
+
     %% Register our compiler module with rebar3
     %% This integrates us into rebar3's compilation pipeline
     State1 = rebar_state:append_compilers(State, [rb3lfe_compiler_mod]),
@@ -22,5 +25,4 @@ init(State) ->
     ?DEBUG("Registered rb3lfe_compiler_mod with rebar3", []),
 
     %% Future phases will register providers here
-    %% For now, just return the updated state
     {ok, State1}.

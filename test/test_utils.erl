@@ -29,8 +29,12 @@ create_temp_dir(Prefix) ->
         TmpPath -> TmpPath
     end,
     Dir = filename:join([TmpDir, Prefix ++ "_" ++ Rand]),
-    %% filelib:ensure_dir with a file path creates all parent directories
+    %% filelib:ensure_dir creates parent dirs, file:make_dir creates the dir itself
     ok = filelib:ensure_dir(filename:join(Dir, "dummy")),
+    case file:make_dir(Dir) of
+        ok -> ok;
+        {error, eexist} -> ok  %% Already exists from parallel test
+    end,
     Dir.
 
 %% @doc Clean up a temporary directory
@@ -53,6 +57,8 @@ create_test_app(Dir, AppName) ->
     IncludeDir = filename:join(Dir, "include"),
     EbinDir = filename:join(Dir, "ebin"),
 
+    %% filelib:ensure_dir creates parent dirs (in this case, SrcDir, IncludeDir, EbinDir)
+    %% when given a path like "SrcDir/dummy", it creates SrcDir
     ok = filelib:ensure_dir(filename:join(SrcDir, "dummy")),
     ok = filelib:ensure_dir(filename:join(IncludeDir, "dummy")),
     ok = filelib:ensure_dir(filename:join(EbinDir, "dummy")),
