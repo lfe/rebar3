@@ -57,6 +57,11 @@ This is a ground-up rewrite of the rebar3_lfe plugin with modern architecture an
 
 - **BREAKING**: Removed undocumented internal functions
 - **BREAKING**: Removed deprecated configuration options
+- **CLEANUP**: Removed all legacy rebar3_lfe_* modules (22 files, 2,574 lines)
+  - Complete removal of 0.4.x codebase after rewrite
+  - Added verification test suite to ensure no legacy code remains
+  - Preserved rebar3_lfe.app.src for application configuration
+  - Safety scripts included for auditing and verification
 - Removed workarounds for old rebar3 versions
 
 #### Fixed
