@@ -1,11 +1,11 @@
 {erl_opts, [debug_info]}.
 
 {deps, [
-    {lfe, "~> 2.1"}
+    {lfe, "~> 2.2"}
 ]}.
 
 {plugins, [
-    {rebar3_lfe, "~> 0.4"}
+    {rebar3_lfe, "~> 0.5"}
 ]}.
 
 {provider_hooks, [

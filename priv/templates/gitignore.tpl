@@ -31,3 +31,4 @@ logs
 rebar/*
 rebar3.crashdump
 tramp
+.claude
