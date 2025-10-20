@@ -15,8 +15,9 @@
 init(State) ->
     ?DEBUG("Initializing rb3lfe plugin...", []),
 
-    %% Initialize dependency cache
+    %% Initialize caches
     ok = rb3lfe_dep_cache:init(),
+    ok = rb3lfe_compile_opts:init(),
 
     %% Register our compiler module with rebar3
     %% This integrates us into rebar3's compilation pipeline

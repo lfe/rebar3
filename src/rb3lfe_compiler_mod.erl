@@ -7,7 +7,8 @@
     needed_files/4,
     dependencies/3,
     compile/4,
-    clean/2
+    clean/2,
+    format_error/1
 ]).
 
 %% Exported for testing
@@ -103,13 +104,43 @@ needed_files(G, FoundFiles, OutMappings, AppInfo) ->
     %% RestNeeded can potentially be compiled in parallel (Phase 3)
     {{FirstNeeded, []}, {{[], RestNeeded}, []}}.
 
-%% @doc Compile a source file (stub for Phase 3)
+%% @doc Compile a source file
+%% This is called by rebar3 for each file that needs compilation
 -spec compile(file:filename(), [{string(), file:filename()}],
-              rebar_dict:t(), list()) -> ok.
-compile(Source, _OutMappings, _Dict, _Opts) ->
-    ?INFO("Would compile: ~s", [Source]),
-    %% Phase 3 will implement actual compilation
-    ok.
+              rebar_dict:t(), list()) ->
+    ok | {ok, [string()]} | {error, [string()], [string()]}.
+compile(Source, OutMappings, _Dict, Opts) ->
+    %% Extract output directory from mappings
+    OutDir = case OutMappings of
+        [{_Ext, Dir} | _] -> Dir;
+        [] -> "ebin"  % Fallback
+    end,
+
+    %% Get LFE compiler options from Opts (if available)
+    LfeOpts = case lists:keyfind(lfe_opts, 1, Opts) of
+        {lfe_opts, Opts1} -> Opts1;
+        false -> []
+    end,
+
+    %% Compile the file
+    case rb3lfe_compile_worker:compile_file(Source, OutDir, LfeOpts) of
+        ok ->
+            %% Save options hash for future checks
+            rb3lfe_compile_opts:save_opts_hash(Source, LfeOpts),
+            ok;
+
+        {ok, Warnings} ->
+            %% Format warnings as strings for rebar3
+            rb3lfe_compile_opts:save_opts_hash(Source, LfeOpts),
+            WarningStrs = format_diagnostics(Warnings),
+            {ok, WarningStrs};
+
+        {error, Errors, Warnings} ->
+            %% Format both errors and warnings
+            ErrorStrs = format_diagnostics(Errors),
+            WarningStrs = format_diagnostics(Warnings),
+            {error, ErrorStrs, WarningStrs}
+    end.
 
 %% @doc Clean compiled files
 -spec clean([file:filename()], rebar_app_info:t()) -> ok.
@@ -130,9 +161,42 @@ clean(Files, _AppInfo) ->
     ),
     ok.
 
+%% @doc Add format_error/1 callback for provider-level errors
+-spec format_error(term()) -> iolist().
+format_error(Reason) ->
+    rb3lfe_compile_worker:format_error(Reason).
+
 %%====================================================================
 %% Internal functions
 %%====================================================================
+
+%% @doc Format error/warning tuples into human-readable strings
+-spec format_diagnostics([{file:filename(), [{integer(), module(), term()}]}]) ->
+    [string()].
+format_diagnostics(Diagnostics) ->
+    lists:flatmap(
+        fun({File, Items}) ->
+            [format_diagnostic_item(File, Line, Module, Desc)
+             || {Line, Module, Desc} <- Items]
+        end,
+        Diagnostics
+    ).
+
+%% @doc Format a single diagnostic item
+-spec format_diagnostic_item(file:filename(), integer(), module(), term()) ->
+    string().
+format_diagnostic_item(File, Line, Module, Description) ->
+    %% Try to use the module's format_error if available
+    Message = try
+        Module:format_error(Description)
+    catch
+        _:_ ->
+            %% Fallback to term formatting
+            io_lib:format("~p", [Description])
+    end,
+
+    %% Format as: "file.lfe:123: error message"
+    lists:flatten(io_lib:format("~s:~p: ~s", [File, Line, Message])).
 
 %% @doc Check if a source file needs compilation based on DAG
 -spec needs_compilation(
