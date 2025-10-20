@@ -261,7 +261,7 @@ run_rebar3(Dir, Args) ->
 verify_template_exists(TemplateName) ->
     %% Get priv dir
     PrivDir = case code:priv_dir(rebar3_lfe) of
-        {error, bad_name} -> code:priv_dir(rb3lfe);
+        {error, bad_name} -> code:priv_dir(r3lfe);
         Dir -> Dir
     end,
 

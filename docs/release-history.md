@@ -44,8 +44,8 @@ This is a ground-up rewrite of the rebar3_lfe plugin with modern architecture an
 
 #### Changed
 
-- **BREAKING**: Plugin package renamed from `rebar3_lfe` to `rb3lfe`
-- **BREAKING**: All modules renamed with `rb3lfe_` prefix
+- **BREAKING**: Plugin package renamed from `rebar3_lfe` to `r3lfe`
+- **BREAKING**: All modules renamed with `r3lfe_` prefix
 - **BREAKING**: Internal APIs completely redesigned
 - **IMPROVED**: Compilation is 10-30x faster for incremental builds
 - **IMPROVED**: REPL works reliably on all OTP versions

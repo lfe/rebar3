@@ -19,15 +19,15 @@ all() -> [header_change_triggers_recompile, multiple_headers_tracked,
           nested_includes_tracked, cache_improves_performance].
 
 init_per_suite(Config) ->
-    rb3lfe_dep_cache:init(),
+    r3lfe_dep_cache:init(),
     Config.
 
 end_per_suite(_Config) ->
-    rb3lfe_dep_cache:clear(),
+    r3lfe_dep_cache:clear(),
     ok.
 
 init_per_testcase(_TestCase, Config) ->
-    rb3lfe_dep_cache:clear(),
+    r3lfe_dep_cache:clear(),
     [{test_dir, test_utils:create_temp_dir()} | Config].
 
 end_per_testcase(_TestCase, Config) ->
@@ -61,7 +61,7 @@ header_change_triggers_recompile(Config) ->
     timer:sleep(1000),
 
     {ok, AppInfo} = rebar_app_info:new(test_app, "0.1.0", AppDir),
-    Deps = rb3lfe_dependency_scanner:scan_file(SourceFile, AppInfo),
+    Deps = r3lfe_dependency_scanner:scan_file(SourceFile, AppInfo),
 
     ?assert(lists:any(
         fun(D) -> filename:basename(D) =:= "records.lfe" end, Deps)),
@@ -74,7 +74,7 @@ header_change_triggers_recompile(Config) ->
     digraph:add_edge(G, SourceFile, HeaderFile),
 
     OutMappings = [{".beam", EbinDir}],
-    NeedsCompile = rb3lfe_compiler_mod:needs_compilation(
+    NeedsCompile = r3lfe_compiler_mod:needs_compilation(
         G, SourceFile, OutMappings),
 
     ?assert(NeedsCompile, "Should need recompilation after header change"),
@@ -105,7 +105,7 @@ multiple_headers_tracked(Config) ->
         "(defun test () 'ok)\n"),
 
     {ok, AppInfo} = rebar_app_info:new(test_app, "0.1.0", AppDir),
-    Deps = rb3lfe_dependency_scanner:scan_file(SourceFile, AppInfo),
+    Deps = r3lfe_dependency_scanner:scan_file(SourceFile, AppInfo),
 
     ?assertEqual(3, length(Deps)),
     ?assert(lists:any(fun(D) -> filename:basename(D) =:= "records.lfe" end, Deps)),
@@ -136,11 +136,11 @@ nested_includes_tracked(Config) ->
 
     {ok, AppInfo} = rebar_app_info:new(test_app, "0.1.0", AppDir),
 
-    SourceDeps = rb3lfe_dependency_scanner:scan_file(SourceFile, AppInfo),
+    SourceDeps = r3lfe_dependency_scanner:scan_file(SourceFile, AppInfo),
     ?assert(lists:any(
         fun(D) -> filename:basename(D) =:= "derived.lfe" end, SourceDeps)),
 
-    DerivedDeps = rb3lfe_dependency_scanner:scan_file(DerivedHeader, AppInfo),
+    DerivedDeps = r3lfe_dependency_scanner:scan_file(DerivedHeader, AppInfo),
     ?assert(lists:any(
         fun(D) -> filename:basename(D) =:= "base.lfe" end, DerivedDeps)),
 
@@ -166,17 +166,17 @@ cache_improves_performance(Config) ->
     {ok, AppInfo} = rebar_app_info:new(test_app, "0.1.0", AppDir),
 
     %% First scan - cache miss
-    Deps1 = rb3lfe_dependency_scanner:scan_file(SourceFile, AppInfo),
+    Deps1 = r3lfe_dependency_scanner:scan_file(SourceFile, AppInfo),
     ?assertEqual(1, length(Deps1)),
 
     %% Second scan - should use cache
-    Deps2 = rb3lfe_dependency_scanner:scan_file(SourceFile, AppInfo),
+    Deps2 = r3lfe_dependency_scanner:scan_file(SourceFile, AppInfo),
     ?assertEqual(Deps1, Deps2),
 
     %% Verify cache contains the entry
     %% Note: Cache might be considered stale due to timestamp precision,
     %% but the important thing is that the scan results are consistent
-    case rb3lfe_dep_cache:get(SourceFile) of
+    case r3lfe_dep_cache:get(SourceFile) of
         {ok, CachedDeps, _Time} ->
             ?assertEqual(Deps1, CachedDeps);
         error ->

@@ -12,7 +12,7 @@ Use this checklist when preparing a release.
 
 ## Version Update
 
-- [ ] Update version in `src/rb3lfe.app.src`
+- [ ] Update version in `src/r3lfe.app.src`
 - [ ] Update docs/release-history.md with release notes
 - [ ] Update README.md if needed
 - [ ] Check all documentation up to date

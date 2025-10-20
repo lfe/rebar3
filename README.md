@@ -1,4 +1,4 @@
-# rb3lfe - Modern rebar3 Plugin for LFE
+# r3lfe - Modern rebar3 Plugin for LFE
 
 [![CI/CD][gh-actions-badge]][gh-actions]
 [![Coverage](https://codecov.io/gh/lfe/rebar3/branch/main/graph/badge.svg)](https://codecov.io/gh/lfe/rebar3)
@@ -113,7 +113,7 @@ src/myapp.lfe:10: error: undefined function foo/1
 
 ## Compatibility
 
-| Erlang/OTP | rebar3  | rb3lfe | Status |
+| Erlang/OTP | rebar3  | r3lfe | Status |
 |------------|---------|--------|--------|
 | 28         | 3.25    | 0.5.0  | ✅ Tested |
 | 27         | 3.25    | 0.5.0  | ✅ Tested |
@@ -125,7 +125,7 @@ src/myapp.lfe:10: error: undefined function foo/1
 
 Version 0.5.0 is a **complete rewrite** with breaking changes:
 
-- Module prefix: `rebar3_lfe_*` → `rb3lfe_*`
+- Module prefix: `rebar3_lfe_*` → `r3lfe_*`
 - Faster, more reliable compilation
 - Better error messages
 

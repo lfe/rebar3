@@ -1,6 +1,6 @@
 # Command Reference
 
-Complete reference for all rb3lfe commands.
+Complete reference for all r3lfe commands.
 
 ## Core Commands
 
@@ -176,7 +176,7 @@ rebar3 lfe versions
 - LFE version
 - Erlang/OTP version
 - rebar3 version
-- rb3lfe version
+- r3lfe version
 
 **Example output:**
 ```
@@ -190,7 +190,7 @@ rebar3 lfe versions
 
 === Build Tools ===
   rebar3               3.25.0
-  rb3lfe               0.5.0
+  r3lfe               0.5.0
 ```
 
 ## Script Commands
@@ -417,11 +417,11 @@ rebar3 lfe confabulate -i data.lfe --force
 
 ## Global Installation
 
-Install rb3lfe globally for use across all projects:
+Install r3lfe globally for use across all projects:
 
 ```bash
 # Add to ~/.config/rebar3/rebar.config
-{plugins, [rb3lfe]}.
+{plugins, [r3lfe]}.
 
 # Use in any project
 cd any-lfe-project

@@ -3,7 +3,7 @@
 %% Plugin API
 -export([init/1]).
 
--include_lib("rebar3_lfe/include/rb3lfe.hrl").
+-include_lib("rebar3_lfe/include/r3lfe.hrl").
 
 %%====================================================================
 %% Plugin API
@@ -13,32 +13,32 @@
 %% This is called by rebar3 when the plugin is loaded
 -spec init(rebar_state:t()) -> {ok, rebar_state:t()}.
 init(State) ->
-    ?DEBUG("Initializing rb3lfe plugin...", []),
+    ?DEBUG("Initializing r3lfe plugin...", []),
 
     %% Initialize all caches and trackers
-    ok = rb3lfe_dep_cache:init(),
-    ok = rb3lfe_compile_opts:init(),
-    ok = rb3lfe_package_tracker:init(),
+    ok = r3lfe_dep_cache:init(),
+    ok = r3lfe_compile_opts:init(),
+    ok = r3lfe_package_tracker:init(),
 
     %% Register our compiler module with rebar3
     %% This integrates us into rebar3's compilation pipeline
-    State1 = rebar_state:append_compilers(State, [rb3lfe_compiler_mod]),
+    State1 = rebar_state:append_compilers(State, [r3lfe_compiler_mod]),
 
-    ?DEBUG("Registered rb3lfe_compiler_mod with rebar3", []),
+    ?DEBUG("Registered r3lfe_compiler_mod with rebar3", []),
 
     %% Register all providers
     Providers = [
-        rb3lfe_prv_compile,
-        rb3lfe_prv_clean,
-        rb3lfe_prv_repl,
-        rb3lfe_prv_ltest,
-        rb3lfe_prv_release,
-        rb3lfe_prv_versions,
-        rb3lfe_prv_run,
-        rb3lfe_prv_escriptize,
-        rb3lfe_prv_run_escript,
-        rb3lfe_prv_run_release,
-        rb3lfe_prv_confabulate
+        r3lfe_prv_compile,
+        r3lfe_prv_clean,
+        r3lfe_prv_repl,
+        r3lfe_prv_ltest,
+        r3lfe_prv_release,
+        r3lfe_prv_versions,
+        r3lfe_prv_run,
+        r3lfe_prv_escriptize,
+        r3lfe_prv_run_escript,
+        r3lfe_prv_run_release,
+        r3lfe_prv_confabulate
     ],
 
     State2 = lists:foldl(

@@ -60,7 +60,7 @@ rebar3 lfe run --main src/another.lfe
 **rebar.config:**
 
 ```erlang
-{plugins, [{rb3lfe, "0.5.0"}]}.
+{plugins, [{rebar3_lfe, "0.5.0"}]}.
 {deps, [{lfe, "2.2.0"}]}.
 
 %% Set default script

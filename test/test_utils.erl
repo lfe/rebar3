@@ -20,7 +20,7 @@
 
 %% @doc Create a temporary directory for testing
 create_temp_dir() ->
-    create_temp_dir("rb3lfe_test").
+    create_temp_dir("r3lfe_test").
 
 create_temp_dir(Prefix) ->
     Rand = integer_to_list(erlang:unique_integer([positive])),

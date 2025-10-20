@@ -1,6 +1,6 @@
 # Quick Start Guide
 
-Get up and running with rb3lfe in 5 minutes.
+Get up and running with r3lfe in 5 minutes.
 
 ## Installation
 
@@ -14,7 +14,7 @@ cd my-lfe-app
 # Create rebar.config
 cat > rebar.config <<EOF
 {plugins, [
-    {rb3lfe, "0.5.0"}
+    {rebar3_lfe, "0.5.0"}
 ]}.
 
 {deps, [
@@ -53,7 +53,7 @@ Add to your `rebar.config`:
 
 ```erlang
 {plugins, [
-    {rb3lfe, "0.5.0"}
+    {rebar3_lfe, "0.5.0"}
 ]}.
 ```
 

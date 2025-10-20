@@ -62,19 +62,19 @@ full_project_workflow(Config) ->
 
     %% Test compile
     State = create_rebar_state(TestDir),
-    {ok, _} = rb3lfe_prv_compile:do(State),
+    {ok, _} = r3lfe_prv_compile:do(State),
 
     %% Verify beam files
     assert_beam_files_exist(TestDir, ["myapp", "myapp.utils"]),
 
     %% Test clean
-    {ok, _} = rb3lfe_prv_clean:do(State),
+    {ok, _} = r3lfe_prv_clean:do(State),
 
     %% Verify beams removed
     assert_beam_files_not_exist(TestDir, ["myapp", "myapp.utils"]),
 
     %% Test recompile
-    {ok, _} = rb3lfe_prv_compile:do(State),
+    {ok, _} = r3lfe_prv_compile:do(State),
     assert_beam_files_exist(TestDir, ["myapp", "myapp.utils"]),
 
     ok.
@@ -87,7 +87,7 @@ umbrella_project_workflow(Config) ->
 
     %% Test compile all
     State = create_umbrella_state(TestDir),
-    {ok, _} = rb3lfe_prv_compile:do(State),
+    {ok, _} = r3lfe_prv_compile:do(State),
 
     %% Verify all apps compiled
     assert_beam_exists(TestDir, "apps/app1/ebin/app1.beam"),
@@ -103,7 +103,7 @@ mixed_erlang_lfe_project(Config) ->
 
     %% Compile just LFE (Erlang compilation is separate)
     State = create_rebar_state(TestDir),
-    {ok, _} = rb3lfe_prv_compile:do(State),
+    {ok, _} = r3lfe_prv_compile:do(State),
 
     %% LFE module should compile
     assert_beam_exists(TestDir, "ebin/lfe-module.beam"),
@@ -118,7 +118,7 @@ project_with_dependencies(Config) ->
 
     %% Compile
     State = create_rebar_state(TestDir),
-    {ok, _} = rb3lfe_prv_compile:do(State),
+    {ok, _} = r3lfe_prv_compile:do(State),
 
     %% Should compile successfully
     assert_beam_exists(TestDir, "ebin/myapp.beam"),
@@ -128,8 +128,8 @@ project_with_dependencies(Config) ->
 versions_command_works(_Config) ->
     %% Test versions provider
     State = rebar_state:new(),
-    {ok, State1} = rb3lfe_prv_versions:init(State),
-    {ok, _} = rb3lfe_prv_versions:do(State1),
+    {ok, State1} = r3lfe_prv_versions:init(State),
+    {ok, _} = r3lfe_prv_versions:do(State1),
 
     ok.
 
@@ -140,7 +140,7 @@ versions_command_works(_Config) ->
 create_full_project(TestDir) ->
     %% Create rebar.config
     RebarConfig =
-        "{plugins, [{rb3lfe, \"0.5.0\"}]}.\n"
+        "{plugins, [{rebar3_lfe, \"0.5.0\"}]}.\n"
         "{deps, [{lfe, \"2.2.0\"}]}.\n",
     file:write_file(filename:join(TestDir, "rebar.config"), RebarConfig),
 

@@ -32,8 +32,8 @@ all() ->
 
 init_per_suite(Config) ->
     application:ensure_all_started(lfe),
-    rb3lfe_dep_cache:init(),
-    rb3lfe_compile_opts:init(),
+    r3lfe_dep_cache:init(),
+    r3lfe_compile_opts:init(),
     Config.
 
 end_per_suite(_Config) ->
@@ -41,8 +41,8 @@ end_per_suite(_Config) ->
 
 init_per_testcase(_TestCase, Config) ->
     TestDir = test_utils:create_temp_dir(),
-    rb3lfe_dep_cache:clear(),
-    rb3lfe_compile_opts:clear_opts_cache(),
+    r3lfe_dep_cache:clear(),
+    r3lfe_compile_opts:clear_opts_cache(),
     [{test_dir, TestDir} | Config].
 
 end_per_testcase(_TestCase, Config) ->
@@ -80,7 +80,7 @@ full_compilation_cycle(Config) ->
     Results = lists:map(
         fun({Name, _Content}) ->
             Source = filename:join(SrcDir, Name),
-            rb3lfe_compile_worker:compile_file(Source, EbinDir, [])
+            r3lfe_compile_worker:compile_file(Source, EbinDir, [])
         end,
         Files
     ),
@@ -112,7 +112,7 @@ incremental_compilation(Config) ->
         "(defmodule incremental)\n"
         "(defun version () 1)\n"),
 
-    ok = rb3lfe_compile_worker:compile_file(SourceFile, EbinDir, []),
+    ok = r3lfe_compile_worker:compile_file(SourceFile, EbinDir, []),
 
     BeamFile = filename:join(EbinDir, "incremental.beam"),
     ?assert(filelib:is_file(BeamFile)),
@@ -134,14 +134,14 @@ incremental_compilation(Config) ->
     OutMappings = [{".beam", EbinDir}],
 
     %% Should need compilation
-    NeedsCompile = rb3lfe_compiler_mod:needs_compilation(
+    NeedsCompile = r3lfe_compiler_mod:needs_compilation(
         G, SourceFile, OutMappings
     ),
 
     ?assert(NeedsCompile, "Modified file should need recompilation"),
 
     %% Compile again
-    ok = rb3lfe_compile_worker:compile_file(SourceFile, EbinDir, []),
+    ok = r3lfe_compile_worker:compile_file(SourceFile, EbinDir, []),
 
     UpdatedTime = filelib:last_modified(BeamFile),
     ?assert(UpdatedTime > InitialTime, "Beam file should be updated"),
@@ -171,7 +171,7 @@ compile_with_includes(Config) ->
 
     %% Compile with include path
     Opts = [{i, IncludeDir}],
-    Result = rb3lfe_compile_worker:compile_file(SourceFile, EbinDir, Opts),
+    Result = r3lfe_compile_worker:compile_file(SourceFile, EbinDir, Opts),
 
     %% Should succeed
     ?assertMatch(ok, Result),

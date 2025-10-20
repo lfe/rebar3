@@ -10,7 +10,7 @@ Phase 2 is ~90% complete. Core functionality implemented, most tests passing, mi
 
 ### 1. Core Modules Implemented ✅
 
-#### rb3lfe_dependency_scanner.erl
+#### r3lfe_dependency_scanner.erl
 - Full LFE include directive parsing (include-file, include-lib)
 - Regular expression-based pattern matching for `(include-file "path")` and `(include-lib "app/path")`
 - Path resolution for both relative and library includes
@@ -18,34 +18,34 @@ Phase 2 is ~90% complete. Core functionality implemented, most tests passing, mi
 - Exports: scan_file/2, scan_file/3, scan_content/1, resolve_include/2, resolve_include/3
 - Test exports: parse_include_forms/1, extract_include_path/1, classify_include/1
 
-#### rb3lfe_dep_cache.erl
+#### r3lfe_dep_cache.erl
 - ETS-based caching system for parsed dependencies
 - Timestamp-based cache invalidation
 - Functions: init/0, get/1, put/2, invalidate/1, clear/0
-- Uses table name: rb3lfe_dep_cache
+- Uses table name: r3lfe_dep_cache
 - Properly handles cache staleness by checking file modification times
 
-#### rb3lfe_compiler_mod.erl (Updated)
+#### r3lfe_compiler_mod.erl (Updated)
 - Full DAG integration for dependency tracking
-- `dependencies/3` now calls rb3lfe_dependency_scanner:scan_file/2
+- `dependencies/3` now calls r3lfe_dependency_scanner:scan_file/2
 - `needed_files/4` uses DAG to determine which files need recompilation
 - Checks: .beam existence, source timestamps, dependency timestamps
 - Helper functions: needs_compilation/3, check_dependencies_newer/3, source_to_target/2
 - Exports needs_compilation/3 and source_to_target/2 for testing
 
-#### rb3lfe.erl (Updated)
-- Initializes rb3lfe_dep_cache:init() on plugin load
+#### r3lfe.erl (Updated)
+- Initializes r3lfe_dep_cache:init() on plugin load
 - Registers compiler module with rebar3
 
 ### 2. Configuration Updated ✅
 
 #### src/rebar3_lfe.app.src
-- Added rb3lfe_dependency_scanner and rb3lfe_dep_cache to modules list
+- Added r3lfe_dependency_scanner and r3lfe_dep_cache to modules list
 - Version still 0.5.0
 
 ### 3. Test Suites Created ✅
 
-#### test/rb3lfe_dependency_scanner_SUITE.erl
+#### test/r3lfe_dependency_scanner_SUITE.erl
 - 12 test cases covering:
   - Parsing: single/multiple/no includes
   - Extraction: include-file and include-lib paths
@@ -76,7 +76,7 @@ Phase 2 is ~90% complete. Core functionality implemented, most tests passing, mi
 **Problem**: Tests call `{ok, AppInfo} = rebar_app_info:new(test_app, "0.1.0", AppDir)` but it appears rebar_app_info:new/3 returns the AppInfo directly, not wrapped in {ok, ...}.
 
 **Location**: All 8 failing tests in:
-- rb3lfe_dependency_scanner_SUITE.erl (4 tests)
+- r3lfe_dependency_scanner_SUITE.erl (4 tests)
 - integration_SUITE.erl (4 tests)
 
 **Fix**: Change from:
@@ -113,16 +113,16 @@ This is the ONLY remaining issue blocking Phase 2 completion.
 
 ### New Files
 ```
-src/rb3lfe_dependency_scanner.erl
-src/rb3lfe_dep_cache.erl
-test/rb3lfe_dependency_scanner_SUITE.erl
+src/r3lfe_dependency_scanner.erl
+src/r3lfe_dep_cache.erl
+test/r3lfe_dependency_scanner_SUITE.erl
 test/integration_SUITE.erl
 ```
 
 ### Modified Files
 ```
-src/rb3lfe_compiler_mod.erl  - Added DAG integration
-src/rb3lfe.erl               - Added cache initialization
+src/r3lfe_compiler_mod.erl  - Added DAG integration
+src/r3lfe.erl               - Added cache initialization
 src/rebar3_lfe.app.src       - Added new modules
 test/test_utils.erl          - Fixed create_temp_dir
 ```
@@ -140,7 +140,7 @@ test/test_utils.erl          - Fixed create_temp_dir
 
 ### DAG Integration
 1. rebar3 calls dependencies/3 for each source file
-2. dependencies/3 calls rb3lfe_dependency_scanner:scan_file/2
+2. dependencies/3 calls r3lfe_dependency_scanner:scan_file/2
 3. Returns list of header file paths
 4. rebar3 builds digraph with edges: source -> header
 5. needed_files/4 walks graph checking timestamps

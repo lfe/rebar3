@@ -175,7 +175,7 @@ rebar3 lfe compile
 ### "Plugin not found" error
 
 ```
-Error: Plugin rb3lfe not found
+Error: Plugin r3lfe not found
 ```
 
 **Solution:** Clear cache and retry:

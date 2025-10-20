@@ -237,7 +237,7 @@ Error: Cannot find include file "dep/include/file.lfe"
 
 ### Path separator errors
 
-**rb3lfe 0.5.0 handles this automatically!**
+**r3lfe 0.5.0 handles this automatically!**
 
 If you still see issues:
 ```bash
@@ -262,7 +262,7 @@ rebar3 lfe versions
 ### File an Issue
 
 Include:
-- rb3lfe version
+- r3lfe version
 - Erlang/OTP version
 - LFE version
 - Full error message

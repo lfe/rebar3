@@ -59,7 +59,7 @@ end_per_testcase(_TestCase, Config) ->
 compile_provider_registers(_Config) ->
     State = rebar_state:new(),
 
-    {ok, State1} = rb3lfe_prv_compile:init(State),
+    {ok, State1} = r3lfe_prv_compile:init(State),
 
     %% Check provider is registered by checking state has providers
     Providers = rebar_state:providers(State1),
@@ -71,7 +71,7 @@ compile_provider_registers(_Config) ->
 clean_provider_registers(_Config) ->
     State = rebar_state:new(),
 
-    {ok, State1} = rb3lfe_prv_clean:init(State),
+    {ok, State1} = r3lfe_prv_clean:init(State),
 
     Providers = rebar_state:providers(State1),
 
@@ -97,9 +97,9 @@ compile_provider_works(Config) ->
     State1 = rebar_state:project_apps(State, [AppInfo]),
 
     %% Initialize and run compile provider
-    {ok, State2} = rb3lfe_prv_compile:init(State1),
+    {ok, State2} = r3lfe_prv_compile:init(State1),
 
-    Result = rb3lfe_prv_compile:do(State2),
+    Result = r3lfe_prv_compile:do(State2),
 
     ?assertMatch({ok, _}, Result),
 
@@ -126,8 +126,8 @@ clean_provider_works(Config) ->
     {ok, AppInfo} = rebar_app_info:new(testapp, "0.1.0", AppDir),
     State1 = rebar_state:project_apps(State, [AppInfo]),
 
-    {ok, State2} = rb3lfe_prv_clean:init(State1),
-    {ok, _State3} = rb3lfe_prv_clean:do(State2),
+    {ok, State2} = r3lfe_prv_clean:init(State1),
+    {ok, _State3} = r3lfe_prv_clean:do(State2),
 
     %% Beam file should be deleted
     ?assertNot(filelib:is_file(BeamFile)),
@@ -137,10 +137,10 @@ clean_provider_works(Config) ->
 versions_provider_works(_Config) ->
     State = rebar_state:new(),
 
-    {ok, State1} = rb3lfe_prv_versions:init(State),
+    {ok, State1} = r3lfe_prv_versions:init(State),
 
     %% Should not error
-    Result = rb3lfe_prv_versions:do(State1),
+    Result = r3lfe_prv_versions:do(State1),
 
     ?assertMatch({ok, _}, Result),
     ok.
@@ -149,7 +149,7 @@ provider_namespace_correct(_Config) ->
     State = rebar_state:new(),
 
     %% Initialize all providers
-    {ok, State1} = rb3lfe:init(State),
+    {ok, State1} = rebar3_lfe:init(State),
 
     %% Get all providers
     Providers = rebar_state:providers(State1),

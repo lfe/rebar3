@@ -68,7 +68,7 @@ build_and_run_release(Config) ->
     State2 = rebar_state:set(State1, relx, RelxConfig),
 
     %% Verify we can initialize the release provider
-    {ok, _State3} = rb3lfe_prv_release:init(State2),
+    {ok, _State3} = r3lfe_prv_release:init(State2),
 
     ct:pal("Release provider initialized successfully"),
 
@@ -88,11 +88,11 @@ release_start_stop(Config) ->
     State2 = rebar_state:set(State1, relx, RelxConfig),
 
     %% Initialize run-release provider
-    {ok, State3} = rb3lfe_prv_run_release:init(State2),
+    {ok, State3} = r3lfe_prv_run_release:init(State2),
 
     %% Try to run a command (should fail since no release is built)
     State4 = rebar_state:command_args(State3, ["status"]),
-    Result = rb3lfe_prv_run_release:do(State4),
+    Result = r3lfe_prv_run_release:do(State4),
 
     %% Should get an error about release script not found
     ?assertMatch({error, _}, Result),
@@ -105,7 +105,7 @@ release_shows_usage(_Config) ->
     %% Verify that release provider shows helpful usage info
     %% This is tested by checking the info/1 function output
 
-    Info = rb3lfe_prv_run_release:info("Test"),
+    Info = r3lfe_prv_run_release:info("Test"),
 
     ?assert(is_list(Info)),
     ?assert(length(Info) > 0),

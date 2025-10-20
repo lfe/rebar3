@@ -1,4 +1,4 @@
-# Contributing to rb3lfe
+# Contributing to r3lfe
 
 Thanks for your interest in contributing!
 
@@ -136,10 +136,10 @@ Then create PR on GitHub.
 ## Project Structure
 
 ```
-rb3lfe/
+r3lfe/
 ├── src/              # Source code
-│   ├── rb3lfe*.erl   # Modules
-│   └── rb3lfe.hrl    # Shared header
+│   ├── r3lfe*.erl   # Modules
+│   └── r3lfe.hrl    # Shared header
 ├── test/             # Tests
 │   ├── *_SUITE.erl   # CT suites
 │   └── test_utils.erl
@@ -186,10 +186,10 @@ prop_reversible() ->
 
 ### Adding a New Provider
 
-1. Create `src/rb3lfe_prv_mycommand.erl`
+1. Create `src/r3lfe_prv_mycommand.erl`
 2. Implement provider behavior
 3. Add tests in `test/`
-4. Register in `src/rb3lfe.erl`
+4. Register in `src/r3lfe.erl`
 5. Update documentation
 
 ### Adding a New Feature
@@ -214,7 +214,7 @@ prop_reversible() ->
 
 ```bash
 # 1. Update version
-vim src/rb3lfe.app.src
+vim src/r3lfe.app.src
 
 # 2. Update CHANGELOG
 vim docs/release-history.md

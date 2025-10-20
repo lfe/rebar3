@@ -25,7 +25,7 @@ coverage: clean
 	@rebar3 as test do ct, cover -v
 
 benchmarks: compile
-	@rebar3 shell --eval "rb3lfe_benchmarks:run_all(), init:stop()."
+	@rebar3 shell --eval "r3lfe_benchmarks:run_all(), init:stop()."
 
 # Quality checks
 xref:

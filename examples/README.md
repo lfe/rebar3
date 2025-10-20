@@ -1,6 +1,6 @@
 # Examples
 
-Complete, working examples for all rb3lfe features.
+Complete, working examples for all r3lfe features.
 
 ## Project Types
 
@@ -72,7 +72,7 @@ rebar3 lfe run --main src/process.lfe -- data.csv
 Clone and run any example:
 
 ```bash
-# Clone rb3lfe repository
+# Clone r3lfe repository
 git clone https://github.com/lfe-rebar3/rebar3_lfe.git
 cd rebar3_lfe/examples
 

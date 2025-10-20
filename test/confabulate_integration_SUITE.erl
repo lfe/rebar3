@@ -70,7 +70,7 @@ convert_config_file(Config) ->
         []
     }),
 
-    Result = rb3lfe_prv_confabulate:do(State1),
+    Result = r3lfe_prv_confabulate:do(State1),
 
     ?assertMatch({ok, _}, Result),
 
@@ -104,7 +104,7 @@ convert_test_data(Config) ->
         [{input, TestDataFile}], []
     }),
 
-    Result = rb3lfe_prv_confabulate:do(State1),
+    Result = r3lfe_prv_confabulate:do(State1),
 
     ?assertMatch({ok, _}, Result),
 
@@ -179,7 +179,7 @@ batch_conversion_workflow(Config) ->
         State1 = rebar_state:command_parsed_args(State, {
             [{input, InputFile}], []
         }),
-        rb3lfe_prv_confabulate:do(State1)
+        r3lfe_prv_confabulate:do(State1)
     end,
 
     Results = [ConvertFile(Name) || {Name, _} <- Files],
