@@ -43,21 +43,25 @@ discover_files(SourceDir) ->
     end.
 
 %% @doc Prepare package files for compilation
+%% Accepts list of {File, SourceDir} tuples
 %% Creates temporary flattened copies of nested files
 %% Returns list of package_info() records for cleanup
--spec prepare_packages([file:filename()]) -> {ok, [package_info()]} | {error, term()}.
-prepare_packages(Files) ->
-    ?DEBUG("Starting package preparation for ~p files", [length(Files)]),
+-spec prepare_packages([{file:filename(), file:filename()}]) -> 
+    {ok, [package_info()]} | {error, term()}.
+prepare_packages(FilesWithSrcDirs) ->
+    ?DEBUG("Starting package preparation for ~p files", [length(FilesWithSrcDirs)]),
+    
     %% Separate nested files from already-flat files
     {NestedFiles, _FlatFiles} = lists:partition(
-        fun(File) ->
-            SourceDir = find_source_dir(File),
+        fun({File, SourceDir}) ->
             is_nested_file(File, SourceDir)
         end,
-        Files
+        FilesWithSrcDirs
     ),
 
-    ?DEBUG("Found ~p nested files, ~p flat files", [length(NestedFiles), length(_FlatFiles)]),
+    ?DEBUG("Found ~p nested files, ~p flat files", 
+           [length(NestedFiles), length(_FlatFiles)]),
+    
     case NestedFiles of
         [] ->
             %% No packages to prepare
@@ -93,7 +97,8 @@ cleanup_packages(PackageInfos) ->
 %% @doc Check if a file is a package file (nested in subdirectory)
 -spec is_package_file(file:filename()) -> boolean().
 is_package_file(File) ->
-    SourceDir = find_source_dir(File),
+    %% For backward compatibility - assume parent directory is source dir
+    SourceDir = filename:dirname(File),
     is_nested_file(File, SourceDir).
 
 %% @doc Convert package file path to module name
@@ -164,35 +169,17 @@ discover_files_recursive(CurrentDir, _BaseDir, Visited) ->
             end
     end.
 
-%% @doc Find the source directory for a file
-%% This searches upward for a directory named "src"
--spec find_source_dir(file:filename()) -> file:filename().
-find_source_dir(File) ->
-    find_source_dir_upward(filename:dirname(File)).
-
--spec find_source_dir_upward(file:filename()) -> file:filename().
-find_source_dir_upward(Dir) ->
-    case filename:basename(Dir) of
-        "src" ->
-            Dir;
-        "/" ->
-            %% Reached root without finding src
-            Dir;
-        _ ->
-            find_source_dir_upward(filename:dirname(Dir))
-    end.
-
 %%====================================================================
 %% Internal functions - Package Preparation
 %%====================================================================
 
 %% @doc Prepare nested package files
--spec prepare_package_files([file:filename()]) ->
+-spec prepare_package_files([{file:filename(), file:filename()}]) ->
     {ok, [package_info()]} | {error, term()}.
 prepare_package_files(NestedFiles) ->
     Results = lists:map(
-        fun(SourceFile) ->
-            prepare_single_package(SourceFile)
+        fun({SourceFile, SourceDir}) ->
+            prepare_single_package(SourceFile, SourceDir)
         end,
         NestedFiles
     ),
@@ -211,10 +198,9 @@ prepare_package_files(NestedFiles) ->
     end.
 
 %% @doc Prepare a single package file
--spec prepare_single_package(file:filename()) ->
+-spec prepare_single_package(file:filename(), file:filename()) ->
     {ok, package_info()} | {error, term()}.
-prepare_single_package(SourceFile) ->
-    SourceDir = find_source_dir(SourceFile),
+prepare_single_package(SourceFile, SourceDir) ->
     ModuleName = calculate_module_name(SourceFile, SourceDir),
 
     %% Validate module name
@@ -276,12 +262,17 @@ copy_file_safe(Source, Dest) ->
 %% Examples:
 %%   src/my/package.lfe -> my.package
 %%   src/my/other/deep.lfe -> my.other.deep
+%%   test/my-test.lfe -> my-test (flat)
 -spec calculate_module_name(file:filename(), file:filename()) -> string().
 calculate_module_name(File, SourceDir) ->
     %% Get relative path from source directory
-    RelPath = case string:prefix(File, SourceDir) of
+    AbsFile = filename:absname(File),
+    AbsSourceDir = filename:absname(SourceDir),
+    
+    RelPath = case string:prefix(AbsFile, AbsSourceDir) of
         nomatch ->
             %% File not under source directory (shouldn't happen)
+            ?WARN("File ~s not under source dir ~s", [File, SourceDir]),
             filename:basename(File, ?LFE_SRC_EXTENSION);
         "/" ++ Rest ->
             Rest;
