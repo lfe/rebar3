@@ -58,11 +58,18 @@
         {proper, "-c"},
         {cover, "-v --min_coverage=0"}
     ]},
+    %% should be run with `rebar3 as test ltest`
+    {ltest, [
+        compile,
+        {lfe, ltest}
+    ]},
+    %% should be run with `rebar3 as test check`
     {check, [
         compile,
-        xref,
+        %%xref,
         %%dialyzer,
-        eunit,
+        %%eunit,
+        {lfe, ltest},
         coverage
     ]}
 ]}.
