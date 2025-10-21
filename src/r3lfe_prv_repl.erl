@@ -38,7 +38,9 @@ init(State) ->
         {script, undefined, "script", string,
          "Script to run before starting REPL"},
         {prompt, undefined, "prompt", string,
-         "Custom REPL prompt (use 'classic' for old-style '> ')"}
+         "Custom REPL prompt (use 'classic' for old-style '> ')"},
+        {erl, undefined, "erl", string,
+         "Additional Erlang VM arguments (e.g., for -prompt)"}
     ],
 
     Provider = providers:create([
@@ -218,8 +220,16 @@ build_shell_args(Opts) ->
     ReplModule = maps:get(start_module, Opts, lfe_shell),
     NoBanner = maps:get(nobanner, Opts, false),
 
-    [{shell_args, [{ReplModule, start, []}]},
-     {nobanner, NoBanner}].
+    BaseArgs = [{shell_args, [{ReplModule, start, []}]},
+                {nobanner, NoBanner}],
+
+    %% Add extra erl args if provided
+    case maps:get(erl, Opts, undefined) of
+        undefined ->
+            BaseArgs;
+        ErlArgs ->
+            [{erl_args, ErlArgs} | BaseArgs]
+    end.
 
 -spec build_banner() -> string().
 build_banner() ->
