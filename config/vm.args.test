@@ -1,0 +1,11 @@
+# Test vm.args for LFE REPL
+# This file tests VM argument configuration
+
+# Async thread pool size
++A 10
+
+# Enable kernel poll
++K true
+
+# Set node name would normally go here but we'll skip for testing
+# -sname lfe_test

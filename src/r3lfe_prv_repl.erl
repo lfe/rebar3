@@ -7,6 +7,15 @@
     format_error/1
 ]).
 
+%% Exported for testing
+-ifdef(TEST).
+-export([
+    read_vm_args/1,
+    build_shell_args/1,
+    merge_repl_opts/2
+]).
+-endif.
+
 -include_lib("rebar3_lfe/include/r3lfe.hrl").
 
 -define(PROVIDER, repl).
@@ -41,7 +50,9 @@ init(State) ->
         {prompt, undefined, "prompt", string,
          "Custom REPL prompt (use 'classic' for old-style '> ')"},
         {erl, undefined, "erl", string,
-         "Additional Erlang VM arguments (e.g., for -prompt)"}
+         "Additional Erlang VM arguments (e.g., for -prompt)"},
+        {vm_args, undefined, "vm_args", string,
+         "Path to vm.args file for VM configuration"}
     ],
 
     Provider = providers:create([
@@ -216,20 +227,71 @@ start_legacy_repl(Opts, _State) ->
 
     ok.
 
+-spec read_vm_args(string()) -> string() | undefined.
+read_vm_args(VmArgsPath) ->
+    case filelib:is_file(VmArgsPath) of
+        true ->
+            case file:read_file(VmArgsPath) of
+                {ok, Content} ->
+                    %% Parse vm.args file: filter comments and empty lines, join with spaces
+                    Lines = binary:split(Content, <<"\n">>, [global, trim]),
+                    Args = lists:filtermap(
+                        fun(Line) ->
+                            Trimmed = string:trim(Line),
+                            case Trimmed of
+                                <<>> -> false;
+                                <<"#", _/binary>> -> false;
+                                _ -> {true, binary_to_list(Trimmed)}
+                            end
+                        end,
+                        Lines
+                    ),
+                    string:join(Args, " ");
+                {error, Reason} ->
+                    ?WARN("Failed to read vm.args file ~s: ~p", [VmArgsPath, Reason]),
+                    undefined
+            end;
+        false ->
+            ?WARN("vm.args file not found: ~s", [VmArgsPath]),
+            undefined
+    end.
+
 -spec build_shell_args(map()) -> proplists:proplist().
 build_shell_args(Opts) ->
     ReplModule = maps:get(start_module, Opts, lfe_shell),
-    NoBanner = maps:get(nobanner, Opts, false),
 
+    %% For OTP 26+, shell:start_interactive/1 is used which supports edline
+    %% We pass the shell_args to tell it which shell module to use
+    %% We always set nobanner to true since we display our own banner
     BaseArgs = [{shell_args, [{ReplModule, start, []}]},
-                {nobanner, NoBanner}],
+                {nobanner, true}],
 
-    %% Add extra erl args if provided
-    case maps:get(erl, Opts, undefined) of
+    %% Collect VM arguments from various sources
+    VmArgs = case maps:get(vm_args, Opts, undefined) of
+        undefined ->
+            %% No vm_args file, check for erl option
+            maps:get(erl, Opts, undefined);
+        VmArgsPath ->
+            %% Read vm.args file
+            case read_vm_args(VmArgsPath) of
+                undefined ->
+                    %% Failed to read, fall back to erl option
+                    maps:get(erl, Opts, undefined);
+                FileArgs ->
+                    %% If both vm_args and erl are provided, combine them
+                    case maps:get(erl, Opts, undefined) of
+                        undefined -> FileArgs;
+                        ErlArgs -> FileArgs ++ " " ++ ErlArgs
+                    end
+            end
+    end,
+
+    %% Add VM args if present
+    case VmArgs of
         undefined ->
             BaseArgs;
-        ErlArgs ->
-            [{erl_args, ErlArgs} | BaseArgs]
+        Args ->
+            [{erl_args, Args} | BaseArgs]
     end.
 
 -spec build_banner() -> string().
@@ -258,14 +320,14 @@ build_banner() ->
     Line4 = OuterSide ++ " " ++ InnerSide ++ ?GRN("  |         ") ++ ?RED("g") ++ ?GRN(" |_ \\") ++
             "                                       " ++ InnerSide ++ " " ++ OuterSide ++ "\n",
     Line5 = OuterSide ++ " " ++ InnerSide ++ ?GRN("  |        ") ++ ?RED("n") ++ ?GRN("    | |") ++
-            "   Docs: " ++ ?BLU("http://docs.lfe.io/") ++ "          " ++ InnerSide ++ " " ++ OuterSide ++ "\n",
+            "  Docs: " ++ ?BLU("http://docs.lfe.io/") ++ "           " ++ InnerSide ++ " " ++ OuterSide ++ "\n",
     Line6 = OuterSide ++ " " ++ InnerSide ++ ?GRN("  |       ") ++ ?RED("a") ++ ?GRN("    / /") ++
-            "    Source: " ++ ?BLU("http://github.com/lfe/lfe") ++ "  " ++ InnerSide ++ " " ++ OuterSide ++ "\n",
+            "   Source: " ++ ?BLU("http://github.com/lfe/lfe") ++ "   " ++ InnerSide ++ " " ++ OuterSide ++ "\n",
     Line7 = OuterSide ++ " " ++ InnerSide ++ ?GRN("   \\     ") ++ ?RED("l") ++ ?GRN("    |_/") ++
             "                                        " ++ InnerSide ++ " " ++ OuterSide ++ "\n",
     Line8 = OuterSide ++ " " ++ InnerSide ++ ?GRN("    \\   ") ++ ?RED("r") ++ ?GRN("     /") ++
-            "       LFE v" ++ LfeVersion ++ " " ++ QuitMsg ++
-            "         " ++ InnerSide ++ " " ++ OuterSide ++ "\n",
+            "      LFE v" ++ LfeVersion ++ " " ++ QuitMsg ++
+            "          " ++ InnerSide ++ " " ++ OuterSide ++ "\n",
     Line9 = OuterSide ++ " " ++ InnerSide ++ ?GRN("     `-") ++ ?RED("E") ++ ?GRN("___.-'") ++
             "                                           " ++ InnerSide ++ " " ++ OuterSide ++ "\n",
 
@@ -294,11 +356,28 @@ info(Description) ->
         "  --apps APPS       Comma-separated list of apps to start~n"
         "  --script PATH     Script to run before REPL starts~n"
         "  --prompt PROMPT   Custom REPL prompt (use 'classic' for '> ')~n"
+        "  --vm_args PATH    Path to vm.args file for VM configuration~n"
+        "  --erl ARGS        Additional Erlang VM arguments~n"
         "~n"
         "Configuration via rebar.config:~n"
         "  {lfe, [{repl, [{start_module, Module},~n"
         "                 {nobanner, true},~n"
-        "                 {prompt, \"custom> \"}]}]}.~n"
+        "                 {prompt, \"custom> \"},~n"
+        "                 {vm_args, \"config/vm.args\"}]}]}.~n"
+        "~n"
+        "VM Arguments:~n"
+        "  You can provide VM arguments in three ways:~n"
+        "  1. Via vm.args file (--vm_args or {vm_args, Path} in config)~n"
+        "  2. Via --erl flag on command line~n"
+        "  3. Via {erl, Args} in the repl config~n"
+        "~n"
+        "  If both vm_args and erl are specified, they will be combined.~n"
+        "~n"
+        "  Example vm.args file:~n"
+        "    # Set VM flags~n"
+        "    +A 10~n"
+        "    +K true~n"
+        "    -setcookie mycookie~n"
         "~n"
         "Prompt Customization:~n"
         "  NOTE: Custom prompts require modifying LFE's lfe_shell module~n"
@@ -313,6 +392,10 @@ info(Description) ->
         "~n"
         "  Or in one line:~n"
         "  ERL_AFLAGS=$'-prompt \\033[1;32mlfe\\033[0m\\033[33m>\\033[0m ' rebar3 lfe repl~n"
+        "~n"
+        "  WARNING: Using ERL_AFLAGS with -prompt disables readline/edline!~n"
+        "  On OTP 26+, you must choose between colored prompts OR line editing.~n"
+        "  For the best editing experience, skip the custom prompt.~n"
         "~n"
         "  The $'...' syntax enables bash escape sequence interpretation.~n"
         "  ANSI codes: \\033[1;32m=bright green, \\033[33m=dark yellow,~n"
