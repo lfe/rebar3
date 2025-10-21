@@ -5,7 +5,7 @@
 -export([
     context/1,
     needed_files/4,
-    dependencies/3,
+    dependencies/4,
     compile/4,
     clean/2,
     format_error/1
@@ -51,9 +51,9 @@ context(AppInfo) ->
 
 %% @doc Extract dependencies from a source file
 %% This is called by rebar3's DAG builder for each source file
--spec dependencies(file:filename(), file:filename(), rebar_app_info:t()) ->
+-spec dependencies(file:filename(), file:filename(), [file:filename()], map()) ->
     [file:filename()].
-dependencies(Source, _SourceDir, AppInfo) ->
+dependencies(Source, _SourceDir, _AllSources, #{app_info := AppInfo}) ->
     ?DEBUG("Scanning dependencies for: ~s", [Source]),
 
     %% Use our dependency scanner
