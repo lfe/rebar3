@@ -66,6 +66,7 @@ compile_file(Source, OutDir, Opts, ExtraOpts) ->
         {error, Errors, Warnings} ->
             %% Compilation failed
             ?ERROR("Failed to compile ~s", [Source]),
+            ?ERROR("Errors: ~p", [Errors]),
             FormattedErrors = format_errors(Errors),
             FormattedWarnings = format_warnings(Warnings),
             {error, FormattedErrors, FormattedWarnings};
@@ -73,6 +74,7 @@ compile_file(Source, OutDir, Opts, ExtraOpts) ->
         {error, [], FileErrors, []} when is_list(FileErrors) ->
             %% LFE error format: {error, [], [{File, Errors}], []}
             ?ERROR("Failed to compile ~s", [Source]),
+            ?ERROR("File Errors: ~p", [FileErrors]),
             FormattedErrors = format_errors(FileErrors),
             {error, FormattedErrors, []}
     end.

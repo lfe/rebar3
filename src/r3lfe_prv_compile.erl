@@ -72,15 +72,15 @@ do(State) ->
             {error, format_error({compilation_error, Reason})}
     end.
 
--spec format_error(term()) -> iolist().
+-spec format_error(term()) -> string().
 format_error({compilation_failed, Count}) ->
-    io_lib:format("Compilation failed for ~p file(s)", [Count]);
+    lists:flatten(io_lib:format("Compilation failed for ~p file(s)", [Count]));
 format_error({compilation_error, Reason}) ->
-    io_lib:format("Compilation failed: ~p", [Reason]);
+    lists:flatten(io_lib:format("Compilation failed: ~p", [Reason]));
 format_error({package_error, Reason}) ->
-    io_lib:format("Package preparation failed: ~p", [Reason]);
+    lists:flatten(io_lib:format("Package preparation failed: ~p", [Reason]));
 format_error(Reason) ->
-    io_lib:format("~p", [Reason]).
+    lists:flatten(io_lib:format("~p", [Reason])).
 
 %%====================================================================
 %% Internal functions
