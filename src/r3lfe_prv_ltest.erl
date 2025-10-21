@@ -26,7 +26,9 @@ init(State) ->
         {test, $t, "test", string,
          "Specific test to run"},
         {verbose, $v, "verbose", boolean,
-         "Verbose output"}
+         "Verbose output"},
+        {listener, $l, "listener", atom,
+         "Test listener (ltest or eunit)"}
     ],
 
     Provider = providers:create([
@@ -111,10 +113,24 @@ build_test_opts(Opts) ->
     DefaultOpts = ltest:'default-opts'(),
 
     %% Override with command line options
-    maps:merge(
+    TestOpts = maps:merge(
         DefaultOpts,
         maps:from_list(Opts)
-    ).
+    ),
+
+    %% Map listener shorthand to actual listener module
+    %% Users specify 'ltest' or 'eunit', we convert to 'ltest-listener' or 'eunit_surefire'
+    case proplists:get_value(listener, Opts) of
+        undefined ->
+            TestOpts;
+        ltest ->
+            maps:put('test-listener', 'ltest-listener', TestOpts);
+        eunit ->
+            maps:put('test-listener', eunit_surefire, TestOpts);
+        Other ->
+            ?WARN("Unknown listener '~p', using default", [Other]),
+            TestOpts
+    end.
 
 -spec info(string()) -> iolist().
 info(Description) ->

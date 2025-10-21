@@ -105,33 +105,63 @@ package_to_module_name(File, SourceDir) ->
 %% Internal functions - Discovery
 %%====================================================================
 
-%% @doc Recursively discover all .lfe files
+%% @doc Recursively discover all .lfe files with cycle detection
 -spec discover_files_recursive(file:filename(), file:filename()) ->
     [file:filename()].
-discover_files_recursive(CurrentDir, _BaseDir) ->
-    case file:list_dir(CurrentDir) of
-        {ok, Entries} ->
-            lists:flatmap(
-                fun(Entry) ->
-                    Path = filename:join(CurrentDir, Entry),
-                    case filelib:is_dir(Path) of
-                        true ->
-                            %% Recurse into subdirectory
-                            discover_files_recursive(Path, CurrentDir);
-                        false ->
-                            case filename:extension(Path) of
-                                ?LFE_SRC_EXTENSION ->
-                                    [Path];
-                                _ ->
-                                    []
+discover_files_recursive(CurrentDir, BaseDir) ->
+    discover_files_recursive(CurrentDir, BaseDir, sets:new([{version, 2}])).
+
+%% @doc Recursively discover files with visited set tracking to prevent infinite loops
+-spec discover_files_recursive(file:filename(), file:filename(), sets:set()) ->
+    [file:filename()].
+discover_files_recursive(CurrentDir, _BaseDir, Visited) ->
+    %% Get canonical path to detect cycles (resolve symlinks)
+    CanonicalDir = case file:read_link_all(CurrentDir) of
+        {ok, Target} ->
+            %% Symlink - resolve to absolute path
+            case filename:pathtype(Target) of
+                absolute -> Target;
+                relative -> filename:absname(Target, filename:dirname(CurrentDir))
+            end;
+        {error, _} ->
+            %% Not a symlink, use absolute path
+            filename:absname(CurrentDir)
+    end,
+
+    %% Check if we've already visited this directory
+    case sets:is_element(CanonicalDir, Visited) of
+        true ->
+            ?DEBUG("Skipping already-visited directory: ~s", [CanonicalDir]),
+            [];
+        false ->
+            %% Mark as visited
+            NewVisited = sets:add_element(CanonicalDir, Visited),
+
+            %% Process directory
+            case file:list_dir(CurrentDir) of
+                {ok, Entries} ->
+                    lists:flatmap(
+                        fun(Entry) ->
+                            Path = filename:join(CurrentDir, Entry),
+                            case filelib:is_dir(Path) of
+                                true ->
+                                    %% Recurse with visited set
+                                    discover_files_recursive(Path, CurrentDir, NewVisited);
+                                false ->
+                                    case filename:extension(Path) of
+                                        ?LFE_SRC_EXTENSION ->
+                                            [Path];
+                                        _ ->
+                                            []
+                                    end
                             end
-                    end
-                end,
-                Entries
-            );
-        {error, Reason} ->
-            ?WARN("Could not list directory ~s: ~p", [CurrentDir, Reason]),
-            []
+                        end,
+                        Entries
+                    );
+                {error, Reason} ->
+                    ?WARN("Could not list directory ~s: ~p", [CurrentDir, Reason]),
+                    []
+            end
     end.
 
 %% @doc Find the source directory for a file
