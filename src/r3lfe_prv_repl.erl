@@ -17,6 +17,7 @@
 -define(YLW(Str), "\e[1;33m" ++ Str ++ "\e[0m").
 -define(BLU(Str), "\e[1;34m" ++ Str ++ "\e[0m").
 -define(BOLD(Str), "\e[1m" ++ Str ++ "\e[0m").
+-define(DGRY(Str), "\e[90m" ++ Str ++ "\e[0m").  % Dark grey for outer border
 
 %%====================================================================
 %% Provider API
@@ -235,16 +236,42 @@ build_shell_args(Opts) ->
 build_banner() ->
     LfeVersion = lfe_version(),
     QuitMsg = "(abort with ^G)",
-    ?GRN("   ..-~") ++ ?YLW(".~_") ++ ?GRN("~---..") ++ "\n" ++
-    ?GRN("  (      ") ++ ?YLW("\\\\") ++ ?GRN("     )") ++ "    |   A Lisp-2+ on the Erlang VM\n" ++
-    ?GRN("  |`-.._") ++ ?YLW("/") ++ ?GRN("_") ++ ?YLW("\\\\") ++ ?GRN("_.-':") ++ "    |   Type " ++ ?GRN("(help)") ++ " for usage info.\n" ++
-    ?GRN("  |         ") ++ ?RED("g") ++ ?GRN(" |_ \\") ++  "   |\n" ++
-    ?GRN("  |        ") ++ ?RED("n") ++ ?GRN("    | |") ++   "  |   Docs: " ++ ?BLU("http://docs.lfe.io/") ++ "\n" ++
-    ?GRN("  |       ") ++ ?RED("a") ++ ?GRN("    / /") ++   "   |   Source: " ++ ?BLU("http://github.com/lfe/lfe") ++ "\n" ++
-    ?GRN("   \\     ") ++ ?RED("l") ++ ?GRN("    |_/") ++  "    |\n" ++
-    ?GRN("    \\   ") ++ ?RED("r") ++ ?GRN("     /") ++  "      |   LFE v" ++
-    LfeVersion ++ " " ++  QuitMsg ++ "\n" ++
-    ?GRN("     `-") ++ ?RED("E") ++ ?GRN("___.-'") ++ "\n\n".
+    W = 61,  % Total outer width
+
+    %% Outer border (dark grey, double-line)
+    OuterTop = ?DGRY("╔" ++ lists:duplicate(W, $═) ++ "╗") ++ "\n",
+    OuterBot = ?DGRY("╚" ++ lists:duplicate(W, $═) ++ "╝") ++ "\n",
+    OuterSide = ?DGRY("║"),
+
+    %% Inner border (red, single-line) - width is outer width minus 4 (2 for outer borders, 2 for padding)
+    InnerTop = OuterSide ++ " " ++ ?RED("┌" ++ lists:duplicate(W-4, $─) ++ "┐") ++ " " ++ OuterSide ++ "\n",
+    InnerBot = OuterSide ++ " " ++ ?RED("└" ++ lists:duplicate(W-4, $─) ++ "┘") ++ " " ++ OuterSide ++ "\n",
+    InnerSide = ?RED("│"),
+
+    %% Content lines with both borders (each line is W-2 chars wide inside inner border)
+    Line1 = OuterSide ++ " " ++ InnerSide ++ ?GRN("   ..-~") ++ ?YLW(".~_") ++ ?GRN("~---..") ++
+            "                                         " ++ InnerSide ++ " " ++ OuterSide ++ "\n",
+    Line2 = OuterSide ++ " " ++ InnerSide ++ ?GRN("  (      ") ++ ?YLW("\\\\") ++ ?GRN("     )") ++
+            "    A Lisp-2+ on the Erlang VM          " ++ InnerSide ++ " " ++ OuterSide ++ "\n",
+    Line3 = OuterSide ++ " " ++ InnerSide ++ ?GRN("  |`-.._") ++ ?YLW("/") ++ ?GRN("_") ++ ?YLW("\\\\") ++ ?GRN("_.-':") ++
+            "    Type " ++ ?GRN("(help)") ++ " for usage info.         " ++ InnerSide ++ " " ++ OuterSide ++ "\n",
+    Line4 = OuterSide ++ " " ++ InnerSide ++ ?GRN("  |         ") ++ ?RED("g") ++ ?GRN(" |_ \\") ++
+            "                                       " ++ InnerSide ++ " " ++ OuterSide ++ "\n",
+    Line5 = OuterSide ++ " " ++ InnerSide ++ ?GRN("  |        ") ++ ?RED("n") ++ ?GRN("    | |") ++
+            "   Docs: " ++ ?BLU("http://docs.lfe.io/") ++ "          " ++ InnerSide ++ " " ++ OuterSide ++ "\n",
+    Line6 = OuterSide ++ " " ++ InnerSide ++ ?GRN("  |       ") ++ ?RED("a") ++ ?GRN("    / /") ++
+            "    Source: " ++ ?BLU("http://github.com/lfe/lfe") ++ "  " ++ InnerSide ++ " " ++ OuterSide ++ "\n",
+    Line7 = OuterSide ++ " " ++ InnerSide ++ ?GRN("   \\     ") ++ ?RED("l") ++ ?GRN("    |_/") ++
+            "                                        " ++ InnerSide ++ " " ++ OuterSide ++ "\n",
+    Line8 = OuterSide ++ " " ++ InnerSide ++ ?GRN("    \\   ") ++ ?RED("r") ++ ?GRN("     /") ++
+            "       LFE v" ++ LfeVersion ++ " " ++ QuitMsg ++
+            "         " ++ InnerSide ++ " " ++ OuterSide ++ "\n",
+    Line9 = OuterSide ++ " " ++ InnerSide ++ ?GRN("     `-") ++ ?RED("E") ++ ?GRN("___.-'") ++
+            "                                           " ++ InnerSide ++ " " ++ OuterSide ++ "\n",
+
+    "\n\n" ++ OuterTop ++ InnerTop ++
+    Line1 ++ Line2 ++ Line3 ++ Line4 ++ Line5 ++ Line6 ++ Line7 ++ Line8 ++ Line9 ++
+    InnerBot ++ OuterBot ++ "\n".
 
 -spec lfe_version() -> string().
 lfe_version() ->
@@ -280,11 +307,15 @@ info(Description) ->
         "  The --erl and --prompt options are reserved for future use~n"
         "  when LFE supports runtime prompt configuration.~n"
         "~n"
-        "  Current workaround for colored prompts:~n"
-        "  1. Set ERL_AFLAGS=\"-prompt '\\e[1;32mlfe\\e[0m\\e[33m>\\e[0m '\"~n"
-        "  2. Then run: rebar3 lfe repl~n"
+        "  Current workaround for colored prompts (use $'...' for escapes):~n"
+        "  export ERL_AFLAGS=$'-prompt \\033[1;32mlfe\\033[0m\\033[33m>\\033[0m '~n"
+        "  rebar3 lfe repl~n"
         "~n"
-        "  ANSI codes: \\e[1;32m=bright green, \\e[33m=dark yellow,~n"
-        "              \\e[1;33m=bright yellow, \\e[31m=red, \\e[0m=reset~n",
+        "  Or in one line:~n"
+        "  ERL_AFLAGS=$'-prompt \\033[1;32mlfe\\033[0m\\033[33m>\\033[0m ' rebar3 lfe repl~n"
+        "~n"
+        "  The $'...' syntax enables bash escape sequence interpretation.~n"
+        "  ANSI codes: \\033[1;32m=bright green, \\033[33m=dark yellow,~n"
+        "              \\033[1;33m=bright yellow, \\033[31m=red, \\033[0m=reset~n",
         [Description]
     ).
