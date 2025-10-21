@@ -36,7 +36,9 @@ init(State) ->
         {apps, undefined, "apps", string,
          "List of apps to start (comma-separated)"},
         {script, undefined, "script", string,
-         "Script to run before starting REPL"}
+         "Script to run before starting REPL"},
+        {prompt, undefined, "prompt", string,
+         "Custom REPL prompt (use 'classic' for old-style '> ')"}
     ],
 
     Provider = providers:create([
@@ -254,9 +256,14 @@ info(Description) ->
         "  --sname NAME      Give the node a short name~n"
         "  --apps APPS       Comma-separated list of apps to start~n"
         "  --script PATH     Script to run before REPL starts~n"
+        "  --prompt PROMPT   Custom REPL prompt (use 'classic' for '> ')~n"
         "~n"
         "Configuration via rebar.config:~n"
         "  {lfe, [{repl, [{start_module, Module},~n"
-        "                 {nobanner, true}]}]}.~n",
+        "                 {nobanner, true},~n"
+        "                 {prompt, \"custom> \"}]}]}.~n"
+        "~n"
+        "Note: Prompt customization requires passing -prompt to the VM~n"
+        "at startup. Use: rebar3 lfe repl --erl \"-prompt 'custom> '\"~n",
         [Description]
     ).
