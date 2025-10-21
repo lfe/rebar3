@@ -45,8 +45,8 @@ init(State) ->
 do(State) ->
     ?DEBUG("LFE run provider starting", []),
 
-    %% Set up code paths
-    rebar_paths:set_paths([deps, plugins], State),
+    %% Set up code paths (deps, plugins, and project apps)
+    rebar_paths:set_paths([deps, plugins, runtime], State),
 
     try
         %% Find main file

@@ -65,8 +65,8 @@ format_error(Reason) ->
 
 -spec run_tests(rebar_state:t()) -> {ok, rebar_state:t()}.
 run_tests(State) ->
-    %% Set up code paths including test
-    rebar_paths:set_paths([deps, plugins], State),
+    %% Set up code paths (deps, plugins, and project apps for testing)
+    rebar_paths:set_paths([deps, plugins, runtime], State),
     add_test_paths(State),
 
     %% Get test options
