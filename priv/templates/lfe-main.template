@@ -7,6 +7,7 @@
 {template, "README.md.tpl", "{{name}}/README.md"}.
 {template, "LICENSE.tpl", "{{name}}/LICENSE"}.
 {template, "rebar.config.main.tpl", "{{name}}/rebar.config"}.
+{template, "Makefile.tpl", "{{name}}/Makefile"}.
 {template, "gitignore.tpl", "{{name}}/.gitignore"}.
 {template, "cicd.yml", "{{name}}/.github/workflows/cicd.yml"}.
 
