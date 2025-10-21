@@ -47,6 +47,7 @@ discover_files(SourceDir) ->
 %% Returns list of package_info() records for cleanup
 -spec prepare_packages([file:filename()]) -> {ok, [package_info()]} | {error, term()}.
 prepare_packages(Files) ->
+    ?DEBUG("Starting package preparation for ~p files", [length(Files)]),
     %% Separate nested files from already-flat files
     {NestedFiles, _FlatFiles} = lists:partition(
         fun(File) ->
@@ -56,12 +57,15 @@ prepare_packages(Files) ->
         Files
     ),
 
+    ?DEBUG("Found ~p nested files, ~p flat files", [length(NestedFiles), length(_FlatFiles)]),
     case NestedFiles of
         [] ->
             %% No packages to prepare
+            ?DEBUG("No nested files to prepare", []),
             {ok, []};
         _ ->
             %% Create transformations
+            ?DEBUG("Preparing ~p package files", [length(NestedFiles)]),
             prepare_package_files(NestedFiles)
     end.
 
