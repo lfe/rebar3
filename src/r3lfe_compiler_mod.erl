@@ -129,8 +129,16 @@ compile(Source, OutMappings, _Dict, Opts) ->
         false -> []
     end,
 
+    %% Get include directories from Opts and add to compiler options
+    IncludeDirs = case lists:keyfind(include_dirs, 1, Opts) of
+        {include_dirs, Dirs} -> Dirs;
+        false -> []
+    end,
+    IncludeOpts = [{i, Dir} || Dir <- IncludeDirs],
+    FinalOpts = LfeOpts ++ IncludeOpts,
+
     %% Compile the file
-    case r3lfe_compile_worker:compile_file(Source, OutDir, LfeOpts) of
+    case r3lfe_compile_worker:compile_file(Source, OutDir, FinalOpts) of
         ok ->
             %% Save options hash for future checks
             r3lfe_compile_opts:save_opts_hash(Source, LfeOpts),

@@ -174,6 +174,11 @@ compile_files(AllFiles, PackageInfos, AppInfo, _State) ->
     LfeOpts = r3lfe_config:get_lfe_opts(AppInfo),
     OutDir = r3lfe_config:get_out_dir(AppInfo),
 
+    %% Add include directories to compiler options
+    IncludeDirs = r3lfe_config:get_include_dirs(AppInfo),
+    IncludeOpts = [{i, Dir} || Dir <- IncludeDirs],
+    FinalOpts = LfeOpts ++ IncludeOpts,
+
     %% Initialize progress
     Progress = r3lfe_progress:init(length(OrderedFiles)),
     r3lfe_progress:report_start(length(OrderedFiles), AppInfo),
@@ -181,7 +186,7 @@ compile_files(AllFiles, PackageInfos, AppInfo, _State) ->
     %% Compile each file
     {_FinalProgress, Results} = lists:foldl(
         fun(File, {Prog, Acc}) ->
-            Result = r3lfe_compile_worker:compile_file(File, OutDir, LfeOpts),
+            Result = r3lfe_compile_worker:compile_file(File, OutDir, FinalOpts),
             NewProg = r3lfe_progress:report_file(Prog),
             {NewProg, [Result | Acc]}
         end,
