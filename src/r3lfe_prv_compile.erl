@@ -38,8 +38,8 @@ init(State) ->
 do(State) ->
     ?DEBUG("LFE compile provider starting", []),
 
-    %% Set up code paths
-    rebar_paths:set_paths([deps], State),
+    %% Set up code paths (include plugins for LFE compiler access)
+    rebar_paths:set_paths([deps, plugins], State),
 
     try
         %% Get all project apps
@@ -119,6 +119,7 @@ compile_app(AppInfo, State) ->
             ?DEBUG("Found ~p LFE files in ~s", [length(AllFiles), AppName]),
 
             %% Prepare package files
+            ?DEBUG("Preparing packages for ~s", [AppName]),
             case r3lfe_package:prepare_packages(AllFiles) of
                 {ok, PackageInfos} ->
                     try
