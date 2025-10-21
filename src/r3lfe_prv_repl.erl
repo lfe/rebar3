@@ -51,8 +51,8 @@ init(State) ->
 do(State) ->
     ?DEBUG("LFE REPL provider starting", []),
 
-    %% Set up code paths
-    rebar_paths:set_paths([deps, plugins], State),
+    %% Set up code paths (deps, plugins, and project apps)
+    rebar_paths:set_paths([deps, plugins, runtime], State),
 
     %% Get REPL configuration
     {Opts, _Args} = rebar_state:command_parsed_args(State),
