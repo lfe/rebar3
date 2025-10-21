@@ -7,6 +7,8 @@
     format_error/1
 ]).
 
+-export([build_banner/0]).
+
 %% Exported for testing
 -ifdef(TEST).
 -export([
@@ -298,42 +300,46 @@ build_shell_args(Opts) ->
 build_banner() ->
     LfeVersion = lfe_version(),
     QuitMsg = "(abort with ^G)",
-    W = 61,  % Total outer width
+    W = 65,  % Total outer width
 
     %% Outer border (dark grey, double-line)
-    OuterTop = ?DGRY("╔" ++ lists:duplicate(W, $═) ++ "╗") ++ "\n",
-    OuterBot = ?DGRY("╚" ++ lists:duplicate(W, $═) ++ "╝") ++ "\n",
-    OuterSide = ?DGRY("║"),
+    OuterTop = ?RED("╔" ++ lists:duplicate(W, $═) ++ "╗") ++ "\n",
+    OuterBot = ?RED("╚" ++ lists:duplicate(W, $═) ++ "╝") ++ "\n",
+    OuterSide = ?RED("║"),
 
     %% Inner border (red, single-line) - width is outer width minus 4 (2 for outer borders, 2 for padding)
-    InnerTop = OuterSide ++ " " ++ ?RED("┌" ++ lists:duplicate(W-4, $─) ++ "┐") ++ " " ++ OuterSide ++ "\n",
-    InnerBot = OuterSide ++ " " ++ ?RED("└" ++ lists:duplicate(W-4, $─) ++ "┘") ++ " " ++ OuterSide ++ "\n",
-    InnerSide = ?RED("│"),
+    InnerTop = OuterSide ++ " " ++ ?YLW("┌" ++ lists:duplicate(W-4, $─) ++ "┐") ++ " " ++ OuterSide ++ "\n",
+    InnerBot = OuterSide ++ " " ++ ?YLW("└" ++ lists:duplicate(W-4, $─) ++ "┘") ++ " " ++ OuterSide ++ "\n",
+    InnerSide = ?YLW("│"),
+
+    %% Empty line at top
+    BlankLine = OuterSide ++ " " ++ InnerSide ++
+                lists:duplicate(W-4, $ ) ++ InnerSide ++ " " ++ OuterSide ++ "\n",
 
     %% Content lines with both borders (each line is W-2 chars wide inside inner border)
-    Line1 = OuterSide ++ " " ++ InnerSide ++ ?GRN("   ..-~") ++ ?YLW(".~_") ++ ?GRN("~---..") ++
-            "                                         " ++ InnerSide ++ " " ++ OuterSide ++ "\n",
-    Line2 = OuterSide ++ " " ++ InnerSide ++ ?GRN("  (      ") ++ ?YLW("\\\\") ++ ?GRN("     )") ++
-            "    A Lisp-2+ on the Erlang VM          " ++ InnerSide ++ " " ++ OuterSide ++ "\n",
-    Line3 = OuterSide ++ " " ++ InnerSide ++ ?GRN("  |`-.._") ++ ?YLW("/") ++ ?GRN("_") ++ ?YLW("\\\\") ++ ?GRN("_.-':") ++
-            "    Type " ++ ?GRN("(help)") ++ " for usage info.         " ++ InnerSide ++ " " ++ OuterSide ++ "\n",
-    Line4 = OuterSide ++ " " ++ InnerSide ++ ?GRN("  |         ") ++ ?RED("g") ++ ?GRN(" |_ \\") ++
-            "                                       " ++ InnerSide ++ " " ++ OuterSide ++ "\n",
-    Line5 = OuterSide ++ " " ++ InnerSide ++ ?GRN("  |        ") ++ ?RED("n") ++ ?GRN("    | |") ++
-            "  Docs: " ++ ?BLU("http://docs.lfe.io/") ++ "           " ++ InnerSide ++ " " ++ OuterSide ++ "\n",
-    Line6 = OuterSide ++ " " ++ InnerSide ++ ?GRN("  |       ") ++ ?RED("a") ++ ?GRN("    / /") ++
-            "   Source: " ++ ?BLU("http://github.com/lfe/lfe") ++ "   " ++ InnerSide ++ " " ++ OuterSide ++ "\n",
-    Line7 = OuterSide ++ " " ++ InnerSide ++ ?GRN("   \\     ") ++ ?RED("l") ++ ?GRN("    |_/") ++
-            "                                        " ++ InnerSide ++ " " ++ OuterSide ++ "\n",
-    Line8 = OuterSide ++ " " ++ InnerSide ++ ?GRN("    \\   ") ++ ?RED("r") ++ ?GRN("     /") ++
-            "      LFE v" ++ LfeVersion ++ " " ++ QuitMsg ++
-            "          " ++ InnerSide ++ " " ++ OuterSide ++ "\n",
-    Line9 = OuterSide ++ " " ++ InnerSide ++ ?GRN("     `-") ++ ?RED("E") ++ ?GRN("___.-'") ++
+    Line1 = OuterSide ++ " " ++ InnerSide ++ ?GRN("     ..-~") ++ ?YLW(".~_") ++ ?GRN("~---..") ++
             "                                           " ++ InnerSide ++ " " ++ OuterSide ++ "\n",
+    Line2 = OuterSide ++ " " ++ InnerSide ++ ?GRN("    (      ") ++ ?YLW("\\\\") ++ ?GRN("     )") ++
+            "    A Lisp-2+ on the Erlang VM            " ++ InnerSide ++ " " ++ OuterSide ++ "\n",
+    Line3 = OuterSide ++ " " ++ InnerSide ++ ?GRN("    |`-.._") ++ ?YLW("/") ++ ?GRN("_") ++ ?YLW("\\\\") ++ ?GRN("_.-':") ++
+            "    Type " ++ ?GRN("(help)") ++ " for usage info.           " ++ InnerSide ++ " " ++ OuterSide ++ "\n",
+    Line4 = OuterSide ++ " " ++ InnerSide ++ ?GRN("    |         ") ++ ?RED("g") ++ ?GRN(" |_ \\") ++
+            "                                         " ++ InnerSide ++ " " ++ OuterSide ++ "\n",
+    Line5 = OuterSide ++ " " ++ InnerSide ++ ?GRN("    |        ") ++ ?RED("n") ++ ?GRN("    | |") ++
+            "  Docs: " ++ ?BLU("http://docs.lfe.io/") ++ "             " ++ InnerSide ++ " " ++ OuterSide ++ "\n",
+    Line6 = OuterSide ++ " " ++ InnerSide ++ ?GRN("    |       ") ++ ?RED("a") ++ ?GRN("    / /") ++
+            "   Source: " ++ ?BLU("http://github.com/lfe/lfe") ++ "     " ++ InnerSide ++ " " ++ OuterSide ++ "\n",
+    Line7 = OuterSide ++ " " ++ InnerSide ++ ?GRN("     \\     ") ++ ?RED("l") ++ ?GRN("    |_/") ++
+            "                                          " ++ InnerSide ++ " " ++ OuterSide ++ "\n",
+    Line8 = OuterSide ++ " " ++ InnerSide ++ ?GRN("      \\   ") ++ ?RED("r") ++ ?GRN("     /") ++
+            "      LFE v" ++ LfeVersion ++ " " ++ QuitMsg ++
+            "            " ++ InnerSide ++ " " ++ OuterSide ++ "\n",
+    Line9 = OuterSide ++ " " ++ InnerSide ++ ?GRN("       `-") ++ ?RED("E") ++ ?GRN("___.-'") ++
+            "                                             " ++ InnerSide ++ " " ++ OuterSide ++ "\n",
 
-    "\n\n" ++ OuterTop ++ InnerTop ++
+    "\n\n" ++ OuterTop ++ InnerTop ++ BlankLine ++ BlankLine ++
     Line1 ++ Line2 ++ Line3 ++ Line4 ++ Line5 ++ Line6 ++ Line7 ++ Line8 ++ Line9 ++
-    InnerBot ++ OuterBot ++ "\n".
+    BlankLine ++ BlankLine ++ InnerBot ++ OuterBot ++ "\n".
 
 -spec lfe_version() -> string().
 lfe_version() ->
