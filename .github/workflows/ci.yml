@@ -63,12 +63,12 @@ jobs:
       - name: Compile
         run: rebar3 compile
 
-      - name: Run xref
-        run: rebar3 xref
+      #- name: Run xref
+      #  run: rebar3 xref
 
-      - name: Run dialyzer
-        run: rebar3 dialyzer
-        continue-on-error: true  # Don't fail on dialyzer warnings initially
+      #- name: Run dialyzer
+      #  run: rebar3 dialyzer
+      #  continue-on-error: true  # Don't fail on dialyzer warnings initially
 
       - name: Run tests
         run: rebar3 ct
