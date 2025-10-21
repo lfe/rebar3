@@ -1,4 +1,4 @@
-# Contributing to r3lfe
+# Contributing to rebar3_lfe
 
 Thanks for your interest in contributing!
 
@@ -15,7 +15,7 @@ Thanks for your interest in contributing!
 
 ```bash
 # Clone
-git clone https://github.com/lfe-rebar3/rebar3_lfe.git
+git clone https://github.com/lfe/rebar3.git
 cd rebar3_lfe
 
 # Create branch
@@ -40,6 +40,7 @@ git checkout -b feature/my-feature
 ```
 
 Branch naming:
+
 - `feature/` - New features
 - `fix/` - Bug fixes
 - `docs/` - Documentation only
@@ -93,6 +94,7 @@ git commit -m "feat: add amazing feature"
 ```
 
 Commit message format:
+
 ```
 type: description
 
@@ -138,13 +140,12 @@ Then create PR on GitHub.
 ```
 r3lfe/
 ├── src/              # Source code
-│   ├── r3lfe*.erl   # Modules
-│   └── r3lfe.hrl    # Shared header
+│   ├── r3lfe*.erl    # Modules
+│   └── r3lfe.hrl     # Shared header
 ├── test/             # Tests
 │   ├── *_SUITE.erl   # CT suites
 │   └── test_utils.erl
-├── docs/             # Documentation
-└── examples/         # Example projects
+└── docs/             # Documentation
 ```
 
 ## Testing Guidelines

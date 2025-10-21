@@ -80,6 +80,7 @@ src/myapp.lfe:10: error: undefined function foo/1
 ### ⚡ All the Commands
 
 **Core:**
+
 - `compile` - Smart, incremental compilation
 - `clean` - Remove build artifacts
 - `repl` - Interactive LFE shell
@@ -87,15 +88,18 @@ src/myapp.lfe:10: error: undefined function foo/1
 - `versions` - Version information
 
 **Scripts & Escripts:**
+
 - `run` - Execute LFE scripts (main/1)
 - `escriptize` - Build standalone executables
 - `run-escript` - Execute built escripts
 
 **Releases:**
+
 - `release` - Build OTP releases
 - `run-release` - Manage releases (start/stop/console/etc)
 
 **Utilities:**
+
 - `confabulate` - Convert LFE data to Erlang format
 
 **[See All Commands →](docs/commands.md)**
@@ -105,7 +109,7 @@ src/myapp.lfe:10: error: undefined function foo/1
 - **[Quick Start](docs/quickstart.md)** - Get started in 5 minutes
 - **[Commands](docs/commands.md)** - Complete command reference
 - **[Troubleshooting](docs/troubleshooting.md)** - Common issues
-- **[Migration Guide](MIGRATION.md)** - Upgrade from 0.4.x
+- **[Migration Guide](docs/0.4-to-0.5-migration.md)** - Upgrade from 0.4.x
 
 ## Examples
 
@@ -129,14 +133,14 @@ Version 0.5.0 is a **complete rewrite** with breaking changes:
 - Faster, more reliable compilation
 - Better error messages
 
-**[Migration Guide →](MIGRATION.md)**
+**[Migration Guide →](./docs/0.4-to-0.5-migration.md)**
 
 ## Contributing
 
-We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md).
+See [contributing](./docs/contributing.md).
 
 ```bash
-git clone https://github.com/lfe-rebar3/rebar3_lfe.git
+git clone https://github.com/lfe/rebar3.git rebar3_lfe
 cd rebar3_lfe
 rebar3 compile
 make check
@@ -152,12 +156,6 @@ make check
 ## License
 
 Apache 2.0 - See [LICENSE](LICENSE)
-
-## Acknowledgments
-
-- Original rebar3_lfe plugin maintainers
-- LFE community
-- rebar3 team for the excellent build tool
 
 ---
 
