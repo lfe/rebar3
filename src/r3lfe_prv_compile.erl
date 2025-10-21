@@ -101,6 +101,10 @@ compile_app(AppInfo, State) ->
     %% Ensure output directory exists
     ok = r3lfe_paths:ensure_dir(OutDir),
 
+    %% Add app's ebin to code path so include-lib can find it
+    %% This must be done AFTER rebar_otp_app:compile creates the .app file
+    code:add_patha(OutDir),
+
     %% Discover all LFE files
     AllFiles = lists:flatmap(
         fun r3lfe_package:discover_files/1,
