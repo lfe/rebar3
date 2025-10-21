@@ -11,6 +11,12 @@
 
 -define(PROVIDER, repl).
 -define(DEPS, [{?NAMESPACE, compile}]).
+%% Coloured strings for the LFE banner, red, green, yellow and blue.
+-define(RED(Str), "\e[31m" ++ Str ++ "\e[0m").
+-define(GRN(Str), "\e[1;32m" ++ Str ++ "\e[0m").
+-define(YLW(Str), "\e[1;33m" ++ Str ++ "\e[0m").
+-define(BLU(Str), "\e[1;34m" ++ Str ++ "\e[0m").
+-define(BOLD(Str), "\e[1m" ++ Str ++ "\e[0m").
 
 %%====================================================================
 %% Provider API
@@ -216,17 +222,17 @@ build_shell_args(Opts) ->
 -spec build_banner() -> string().
 build_banner() ->
     LfeVersion = lfe_version(),
-
-    "\n"
-    "   ..-~.~_~---..   \n"
-    "  (      \\     )    |   A Lisp-2+ on the Erlang VM\n"
-    "  |`-.._/_\\_.-':    |   Type (help) for usage info.\n"
-    "  |         g |_ \\   |\n"
-    "  |        n    | |  |   Docs: http://docs.lfe.io/\n"
-    "  |       a    / /   |   Source: http://github.com/lfe/lfe\n"
-    "   \\     l    |_/    |\n"
-    "    \\   r     /      |   LFE v" ++ LfeVersion ++ "\n"
-    "     `-E___.-'       \n\n".
+    QuitMsg = "(abort with ^G)",
+    ?GRN("   ..-~") ++ ?YLW(".~_") ++ ?GRN("~---..") ++ "\n" ++
+    ?GRN("  (      ") ++ ?YLW("\\\\") ++ ?GRN("     )") ++ "    |   A Lisp-2+ on the Erlang VM\n" ++
+    ?GRN("  |`-.._") ++ ?YLW("/") ++ ?GRN("_") ++ ?YLW("\\\\") ++ ?GRN("_.-':") ++ "    |   Type " ++ ?GRN("(help)") ++ " for usage info.\n" ++
+    ?GRN("  |         ") ++ ?RED("g") ++ ?GRN(" |_ \\") ++  "   |\n" ++
+    ?GRN("  |        ") ++ ?RED("n") ++ ?GRN("    | |") ++   "  |   Docs: " ++ ?BLU("http://docs.lfe.io/") ++ "\n" ++
+    ?GRN("  |       ") ++ ?RED("a") ++ ?GRN("    / /") ++   "   |   Source: " ++ ?BLU("http://github.com/lfe/lfe") ++ "\n" ++
+    ?GRN("   \\     ") ++ ?RED("l") ++ ?GRN("    |_/") ++  "    |\n" ++
+    ?GRN("    \\   ") ++ ?RED("r") ++ ?GRN("     /") ++  "      |   LFE v" ++
+    LfeVersion ++ " " ++  QuitMsg ++ "\n" ++
+    ?GRN("     `-") ++ ?RED("E") ++ ?GRN("___.-'") ++ "\n\n".
 
 -spec lfe_version() -> string().
 lfe_version() ->
