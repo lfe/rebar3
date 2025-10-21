@@ -13,7 +13,8 @@
          extract_include_path_lib/1, scan_content_mixed/1,
          resolve_include_file_in_include_dir/1, resolve_include_file_relative/1,
          resolve_include_lib_found/1, resolve_include_lib_not_found/1,
-         scan_file_with_includes/1, scan_file_no_includes/1]).
+         scan_file_with_includes/1, scan_file_no_includes/1,
+         scan_file_with_explicit_dirs/1]).
 
 %%====================================================================
 %% CT Callbacks
@@ -25,7 +26,8 @@ all() ->
      extract_include_path_lib, scan_content_mixed,
      resolve_include_file_in_include_dir, resolve_include_file_relative,
      resolve_include_lib_found, resolve_include_lib_not_found,
-     scan_file_with_includes, scan_file_no_includes].
+     scan_file_with_includes, scan_file_no_includes,
+     scan_file_with_explicit_dirs].
 
 init_per_suite(Config) ->
     r3lfe_dep_cache:init(),
@@ -192,4 +194,34 @@ scan_file_no_includes(Config) ->
     Deps = r3lfe_dependency_scanner:scan_file(SourceFile, AppInfo),
 
     ?assertEqual(0, length(Deps)),
+    ok.
+
+scan_file_with_explicit_dirs(Config) ->
+    %% Test the scan_file/4 variant that doesn't require AppInfo
+    %% This variant takes explicit AppDir and IncludeDirs parameters
+    TestDir = ?config(test_dir, Config),
+    AppData = test_utils:create_test_app(TestDir),
+    AppDir = maps:get(dir, AppData),
+    SrcDir = maps:get(src_dir, AppData),
+    IncludeDir = maps:get(include_dir, AppData),
+
+    %% Create include files
+    test_utils:write_file(filename:join(IncludeDir, "types.lfe"),
+                          "(deftype person () (tuple 'person binary integer))\n"),
+
+    %% Create source file with include
+    SourceFile = filename:join(SrcDir, "explicit_test.lfe"),
+    test_utils:write_file(SourceFile,
+        "(defmodule explicit-test)\n"
+        "(include-file \"types.lfe\")\n"
+        "(defun new-person (name age) (tuple 'person name age))\n"),
+
+    %% Call scan_file/4 directly with explicit parameters
+    IncludeDirs = [IncludeDir],
+    Opts = #{cache => false},
+    Deps = r3lfe_dependency_scanner:scan_file(SourceFile, AppDir, IncludeDirs, Opts),
+
+    %% Verify dependencies were found
+    ?assertEqual(1, length(Deps)),
+    ?assert(lists:any(fun(P) -> filename:basename(P) =:= "types.lfe" end, Deps)),
     ok.
