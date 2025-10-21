@@ -73,6 +73,8 @@ do(State) ->
     end.
 
 -spec format_error(term()) -> iolist().
+format_error({compilation_failed, Count}) ->
+    io_lib:format("Compilation failed for ~p file(s)", [Count]);
 format_error({compilation_error, Reason}) ->
     io_lib:format("Compilation failed: ~p", [Reason]);
 format_error({package_error, Reason}) ->

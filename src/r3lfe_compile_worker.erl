@@ -174,16 +174,9 @@ format_error(Reason) ->
 
 %% @doc Report compilation progress
 -spec report_compilation(file:filename(), boolean()) -> ok.
-report_compilation(Source, Verbose) ->
+report_compilation(Source, _Verbose) ->
     RelPath = relative_path(Source),
-
-    if
-        Verbose ->
-            ?INFO("Compiling ~s", [RelPath]);
-        true ->
-            ?DEBUG("Compiling ~s", [RelPath])
-    end,
-
+    ?INFO("Compiling ~s", [RelPath]),
     ok.
 
 %% @doc Make path relative to current directory for cleaner output
