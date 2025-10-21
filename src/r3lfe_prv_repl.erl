@@ -26,6 +26,7 @@
 -define(RED(Str), "\e[31m" ++ Str ++ "\e[0m").
 -define(GRN(Str), "\e[1;32m" ++ Str ++ "\e[0m").
 -define(YLW(Str), "\e[1;33m" ++ Str ++ "\e[0m").
+-define(YLW_REG(Str), "\e[33m" ++ Str ++ "\e[0m").  % Regular (non-bold) yellow
 -define(BLU(Str), "\e[1;34m" ++ Str ++ "\e[0m").
 -define(BOLD(Str), "\e[1m" ++ Str ++ "\e[0m").
 -define(DGRY(Str), "\e[90m" ++ Str ++ "\e[0m").  % Dark grey for outer border
@@ -332,7 +333,7 @@ build_banner() ->
     Line7 = OuterSide ++ " " ++ InnerSide ++ ?GRN("     \\     ") ++ ?RED("l") ++ ?GRN("    |_/") ++
             "                                          " ++ InnerSide ++ " " ++ OuterSide ++ "\n",
     Line8 = OuterSide ++ " " ++ InnerSide ++ ?GRN("      \\   ") ++ ?RED("r") ++ ?GRN("     /") ++
-            "      LFE v" ++ LfeVersion ++ " " ++ QuitMsg ++
+            "      " ++ ?YLW("LFE") ++ " " ++ ?YLW_REG("v" ++ LfeVersion) ++ " " ++ QuitMsg ++
             "            " ++ InnerSide ++ " " ++ OuterSide ++ "\n",
     Line9 = OuterSide ++ " " ++ InnerSide ++ ?GRN("       `-") ++ ?RED("E") ++ ?GRN("___.-'") ++
             "                                             " ++ InnerSide ++ " " ++ OuterSide ++ "\n",
