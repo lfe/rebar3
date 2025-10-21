@@ -4,6 +4,7 @@
 -export([
     scan_file/2,
     scan_file/3,
+    scan_file/4,
     scan_content/1,
     resolve_include/2,
     resolve_include/3
@@ -38,7 +39,7 @@ scan_file(SourceFile, AppInfo) ->
 %%   - cache => true/false (future: cache parsed results)
 %%   - include_dirs => [Dir] (additional include directories)
 -spec scan_file(file:filename(), rebar_app_info:t(), map()) -> [file:filename()].
-scan_file(SourceFile, AppInfo, Opts) ->
+scan_file(SourceFile, AppInfo, Opts) when is_map(Opts) ->
     UseCache = maps:get(cache, Opts, true),
 
     %% Check cache first
@@ -58,6 +59,52 @@ scan_file(SourceFile, AppInfo, Opts) ->
                     IncludeDirs = maps:get(include_dirs, Opts,
                                            r3lfe_config:get_include_dirs(AppInfo)),
 
+                    ResolvedPaths = lists:filtermap(
+                        fun(Form) ->
+                            case resolve_include(Form, AppDir, IncludeDirs) of
+                                {ok, Path} -> {true, Path};
+                                {error, Reason} ->
+                                    ?WARN("Could not resolve include in ~s: ~p",
+                                          [SourceFile, Reason]),
+                                    false
+                            end
+                        end,
+                        IncludeForms
+                    ),
+
+                    Result = lists:usort(ResolvedPaths),
+
+                    %% Cache the result
+                    UseCache andalso r3lfe_dep_cache:put(SourceFile, Result),
+
+                    Result;
+
+                {error, Reason} ->
+                    ?ERROR("Failed to read ~s: ~p", [SourceFile, Reason]),
+                    []
+            end
+    end.
+
+%% @doc Scan file with explicit app directory and include directories
+%% This variant doesn't require an AppInfo record
+-spec scan_file(file:filename(), file:filename(), [file:filename()], map()) ->
+    [file:filename()].
+scan_file(SourceFile, AppDir, IncludeDirs, Opts) ->
+    UseCache = maps:get(cache, Opts, true),
+
+    %% Check cache first
+    case UseCache andalso r3lfe_dep_cache:get(SourceFile) of
+        {ok, CachedDeps, _Time} ->
+            ?DEBUG("Using cached dependencies for ~s", [SourceFile]),
+            CachedDeps;
+        _ ->
+            %% Cache miss or disabled, scan the file
+            case file:read_file(SourceFile) of
+                {ok, Binary} ->
+                    Content = binary_to_list(Binary),
+                    IncludeForms = scan_content(Content),
+
+                    %% Resolve each include form to an absolute path
                     ResolvedPaths = lists:filtermap(
                         fun(Form) ->
                             case resolve_include(Form, AppDir, IncludeDirs) of

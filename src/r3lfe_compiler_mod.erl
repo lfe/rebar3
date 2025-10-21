@@ -51,13 +51,20 @@ context(AppInfo) ->
 
 %% @doc Extract dependencies from a source file
 %% This is called by rebar3's DAG builder for each source file
--spec dependencies(file:filename(), file:filename(), map()) ->
+-spec dependencies(file:filename(), file:filename(), [file:filename()]) ->
     [file:filename()].
-dependencies(Source, _SourceDir, #{app_info := AppInfo}) ->
+dependencies(Source, SourceDir, IncludeDirs) ->
     ?DEBUG("Scanning dependencies for: ~s", [Source]),
+    ?DEBUG("  Source dir: ~s", [SourceDir]),
+    ?DEBUG("  Include dirs: ~p", [IncludeDirs]),
 
-    %% Use our dependency scanner
-    Deps = r3lfe_dependency_scanner:scan_file(Source, AppInfo),
+    %% AppDir is the parent of the source directory
+    %% SourceDir is typically AppDir/src, so we need to go up one level
+    AppDir = filename:dirname(SourceDir),
+
+    %% Use our dependency scanner with explicit include dirs
+    Opts = #{include_dirs => IncludeDirs},
+    Deps = r3lfe_dependency_scanner:scan_file(Source, AppDir, IncludeDirs, Opts),
 
     ?DEBUG("Found ~p dependencies for ~s", [length(Deps), Source]),
 
