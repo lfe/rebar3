@@ -13,3 +13,4 @@
 
 {template, "escript.lfe.tpl", "{{name}}/src/{{name}}.lfe"}.
 {template, "app-lib.src.tpl", "{{name}}/src/{{name}}.app.src"}.
+

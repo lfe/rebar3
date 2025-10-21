@@ -76,6 +76,6 @@ info(Description) ->
         "~n"
         "Example:~n"
         "  rebar3 lfe escriptize~n"
-        "  ./myapp arg1 arg2~n",
+        "  ./_build/default/bin/myapp arg1 arg2~n",
         [Description]
     ).

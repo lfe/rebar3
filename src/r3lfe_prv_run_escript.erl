@@ -200,3 +200,4 @@ info(Description) ->
         "  ./_build/default/bin/myapp arg1 arg2~n",
         [Description]
     ).
+
