@@ -263,7 +263,15 @@ info(Description) ->
         "                 {nobanner, true},~n"
         "                 {prompt, \"custom> \"}]}]}.~n"
         "~n"
-        "Note: Prompt customization requires passing -prompt to the VM~n"
-        "at startup. Use: rebar3 lfe repl --erl \"-prompt 'custom> '\"~n",
+        "Prompt Customization:~n"
+        "  Prompts are set via VM args at startup:~n"
+        "    rebar3 lfe repl --erl \"-prompt 'custom> '\"~n"
+        "~n"
+        "  For colored prompts, use ANSI escape codes:~n"
+        "    rebar3 lfe repl --erl \"-prompt '\\e[1;32mlfe\\e[0m\\e[33m>\\e[0m '\"~n"
+        "    (green 'lfe' + dark yellow '>')~n"
+        "~n"
+        "  ANSI codes: \\e[1;32m=bright green, \\e[33m=dark yellow,~n"
+        "              \\e[1;33m=bright yellow, \\e[31m=red, \\e[0m=reset~n",
         [Description]
     ).
