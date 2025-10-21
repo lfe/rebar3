@@ -54,7 +54,7 @@ report_file(Progress = #progress{total = Total, compiled = Compiled}) ->
     if
         ShouldReport ->
             Percent = (NewCompiled * 100) div Total,
-            ?INFO("Progress: ~p/~p (~p%)", [NewCompiled, Total, Percent]);
+            ?DEBUG("Progress: ~p/~p (~p%)", [NewCompiled, Total, Percent]);
         true ->
             ok
     end,
