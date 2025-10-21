@@ -158,6 +158,15 @@ maybe_run_script(Opts) ->
 start_modern_repl(Opts, State) ->
     ?DEBUG("Starting modern REPL (OTP 26+)", []),
 
+    %% Display LFE banner unless disabled
+    NoBanner = maps:get(nobanner, Opts, false),
+    case NoBanner of
+        false ->
+            io:put_chars(build_banner());
+        true ->
+            ok
+    end,
+
     %% For OTP 26+, use shell:start_interactive/1
     ShellArgs = build_shell_args(Opts),
 
