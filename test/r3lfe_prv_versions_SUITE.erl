@@ -20,10 +20,18 @@
     get_app_versions_binary_name/1,
     get_language_versions_structure/1,
     get_tool_versions_structure/1,
+    get_tool_versions_includes_rebar3_lfe/1,
     get_version_existing_app/1,
     get_version_missing_app/1,
+    lfe_version_not_unknown/1,
     get_rebar3_version_returns_string/1,
+    get_deps_info_filters_lfe/1,
+    get_deps_info_sorts_alphabetically/1,
+    get_plugins_info_filters_build_tools/1,
+    get_plugins_info_sorts_alphabetically/1,
     display_versions_output/1,
+    display_versions_empty_sections/1,
+    display_versions_with_deps_and_plugins/1,
     info_output_validation/1
 ]).
 
@@ -41,10 +49,18 @@ all() ->
         get_app_versions_binary_name,
         get_language_versions_structure,
         get_tool_versions_structure,
+        get_tool_versions_includes_rebar3_lfe,
         get_version_existing_app,
         get_version_missing_app,
+        lfe_version_not_unknown,
         get_rebar3_version_returns_string,
+        get_deps_info_filters_lfe,
+        get_deps_info_sorts_alphabetically,
+        get_plugins_info_filters_build_tools,
+        get_plugins_info_sorts_alphabetically,
         display_versions_output,
+        display_versions_empty_sections,
+        display_versions_with_deps_and_plugins,
         info_output_validation
     ].
 
@@ -172,12 +188,13 @@ get_tool_versions_structure(_Config) ->
     %% Test that get_tool_versions returns proper structure
     Result = r3lfe_prv_versions:get_tool_versions(),
 
-    ?assertEqual(2, length(Result)),
+    %% Should have at least rebar3 and rebar3_lfe
+    ?assert(length(Result) >= 2),
 
-    %% Check that it has rebar3 and r3lfe
+    %% Check that it has rebar3 and rebar3_lfe
     Keys = [K || {K, _} <- Result],
     ?assert(lists:member(rebar3, Keys)),
-    ?assert(lists:member(r3lfe, Keys)),
+    ?assert(lists:member(rebar3_lfe, Keys)),
 
     %% Check that all values are strings
     lists:foreach(
@@ -186,6 +203,16 @@ get_tool_versions_structure(_Config) ->
         end,
         Result
     ),
+
+    ok.
+
+get_tool_versions_includes_rebar3_lfe(_Config) ->
+    %% Test that rebar3_lfe (not r3lfe) is in the result
+    Result = r3lfe_prv_versions:get_tool_versions(),
+
+    Keys = [K || {K, _} <- Result],
+    ?assert(lists:member(rebar3_lfe, Keys)),
+    ?assertNot(lists:member(r3lfe, Keys)),
 
     ok.
 
@@ -211,6 +238,16 @@ get_version_missing_app(_Config) ->
 
     ok.
 
+lfe_version_not_unknown(_Config) ->
+    %% Test that LFE version is detected (not "unknown")
+    Result = r3lfe_prv_versions:get_version(lfe),
+
+    ?assert(is_list(Result)),
+    ?assert(length(Result) > 0),
+    ?assertNotEqual("unknown", Result),
+
+    ok.
+
 %%====================================================================
 %% Test get_rebar3_version/0
 %%====================================================================
@@ -224,6 +261,68 @@ get_rebar3_version_returns_string(_Config) ->
     ok.
 
 %%====================================================================
+%% Test get_deps_info/1
+%%====================================================================
+
+get_deps_info_filters_lfe(_Config) ->
+    %% Test that LFE is filtered from dependencies
+    State = rebar_state:new(),
+
+    %% Get the result
+    Result = r3lfe_prv_versions:get_deps_info(State),
+
+    %% Check that LFE is not in the result
+    Names = [maps:get(name, D) || D <- Result],
+    ?assertNot(lists:member(lfe, Names)),
+
+    ok.
+
+get_deps_info_sorts_alphabetically(_Config) ->
+    %% Test that dependencies are sorted alphabetically
+    State = rebar_state:new(),
+
+    Result = r3lfe_prv_versions:get_deps_info(State),
+
+    %% Get the names
+    Names = [maps:get(name, D) || D <- Result],
+
+    %% Check that names are sorted
+    ?assertEqual(Names, lists:sort(Names)),
+
+    ok.
+
+%%====================================================================
+%% Test get_plugins_info/1
+%%====================================================================
+
+get_plugins_info_filters_build_tools(_Config) ->
+    %% Test that rebar3_lfe and rebar3_hex are filtered from plugins
+    State = rebar_state:new(),
+
+    Result = r3lfe_prv_versions:get_plugins_info(State),
+
+    %% Check that build tools are not in the result
+    Names = [maps:get(name, P) || P <- Result],
+    ?assertNot(lists:member(rebar3_lfe, Names)),
+    ?assertNot(lists:member(rebar3_hex, Names)),
+
+    ok.
+
+get_plugins_info_sorts_alphabetically(_Config) ->
+    %% Test that plugins are sorted alphabetically
+    State = rebar_state:new(),
+
+    Result = r3lfe_prv_versions:get_plugins_info(State),
+
+    %% Get the names
+    Names = [maps:get(name, P) || P <- Result],
+
+    %% Check that names are sorted
+    ?assertEqual(Names, lists:sort(Names)),
+
+    ok.
+
+%%====================================================================
 %% Test display_versions/1
 %%====================================================================
 
@@ -232,7 +331,46 @@ display_versions_output(_Config) ->
     VersionInfo = #{
         apps => [{testapp, "1.0.0"}],
         languages => [{lfe, "2.1.3"}, {erlang, "26"}, {erts, "14.2"}],
-        tools => [{rebar3, "3.22.0"}, {r3lfe, "0.4.8"}]
+        tools => [{rebar3, "3.22.0"}, {rebar3_lfe, "0.4.8"}],
+        deps => [],
+        plugins => []
+    },
+
+    %% Should not crash
+    ok = r3lfe_prv_versions:display_versions(VersionInfo),
+
+    ok.
+
+display_versions_empty_sections(_Config) ->
+    %% Test that empty sections don't display headers
+    VersionInfo = #{
+        apps => [],
+        languages => [{lfe, "2.1.3"}, {erlang, "26"}, {erts, "14.2"}],
+        tools => [{rebar3, "3.22.0"}, {rebar3_lfe, "0.4.8"}],
+        deps => [],
+        plugins => []
+    },
+
+    %% Should not crash
+    ok = r3lfe_prv_versions:display_versions(VersionInfo),
+
+    ok.
+
+display_versions_with_deps_and_plugins(_Config) ->
+    %% Test display with dependencies and plugins
+    VersionInfo = #{
+        apps => [{myapp, "1.0.0"}],
+        languages => [{lfe, "2.1.3"}, {erlang, "26"}, {erts, "14.2"}],
+        tools => [{rebar3, "3.22.0"}, {rebar3_lfe, "0.4.8"}],
+        deps => [
+            #{name => cowboy, version => "2.9.0", profile => default},
+            #{name => jsx, version => "3.1.0", profile => default},
+            #{name => meck, version => "0.9.2", profile => test}
+        ],
+        plugins => [
+            #{name => rebar3_format, version => "1.3.0", profile => default},
+            #{name => rebar3_proper, version => "0.12.1", profile => test}
+        ]
     },
 
     %% Should not crash

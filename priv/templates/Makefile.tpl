@@ -27,4 +27,4 @@ check:
 	@rebar3 as test check
 
 publish: clean
-	rebar3 as hexpm hex publish
+	@rebar3 publish

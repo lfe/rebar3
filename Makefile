@@ -42,7 +42,7 @@ ci: clean compile quality test coverage
 # Publish to hex.pm
 publish: clean
 	@echo "\nPublishing to hex.pm ...\n"
-	@rebar3 hex publish package
+	@rebar3 package
 
 $(SYS_TEST_DIR):
 	mkdir -p $(SYS_TEST_DIR)

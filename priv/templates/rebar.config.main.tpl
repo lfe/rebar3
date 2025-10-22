@@ -4,8 +4,9 @@
     {lfe, "~> 2.2"}
 ]}.
 
-{plugins, [
-    {rebar3_lfe, "~> 0.5"}
+{project_plugins, [
+    {rebar3_lfe, "~> 0.5"},
+    rebar3_hex
 ]}.
 
 {lfe, [
@@ -53,5 +54,9 @@
         %%eunit,
         {lfe, ltest},
         coverage
+    ]},
+    {publish, [
+        compile,
+        {hex, "publish package"}
     ]}
 ]}.

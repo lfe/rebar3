@@ -55,11 +55,24 @@ $ touch include/records.lfe
 $ rebar3 lfe compile
 Compiling 3 LFE files...  # Only files using the header
 Compiled 3 files in 0.3s
+```
 
-$ make repl
+### 🤖 Updated REPL
+
+REPL support in rebar3_lfe has changed slightly in 0.5.0:
+
+- Easier support for customising the LFE REPL prompt
+- `rlwrap` for most consistent experience with readline support (dedicated LFE history file, etc.)
+
+There is a new `Makefile` target that is included with all generated projects (`rebar3 new lfe-*`) which makes it easy for projects to use rlwrap and prompt customisations:
+
+```
+make repl
 ```
 
 [![LFE REPL](priv/images/screenshot-repl.png)](priv/images/screenshot-repl.png)
+
+Autocompletion support is current in progress; when complete, example usage will be shown here.
 
 ### 📦 Package System
 

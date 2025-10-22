@@ -15,6 +15,8 @@
     get_tool_versions/0,
     get_version/1,
     get_rebar3_version/0,
+    get_deps_info/1,
+    get_plugins_info/1,
     display_versions/1,
     info/1
 ]).
@@ -55,7 +57,9 @@ do(State) ->
     VersionInfo = #{
         apps => get_app_versions(Apps),
         languages => get_language_versions(),
-        tools => get_tool_versions()
+        tools => get_tool_versions(),
+        deps => get_deps_info(State),
+        plugins => get_plugins_info(State)
     },
 
     %% Display nicely formatted output
@@ -98,16 +102,44 @@ get_language_versions() ->
 
 -spec get_tool_versions() -> [{atom(), string()}].
 get_tool_versions() ->
-    [
+    BaseTools = [
         {rebar3, get_rebar3_version()},
-        {r3lfe, get_version(r3lfe)}
-    ].
+        {rebar3_lfe, get_version(rebar3_lfe)}
+    ],
+    %% Add rebar3_hex if it's available
+    case get_version(rebar3_hex) of
+        "unknown" -> BaseTools;
+        Vsn -> BaseTools ++ [{rebar3_hex, Vsn}]
+    end.
+
+-spec get_deps_info(rebar_state:t()) -> [#{name => atom(), version => string(), profile => atom()}].
+get_deps_info(State) ->
+    AllDeps = r3lfe_util:get_all_deps_with_profiles(State),
+    %% Filter out LFE (it's shown in Languages section)
+    FilteredDeps = [D || D <- AllDeps, maps:get(name, D) =/= lfe],
+    %% Sort alphabetically by name
+    lists:sort(fun(#{name := N1}, #{name := N2}) -> N1 =< N2 end, FilteredDeps).
+
+-spec get_plugins_info(rebar_state:t()) -> [#{name => atom(), version => string(), profile => atom()}].
+get_plugins_info(State) ->
+    AllPlugins = r3lfe_util:get_all_plugins_with_profiles(State),
+    %% Filter out rebar3_lfe and rebar3_hex (they're in Build Tools)
+    FilteredPlugins = [P || P <- AllPlugins,
+                            maps:get(name, P) =/= rebar3_lfe,
+                            maps:get(name, P) =/= rebar3_hex],
+    %% Sort alphabetically by name
+    lists:sort(fun(#{name := N1}, #{name := N2}) -> N1 =< N2 end, FilteredPlugins).
 
 -spec get_version(atom()) -> string().
 get_version(App) ->
-    case application:get_key(App, vsn) of
-        {ok, Vsn} -> Vsn;
-        undefined -> "unknown"
+    case r3lfe_util:ensure_app_loaded(App) of
+        ok ->
+            case application:get_key(App, vsn) of
+                {ok, Vsn} -> Vsn;
+                undefined -> "unknown"
+            end;
+        error ->
+            "unknown"
     end.
 
 -spec get_rebar3_version() -> string().
@@ -118,15 +150,8 @@ get_rebar3_version() ->
     end.
 
 -spec display_versions(map()) -> ok.
-display_versions(#{apps := Apps, languages := Langs, tools := Tools}) ->
-    io:format("~n=== Project Applications ===~n"),
-    lists:foreach(
-        fun({Name, Vsn}) ->
-            io:format("  ~-20s ~s~n", [Name, Vsn])
-        end,
-        Apps
-    ),
-
+display_versions(#{apps := Apps, languages := Langs, tools := Tools, deps := Deps, plugins := Plugins}) ->
+    %% Always display Languages section
     io:format("~n=== Languages ===~n"),
     lists:foreach(
         fun({Name, Vsn}) ->
@@ -135,6 +160,7 @@ display_versions(#{apps := Apps, languages := Langs, tools := Tools}) ->
         Langs
     ),
 
+    %% Always display Build Tools section
     io:format("~n=== Build Tools ===~n"),
     lists:foreach(
         fun({Name, Vsn}) ->
@@ -142,6 +168,51 @@ display_versions(#{apps := Apps, languages := Langs, tools := Tools}) ->
         end,
         Tools
     ),
+
+    %% Only display Dependencies section if there are dependencies (after filtering LFE)
+    case Deps of
+        [] -> ok;
+        _ ->
+            io:format("~n=== Dependencies ===~n"),
+            lists:foreach(
+                fun(#{name := Name, version := Vsn, profile := Profile}) ->
+                    case Profile of
+                        default -> io:format("  ~-20s ~s~n", [Name, Vsn]);
+                        _ -> io:format("  ~-20s ~s (~s)~n", [Name, Vsn, Profile])
+                    end
+                end,
+                Deps
+            )
+    end,
+
+    %% Only display Plugins section if there are plugins (after filtering rebar3_lfe and rebar3_hex)
+    case Plugins of
+        [] -> ok;
+        _ ->
+            io:format("~n=== Plugins ===~n"),
+            lists:foreach(
+                fun(#{name := Name, version := Vsn, profile := Profile}) ->
+                    case Profile of
+                        default -> io:format("  ~-20s ~s~n", [Name, Vsn]);
+                        _ -> io:format("  ~-20s ~s (~s)~n", [Name, Vsn, Profile])
+                    end
+                end,
+                Plugins
+            )
+    end,
+
+    %% Only display Project Applications section if there are apps
+    case Apps of
+        [] -> ok;
+        _ ->
+            io:format("~n=== Project Applications ===~n"),
+            lists:foreach(
+                fun({Name, Vsn}) ->
+                    io:format("  ~-20s ~s~n", [Name, Vsn])
+                end,
+                Apps
+            )
+    end,
 
     io:format("~n"),
     ok.
@@ -152,8 +223,10 @@ info(Description) ->
         "~n~s~n"
         "~n"
         "Displays version information for:~n"
-        "  - Project applications~n"
-        "  - LFE and Erlang/OTP~n"
-        "  - Build tools (rebar3, r3lfe)~n",
+        "  - Languages (LFE, Erlang/OTP)~n"
+        "  - Build tools (rebar3, rebar3_lfe, rebar3_hex)~n"
+        "  - Dependencies~n"
+        "  - Plugins~n"
+        "  - Project applications~n",
         [Description]
     ).
