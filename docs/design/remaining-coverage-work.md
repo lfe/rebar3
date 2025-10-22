@@ -3,11 +3,12 @@
 ## Current Status
 - **Total Coverage**: 86% (was 83%)
 - **Target**: 90%+
-- **Tests**: 258 passing (was 252)
+- **Tests**: 273 passing (was 252)
 
 ## Completed Work
 ✅ r3lfe_prv_release: 8% → 50-60% (8 new tests added)
 ✅ r3lfe_prv_ltest: 25% → 48% (6 new tests added)
+✅ r3lfe_prv_run_escript: 35% → 59% (15 new tests added - created suite from scratch)
 ✅ r3lfe_dependency_scanner: Added 8 tests
 ✅ r3lfe_config: Added 9 tests
 ✅ r3lfe_package: Added 5 tests
@@ -29,24 +30,21 @@
 
 **Note**: Testing `do/1` with actual ltest execution would require ltest dependency and is complex to mock. Current 48% coverage is excellent for a provider module.
 
-### 2. r3lfe_prv_run_escript (35% → Target: 55-65%)
+### 2. ✅ r3lfe_prv_run_escript (35% → 59%)
 **File**: `src/r3lfe_prv_run_escript.erl`
-**Current Tests**: None (needs new test suite)
+**Current Tests**: `test/r3lfe_prv_run_escript_SUITE.erl` (15 tests - created from scratch)
 
-**Needed Tests**:
-- Test provider initialization
-- Test `do/1` with escript file discovery
-- Test argument parsing and passing
-- Test error when no escript found
-- Test error when multiple escripts found
-- Test escript execution
-- Test format_error for various errors
+**Completed**:
+- ✅ Created comprehensive test suite with 15 tests
+- ✅ Exported find_escript/1, determine_escript_path/1, parse_args/1, build_command/2 for testing
+- ✅ Fixed determine_escript_path/1 to handle binary app names
+- ✅ Test provider initialization
+- ✅ Test escript path finding from state and config
+- ✅ Test argument parsing (empty, with separator, multiple args)
+- ✅ Test command building with and without args
+- ✅ Test error formatting for various error types
 
-**Implementation Hints**:
-- Create `test/r3lfe_prv_run_escript_SUITE.erl`
-- Create temp escript files for testing
-- Test find_escript/1 function
-- Test run_escript/3 function
+**Note**: Testing actual escript execution (run_escript/2, collect_output/1) requires complex port mocking and is difficult to test reliably. Current 59% coverage is excellent for this provider.
 
 ### 3. r3lfe_prv_run_release (36% → Target: 55-65%)
 **File**: `src/r3lfe_prv_run_release.erl`
@@ -169,7 +167,7 @@ Recommended order for maximum coverage gain:
 
 1. ✅ **r3lfe_prv_release** (8% → 50-60%) - COMPLETED - Total: 84%
 2. ✅ **r3lfe_prv_ltest** (25% → 48%) - COMPLETED - Total: 86%
-3. **r3lfe_prv_run_escript** (35% → 55-65%) - ~1-2% total impact
+3. ✅ **r3lfe_prv_run_escript** (35% → 59%) - COMPLETED - Total: 86%
 4. **r3lfe_prv_run_release** (36% → 55-65%) - ~1-2% total impact
 5. **r3lfe_prv_escriptize** (44% → 60-70%) - ~1% total impact
 6. **r3lfe_prv_repl** (45% → 60-70%) - ~1% total impact
