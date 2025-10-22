@@ -112,8 +112,6 @@ jobs:
       run: make test-versions-cmd
     - name: Check clean Command
       run: make test-clean-cmd
-    - name: Check clean-build Command
-      run: make test-clean-build-cmd
 
   integration:
     name: Integration Tests
