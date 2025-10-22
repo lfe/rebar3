@@ -32,6 +32,7 @@ init(State) ->
         r3lfe_prv_clean,
         r3lfe_prv_repl,
         r3lfe_prv_ltest,
+        r3lfe_prv_eval,
         r3lfe_prv_release,
         r3lfe_prv_versions,
         r3lfe_prv_run,
