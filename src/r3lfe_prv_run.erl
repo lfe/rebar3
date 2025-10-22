@@ -7,6 +7,18 @@
     format_error/1
 ]).
 
+%% Exported for testing
+-ifdef(TEST).
+-export([
+    find_main_file/1,
+    find_main_from_options/1,
+    find_main_from_config/1,
+    validate_main_file/1,
+    parse_args/1,
+    info/1
+]).
+-endif.
+
 -include_lib("rebar3_lfe/include/r3lfe.hrl").
 
 -define(PROVIDER, run).
