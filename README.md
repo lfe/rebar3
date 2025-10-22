@@ -1,7 +1,6 @@
-# r3lfe - Modern rebar3 Plugin for LFE
+# rebar3_lfe
 
 [![CI/CD][gh-actions-badge]][gh-actions]
-[![Coverage](https://codecov.io/gh/lfe/rebar3/branch/main/graph/badge.svg)](https://codecov.io/gh/lfe/rebar3)
 [![Hex.pm](https://img.shields.io/hexpm/v/rebar3_lfe.svg)](https://hex.pm/packages/rebar3_lfe)
 [![LFE](https://img.shields.io/badge/lfe-2.2+-blue.svg)](https://lfe.io)
 [![Erlang](https://img.shields.io/badge/erlang-24--28-blue.svg)](https://www.erlang.org)

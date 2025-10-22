@@ -1,6 +1,6 @@
 {application, '{{name}}', [
     {description, "{{description}}"},
-    {vsn, git},
+    {vsn, "0.1.0"},
     {registered, []},
     {mod, {'{{name}}-app', []}},
     {applications, [
