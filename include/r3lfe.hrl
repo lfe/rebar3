@@ -18,7 +18,6 @@
 %%% Compiler options
 -define(DEFAULT_LFE_OPTS, [
     return,
-    verbose,
     report_errors,
     report_warnings
 ]).

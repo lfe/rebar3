@@ -31,7 +31,12 @@
     is_verbose_from_lfe_opts/1,
     is_verbose_from_rebar_opts/1,
     merge_opts_complex/1,
-    normalize_include_dirs_relative/1
+    normalize_include_dirs_relative/1,
+    get_out_dir_returns_ebin/1,
+    is_verbose_with_undefined_opts/1,
+    get_lfe_opts_with_undefined_opts/1,
+    get_first_files_empty/1,
+    normalize_src_dirs_with_duplicates/1
 ]).
 
 %%====================================================================
@@ -57,7 +62,12 @@ all() ->
         is_verbose_from_lfe_opts,
         is_verbose_from_rebar_opts,
         merge_opts_complex,
-        normalize_include_dirs_relative
+        normalize_include_dirs_relative,
+        get_out_dir_returns_ebin,
+        is_verbose_with_undefined_opts,
+        get_lfe_opts_with_undefined_opts,
+        get_first_files_empty,
+        normalize_src_dirs_with_duplicates
     ].
 
 init_per_suite(Config) ->
@@ -85,9 +95,10 @@ get_lfe_opts_defaults(_Config) ->
 
     Opts = r3lfe_config:get_lfe_opts(AppInfo),
 
-    %% Should contain default options
+    %% Should contain default options (but not verbose - that's opt-in)
     ?assert(lists:member(return, Opts)),
-    ?assert(lists:member(verbose, Opts)),
+    ?assert(lists:member(report_errors, Opts)),
+    ?assert(lists:member(report_warnings, Opts)),
     ok.
 
 get_lfe_opts_merged(_Config) ->
@@ -389,5 +400,70 @@ normalize_include_dirs_relative(Config) ->
 
     ?assertEqual(2, length(Normalized)),
     ?assert(lists:all(fun filelib:is_dir/1, Normalized)),
+
+    ok.
+
+%%====================================================================
+%% Additional Test Cases for Better Coverage
+%%====================================================================
+
+get_out_dir_returns_ebin(_Config) ->
+    %% Test that get_out_dir returns the ebin directory
+    {ok, AppInfo} = rebar_app_info:new(testapp, "1.0.0", "/tmp/test"),
+    AppInfo1 = rebar_app_info:ebin_dir(AppInfo, "/tmp/test/ebin"),
+
+    OutDir = r3lfe_config:get_out_dir(AppInfo1),
+
+    ?assertEqual("/tmp/test/ebin", OutDir),
+
+    ok.
+
+is_verbose_with_undefined_opts(_Config) ->
+    %% Test is_verbose when opts are undefined
+    {ok, AppInfo} = rebar_app_info:new(testapp, "1.0.0", "/tmp/test"),
+
+    %% AppInfo with undefined opts should handle gracefully
+    Result = r3lfe_config:is_verbose(AppInfo),
+
+    %% Should return false (not crash)
+    ?assertEqual(false, Result),
+
+    ok.
+
+get_lfe_opts_with_undefined_opts(_Config) ->
+    %% Test get_lfe_opts when opts are undefined
+    {ok, AppInfo} = rebar_app_info:new(testapp, "1.0.0", "/tmp/test"),
+
+    %% Should return defaults
+    Opts = r3lfe_config:get_lfe_opts(AppInfo),
+
+    ?assert(is_list(Opts)),
+    ?assert(length(Opts) > 0),
+
+    ok.
+
+get_first_files_empty(_Config) ->
+    %% Test get_first_files when no first files are configured
+    {ok, AppInfo} = rebar_app_info:new(testapp, "1.0.0", "/tmp/test"),
+
+    FirstFiles = r3lfe_config:get_first_files(AppInfo),
+
+    %% Should return empty list
+    ?assertEqual([], FirstFiles),
+
+    ok.
+
+normalize_src_dirs_with_duplicates(Config) ->
+    TestDir = ?config(test_dir, Config),
+
+    %% Create a source directory
+    SrcDir = filename:join(TestDir, "src"),
+    ok = filelib:ensure_dir(filename:join(SrcDir, "dummy")),
+
+    %% Normalize with duplicate entries
+    Normalized = r3lfe_config:normalize_src_dirs(TestDir, ["src", "src", "src"]),
+
+    %% Should deduplicate
+    ?assertEqual(1, length(Normalized)),
 
     ok.

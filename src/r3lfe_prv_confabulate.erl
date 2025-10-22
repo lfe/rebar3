@@ -7,6 +7,11 @@
     format_error/1
 ]).
 
+%% For testing
+-export([
+    info/1
+]).
+
 -include_lib("rebar3_lfe/include/r3lfe.hrl").
 
 -define(PROVIDER, confabulate).

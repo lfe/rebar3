@@ -27,7 +27,10 @@
     build_compiler_opts_removes_conflicts/1,
     option_key_extraction/1,
     format_warning_item_variants/1,
-    format_error_item_variants/1
+    format_error_item_variants/1,
+    format_error_callback/1,
+    compile_with_verbose_option/1,
+    relative_path_without_cwd/1
 ]).
 
 %%====================================================================
@@ -49,7 +52,10 @@ all() ->
         build_compiler_opts_removes_conflicts,
         option_key_extraction,
         format_warning_item_variants,
-        format_error_item_variants
+        format_error_item_variants,
+        format_error_callback,
+        compile_with_verbose_option,
+        relative_path_without_cwd
     ].
 
 init_per_suite(Config) ->
@@ -329,5 +335,64 @@ format_error_item_variants(_Config) ->
     ?assert(is_list(Formatted1)),
     ?assert(is_list(Formatted2)),
     ?assert(is_list(Formatted3)),
+
+    ok.
+
+format_error_callback(_Config) ->
+    %% Test format_error/1 callback for various error types
+
+    %% Test unknown_error
+    Error1 = r3lfe_compile_worker:format_error({unknown_error, some_term}),
+    ?assert(is_list(Error1)),
+    ?assert(length(Error1) > 0),
+
+    %% Test unknown_warning
+    Error2 = r3lfe_compile_worker:format_error({unknown_warning, some_term}),
+    ?assert(is_list(Error2)),
+    ?assert(length(Error2) > 0),
+
+    %% Test compilation_failed
+    Error3 = r3lfe_compile_worker:format_error({compilation_failed, "test.lfe"}),
+    ?assert(is_list(Error3)),
+    ?assert(length(Error3) > 0),
+
+    %% Test generic error
+    Error4 = r3lfe_compile_worker:format_error(some_other_error),
+    ?assert(is_list(Error4)),
+    ?assert(length(Error4) > 0),
+
+    ok.
+
+compile_with_verbose_option(Config) ->
+    TestDir = ?config(test_dir, Config),
+
+    %% Create a simple valid module
+    SourceFile = filename:join(TestDir, "verbosetest.lfe"),
+    test_utils:write_file(SourceFile,
+        "(defmodule verbosetest)\n"
+        "(defun test () 'ok)\n"),
+
+    OutDir = filename:join(TestDir, "ebin"),
+    ok = filelib:ensure_dir(filename:join(OutDir, "dummy")),
+
+    %% Compile with verbose option in ExtraOpts
+    Result = r3lfe_compile_worker:compile_file(SourceFile, OutDir, [], #{verbose => true}),
+
+    %% Should succeed
+    ?assertMatch(ok, Result),
+
+    %% Check beam file exists
+    BeamFile = filename:join(OutDir, "verbosetest.beam"),
+    ?assert(filelib:is_file(BeamFile)),
+
+    ok.
+
+relative_path_without_cwd(_Config) ->
+    %% Test relative_path when path is not under current directory
+    AbsPath = "/some/other/path/file.lfe",
+    RelPath = r3lfe_compile_worker:relative_path(AbsPath),
+
+    %% Should return the original path if not under cwd
+    ?assert(is_list(RelPath)),
 
     ok.

@@ -23,7 +23,12 @@
     confabulate_input_not_found_error/1,
     confabulate_output_exists_error/1,
     confabulate_multiple_forms/1,
-    confabulate_nested_structures/1
+    confabulate_nested_structures/1,
+    confabulate_format_error_variants/1,
+    confabulate_parse_error/1,
+    confabulate_single_form_list/1,
+    confabulate_single_form_nonlist/1,
+    confabulate_info_output/1
 ]).
 
 %%====================================================================
@@ -41,7 +46,12 @@ all() ->
         confabulate_input_not_found_error,
         confabulate_output_exists_error,
         confabulate_multiple_forms,
-        confabulate_nested_structures
+        confabulate_nested_structures,
+        confabulate_format_error_variants,
+        confabulate_parse_error,
+        confabulate_single_form_list,
+        confabulate_single_form_nonlist,
+        confabulate_info_output
     ].
 
 init_per_suite(Config) ->
@@ -310,5 +320,112 @@ confabulate_nested_structures(Config) ->
     ?assert(string:find(ContentStr, "config") =/= nomatch),
     ?assert(string:find(ContentStr, "database") =/= nomatch),
     ?assert(string:find(ContentStr, "settings") =/= nomatch),
+
+    ok.
+
+confabulate_format_error_variants(_Config) ->
+    %% Test all format_error clauses
+    Errors = [
+        no_input_file,
+        {input_not_found, "/tmp/test.lfe"},
+        {output_exists, "/tmp/output.erl"},
+        {parse_error, "file.lfe", "bad syntax"},
+        {write_error, "file.erl", eacces},
+        {confabulate_error, "unknown"},
+        some_other_error
+    ],
+
+    lists:foreach(
+        fun(Error) ->
+            Result = r3lfe_prv_confabulate:format_error(Error),
+            ?assert(is_list(Result)),
+            ?assert(length(Result) > 0)
+        end,
+        Errors
+    ),
+
+    ok.
+
+confabulate_parse_error(Config) ->
+    TestDir = ?config(test_dir, Config),
+
+    %% Create invalid LFE file
+    InputFile = filename:join(TestDir, "invalid.lfe"),
+    test_utils:write_file(InputFile, "(incomplete form\n"),
+
+    State = rebar_state:new(),
+    State1 = rebar_state:command_parsed_args(State, {[{input, InputFile}], []}),
+
+    Result = r3lfe_prv_confabulate:do(State1),
+
+    ?assertMatch({error, _}, Result),
+
+    {error, ErrorMsg} = Result,
+    ?assert(string:find(ErrorMsg, "parse") =/= nomatch orelse
+            string:find(ErrorMsg, "failed") =/= nomatch),
+
+    ok.
+
+confabulate_single_form_list(Config) ->
+    TestDir = ?config(test_dir, Config),
+
+    %% Single form that is a list of items
+    InputFile = filename:join(TestDir, "single_list.lfe"),
+    test_utils:write_file(InputFile,
+        "((item1 value1)\n"
+        " (item2 value2)\n"
+        " (item3 value3))\n"
+    ),
+
+    State = rebar_state:new(),
+    State1 = rebar_state:command_parsed_args(State, {[{input, InputFile}], []}),
+
+    Result = r3lfe_prv_confabulate:do(State1),
+
+    ?assertMatch({ok, _}, Result),
+
+    OutputFile = filename:join(TestDir, "single_list.erl"),
+    ?assert(filelib:is_file(OutputFile)),
+
+    {ok, Content} = file:read_file(OutputFile),
+    ?assert(byte_size(Content) > 0),
+
+    ok.
+
+confabulate_single_form_nonlist(Config) ->
+    TestDir = ?config(test_dir, Config),
+
+    %% Single form that is not a list
+    InputFile = filename:join(TestDir, "single_atom.lfe"),
+    test_utils:write_file(InputFile, "simple-atom\n"),
+
+    State = rebar_state:new(),
+    State1 = rebar_state:command_parsed_args(State, {[{input, InputFile}], []}),
+
+    Result = r3lfe_prv_confabulate:do(State1),
+
+    ?assertMatch({ok, _}, Result),
+
+    OutputFile = filename:join(TestDir, "single_atom.erl"),
+    ?assert(filelib:is_file(OutputFile)),
+
+    {ok, Content} = file:read_file(OutputFile),
+    ContentStr = binary_to_list(Content),
+    ?assert(string:find(ContentStr, "simple") =/= nomatch),
+
+    ok.
+
+confabulate_info_output(_Config) ->
+    %% Test that info/1 returns proper documentation
+    Info = r3lfe_prv_confabulate:info("Test Description"),
+
+    ?assert(is_list(Info)),
+    ?assert(length(Info) > 0),
+
+    %% Should contain key documentation elements
+    InfoStr = lists:flatten(Info),
+    ?assert(string:find(InfoStr, "Test Description") =/= nomatch),
+    ?assert(string:find(InfoStr, "input") =/= nomatch),
+    ?assert(string:find(InfoStr, "output") =/= nomatch),
 
     ok.

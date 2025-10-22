@@ -22,7 +22,10 @@
          classify_include_patterns/1,
          scan_file_with_cache_disabled/1,
          scan_content_complex_patterns/1,
-         parse_include_forms_edge_cases/1]).
+         parse_include_forms_edge_cases/1,
+         scan_file_read_error/1,
+         resolve_include_file_not_found/1,
+         extract_include_path_malformed/1]).
 
 %%====================================================================
 %% CT Callbacks
@@ -43,7 +46,10 @@ all() ->
      classify_include_patterns,
      scan_file_with_cache_disabled,
      scan_content_complex_patterns,
-     parse_include_forms_edge_cases].
+     parse_include_forms_edge_cases,
+     scan_file_read_error,
+     resolve_include_file_not_found,
+     extract_include_path_malformed].
 
 init_per_suite(Config) ->
     r3lfe_dep_cache:init(),
@@ -388,5 +394,56 @@ parse_include_forms_edge_cases(_Config) ->
     NoSpaceContent = "(include-file\"no-space.lfe\")\n",
     NoSpaceForms = r3lfe_dependency_scanner:parse_include_forms(NoSpaceContent),
     ?assertEqual(0, length(NoSpaceForms)),
+
+    ok.
+
+scan_file_read_error(_Config) ->
+    %% Test scan_file with a file that doesn't exist or can't be read
+    NonExistentFile = "/tmp/nonexistent_" ++ integer_to_list(erlang:system_time()) ++ ".lfe",
+
+    %% Create minimal app info
+    {ok, AppInfo} = rebar_app_info:new(test, "1.0.0", "/tmp"),
+
+    %% Should return empty list, not crash
+    Result = r3lfe_dependency_scanner:scan_file(NonExistentFile, AppInfo),
+
+    ?assertEqual([], Result),
+
+    ok.
+
+resolve_include_file_not_found(Config) ->
+    TestDir = ?config(test_dir, Config),
+
+    %% Try to resolve a file that doesn't exist anywhere
+    NonExistentFile = "nonexistent_header_" ++ integer_to_list(erlang:system_time()) ++ ".lfe",
+
+    Result = r3lfe_dependency_scanner:resolve_include(
+        {include_file, NonExistentFile},
+        TestDir,
+        [filename:join(TestDir, "include")]
+    ),
+
+    %% Should return error, not crash
+    ?assertMatch({error, not_found}, Result),
+
+    ok.
+
+extract_include_path_malformed(_Config) ->
+    %% Test extract_include_path with malformed input
+    MalformedForms = [
+        "(include-file)",  % Missing path
+        "(include-lib)",   % Missing path
+        "(include-file )",  % Missing path with space
+        "(other-form \"path.lfe\")",  % Wrong form type
+        ""  % Empty string
+    ],
+
+    lists:foreach(
+        fun(Form) ->
+            Result = r3lfe_dependency_scanner:extract_include_path(Form),
+            ?assertEqual(error, Result)
+        end,
+        MalformedForms
+    ),
 
     ok.
