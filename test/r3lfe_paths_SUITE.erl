@@ -22,7 +22,18 @@
     set_paths_fallback/1,
     unset_paths_no_error/1,
     ensure_dir_race_condition/1,
-    ensure_dir_permission_error/1
+    ensure_dir_permission_error/1,
+    set_paths_single_arg/1,
+    set_paths_deps_only/1,
+    set_paths_plugins_only/1,
+    set_paths_both_types/1,
+    unset_paths_single_arg/1,
+    unset_paths_deps_only/1,
+    unset_paths_plugins_only/1,
+    with_paths_returns_value/1,
+    with_paths_exception_propagates/1,
+    fallback_set_paths_deps/1,
+    fallback_set_paths_plugins/1
 ]).
 
 %%====================================================================
@@ -39,7 +50,18 @@ all() ->
         set_paths_fallback,
         unset_paths_no_error,
         ensure_dir_race_condition,
-        ensure_dir_permission_error
+        ensure_dir_permission_error,
+        set_paths_single_arg,
+        set_paths_deps_only,
+        set_paths_plugins_only,
+        set_paths_both_types,
+        unset_paths_single_arg,
+        unset_paths_deps_only,
+        unset_paths_plugins_only,
+        with_paths_returns_value,
+        with_paths_exception_propagates,
+        fallback_set_paths_deps,
+        fallback_set_paths_plugins
     ].
 
 init_per_suite(Config) ->
@@ -174,5 +196,128 @@ ensure_dir_permission_error(Config) ->
         ok -> ?assert(filelib:is_dir(InvalidDir));
         {error, _} -> ok
     end,
+
+    ok.
+
+%%====================================================================
+%% Additional Tests for set_paths and unset_paths variants
+%%====================================================================
+
+set_paths_single_arg(_Config) ->
+    %% Test set_paths/1 which defaults to [deps, plugins]
+    State = rebar_state:new(),
+
+    ok = r3lfe_paths:set_paths(State),
+
+    ok.
+
+set_paths_deps_only(_Config) ->
+    %% Test set_paths/2 with deps only
+    State = rebar_state:new(),
+
+    ok = r3lfe_paths:set_paths([deps], State),
+
+    ok.
+
+set_paths_plugins_only(_Config) ->
+    %% Test set_paths/2 with plugins only
+    State = rebar_state:new(),
+
+    ok = r3lfe_paths:set_paths([plugins], State),
+
+    ok.
+
+set_paths_both_types(_Config) ->
+    %% Test set_paths/2 with both deps and plugins
+    State = rebar_state:new(),
+
+    ok = r3lfe_paths:set_paths([deps, plugins], State),
+
+    ok.
+
+unset_paths_single_arg(_Config) ->
+    %% Test unset_paths/1 which defaults to [deps, plugins]
+    State = rebar_state:new(),
+
+    ok = r3lfe_paths:unset_paths(State),
+
+    ok.
+
+unset_paths_deps_only(_Config) ->
+    %% Test unset_paths/2 with deps only
+    State = rebar_state:new(),
+
+    ok = r3lfe_paths:unset_paths([deps], State),
+
+    ok.
+
+unset_paths_plugins_only(_Config) ->
+    %% Test unset_paths/2 with plugins only
+    State = rebar_state:new(),
+
+    ok = r3lfe_paths:unset_paths([plugins], State),
+
+    ok.
+
+%%====================================================================
+%% Additional Tests for with_paths
+%%====================================================================
+
+with_paths_returns_value(_Config) ->
+    %% Test that with_paths returns the function's return value
+    State = rebar_state:new(),
+
+    Result = r3lfe_paths:with_paths(
+        fun() ->
+            {ok, some_result, 123}
+        end,
+        State
+    ),
+
+    ?assertEqual({ok, some_result, 123}, Result),
+
+    ok.
+
+with_paths_exception_propagates(_Config) ->
+    %% Test that exceptions from the function propagate properly
+    State = rebar_state:new(),
+
+    %% Should propagate the throw
+    ?assertThrow(
+        custom_throw,
+        r3lfe_paths:with_paths(
+            fun() -> throw(custom_throw) end,
+            State
+        )
+    ),
+
+    %% Should propagate the exit
+    ?assertExit(
+        custom_exit,
+        r3lfe_paths:with_paths(
+            fun() -> exit(custom_exit) end,
+            State
+        )
+    ),
+
+    ok.
+
+%%====================================================================
+%% Tests for fallback_set_paths
+%%====================================================================
+
+fallback_set_paths_deps(_Config) ->
+    %% Test fallback_set_paths with deps
+    State = rebar_state:new(),
+
+    ok = r3lfe_paths:fallback_set_paths([deps], State),
+
+    ok.
+
+fallback_set_paths_plugins(_Config) ->
+    %% Test fallback_set_paths with plugins
+    State = rebar_state:new(),
+
+    ok = r3lfe_paths:fallback_set_paths([plugins], State),
 
     ok.

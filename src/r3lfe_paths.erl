@@ -12,6 +12,11 @@
 
 -include_lib("rebar3_lfe/include/r3lfe.hrl").
 
+%% Exported for testing
+-ifdef(TEST).
+-export([fallback_set_paths/2]).
+-endif.
+
 %%====================================================================
 %% API functions
 %%====================================================================
