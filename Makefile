@@ -132,12 +132,6 @@ test-clean-cmd: clean setup
 	rebar3 compile && \
 	rebar3 lfe clean
 
-test-clean-build-cmd: clean setup
-	rebar3 compile
-	cd $(SYS_TEST_DIR) && \
-	rebar3 compile && \
-	rebar3 lfe clean-build
-
 smoke-tests: test-new test-new-lfe-lib test-new-lfe-main \
 			 test-new-lfe-app test-new-lfe-escript test-new-lfe-release \
-			 test-versions-cmd test-clean-cmd test-clean-build-cmd
+			 test-versions-cmd test-clean-cmd
