@@ -7,6 +7,16 @@
     format_error/1
 ]).
 
+%% Exported for testing
+-ifdef(TEST).
+-export([
+    find_escript/1,
+    determine_escript_path/1,
+    parse_args/1,
+    build_command/2
+]).
+-endif.
+
 -include_lib("rebar3_lfe/include/r3lfe.hrl").
 
 -define(PROVIDER, 'run-escript').
@@ -105,7 +115,12 @@ determine_escript_path(State) ->
             %% Use project app name as fallback
             case rebar_state:project_apps(State) of
                 [AppInfo | _] ->
-                    atom_to_list(rebar_app_info:name(AppInfo));
+                    Name = rebar_app_info:name(AppInfo),
+                    %% Name might be binary or atom
+                    case is_binary(Name) of
+                        true -> binary_to_list(Name);
+                        false -> atom_to_list(Name)
+                    end;
                 [] ->
                     "escript"
             end;
