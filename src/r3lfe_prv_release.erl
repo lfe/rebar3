@@ -8,10 +8,16 @@
 ]).
 
 %% For testing
+-ifdef(TEST).
 -export([
     get_release_name/1,
-    get_release_output_dir/1
+    get_release_output_dir/1,
+    update_app_files/1,
+    update_app_file/1,
+    show_usage_info/1,
+    info/1
 ]).
+-endif.
 
 -include_lib("rebar3_lfe/include/r3lfe.hrl").
 

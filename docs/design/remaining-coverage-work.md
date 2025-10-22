@@ -2,13 +2,13 @@
 
 ## Session Summary
 
-This session successfully improved test coverage from **83% to 88%** (+5 percentage points)!
+This session successfully improved test coverage from **83% to 89%** (+6 percentage points)!
 
 **Progress**:
-- **Tests Added**: 59 new tests (252 → 311)
-- **Modules Improved**: 7 provider modules
+- **Tests Added**: 63 new tests (252 → 315)
+- **Modules Improved**: 8 provider modules
 - **Perfect Score**: r3lfe_prv_escriptize achieved 100% coverage!
-- **Gap to Target**: Only 2% remaining to reach 90% goal
+- **Gap to Target**: Only 1% remaining to reach 90% goal
 
 **Modules Completed This Session**:
 1. r3lfe_prv_ltest: 25% → 48% (+6 tests)
@@ -17,21 +17,22 @@ This session successfully improved test coverage from **83% to 88%** (+5 percent
 4. r3lfe_prv_escriptize: 44% → 100% (+3 tests) 🎉
 5. r3lfe_prv_repl: 45% → 46% (+5 tests)
 6. r3lfe_prv_run: 51% → 76% (+15 tests)
+7. r3lfe_prv_release: 34% → 78% (+4 tests) - Huge improvement!
 
 ## Current Status
-- **Total Coverage**: 88% (was 83%)
+- **Total Coverage**: 89% (was 83%)
 - **Target**: 90%+
-- **Tests**: 311 passing (was 252)
-- **Gap**: Only 2% away from 90% target!
+- **Tests**: 315 passing (was 252)
+- **Gap**: Only 1% away from 90% target!
 
 ## Completed Work
-✅ r3lfe_prv_release: 8% → 50-60% (8 new tests added)
 ✅ r3lfe_prv_ltest: 25% → 48% (6 new tests added)
 ✅ r3lfe_prv_run_escript: 35% → 59% (15 new tests added - created suite from scratch)
 ✅ r3lfe_prv_run_release: 36% → 53% (15 new tests added)
 ✅ r3lfe_prv_escriptize: 44% → 100% (3 new tests added) - **Perfect!**
 ✅ r3lfe_prv_repl: 45% → 46% (5 new tests added)
 ✅ r3lfe_prv_run: 51% → 76% (15 new tests added)
+✅ r3lfe_prv_release: 34% → 78% (4 new tests added) - **Huge gain!**
 ✅ r3lfe_dependency_scanner: Added 8 tests
 ✅ r3lfe_config: Added 9 tests
 ✅ r3lfe_package: Added 5 tests
@@ -181,37 +182,42 @@ Recommended order for maximum coverage gain:
 5. ✅ **r3lfe_prv_escriptize** (44% → 100%) - COMPLETED - Total: 87%
 6. ✅ **r3lfe_prv_repl** (45% → 46%) - COMPLETED - Total: 87%
 7. ✅ **r3lfe_prv_run** (51% → 76%) - COMPLETED - Total: 88%
+8. ✅ **r3lfe_prv_release** (34% → 78%) - COMPLETED - Total: 89%
 
-**Current Total: 88% (Only 2% away from 90% goal!)**
+**Current Total: 89% (Only 1% away from 90% goal!)**
 
 ## Reaching 90% Coverage
 
-To reach the 90% goal, we need to improve coverage on modules with the highest potential impact. Looking at the current coverage report, here are the best candidates:
+To reach the 90% goal, we need to improve coverage on modules with the highest potential impact. Looking at the current coverage report (89%), here are the best candidates:
 
-### High-Impact Targets (2% needed for 90%)
+### High-Impact Targets (1% needed for 90%)
 
-1. **r3lfe_prv_release** (34% → Target: 50-60%)
-   - Currently very low coverage, high potential gain
-   - Would add ~0.5-1% to total
+1. ✅ **r3lfe_prv_release** (34% → 78%) - **COMPLETED!**
+   - Added 4 tests covering update_app_files/1, update_app_file/1, show_usage_info/1, and info/1
+   - Massive +44 percentage point gain
 
-2. **r3lfe_paths** (60% → Target: 75-80%)
+2. **r3lfe_paths** (60% → Target: 70-75%)
    - Medium-high impact
    - Add more edge case tests
    - Test set_paths/2 and unset_paths/2 more thoroughly
+   - Could add ~0.3-0.5% to total
 
 3. **r3lfe_prv_compile** (66% → Target: 75-80%)
    - Medium impact, but core functionality
    - Test more compilation scenarios
+   - Could add ~0.3-0.5% to total
 
-4. **r3lfe_compile_worker** (68% → Target: 80-85%)
+4. **r3lfe_compile_worker** (68% → Target: 75-80%)
    - Medium impact
    - Test more compilation error scenarios
+   - Could add ~0.3-0.5% to total
 
 5. **r3lfe_prv_confabulate** (70% → Target: 80-85%)
    - Medium impact
    - Test template generation edge cases
+   - Could add ~0.3-0.5% to total
 
-**Strategy**: Focus on r3lfe_prv_release first (biggest gap), then add incremental improvements to r3lfe_paths and r3lfe_prv_compile to push over 90%.
+**Strategy**: Any one of modules 2-5 could push us over 90%. r3lfe_paths or r3lfe_prv_compile would be good next targets.
 
 ## Notes
 

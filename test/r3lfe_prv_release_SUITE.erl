@@ -26,7 +26,11 @@
     get_release_output_dir_default/1,
     get_release_output_dir_custom_relative/1,
     get_release_output_dir_custom_absolute/1,
-    format_error_various_reasons/1
+    format_error_various_reasons/1,
+    update_app_files_multiple_apps/1,
+    update_app_file_updates_modules/1,
+    show_usage_info_output/1,
+    info_output_validation/1
 ]).
 
 %%====================================================================
@@ -47,7 +51,11 @@ all() ->
         get_release_output_dir_default,
         get_release_output_dir_custom_relative,
         get_release_output_dir_custom_absolute,
-        format_error_various_reasons
+        format_error_various_reasons,
+        update_app_files_multiple_apps,
+        update_app_file_updates_modules,
+        show_usage_info_output,
+        info_output_validation
     ].
 
 init_per_suite(Config) ->
@@ -286,5 +294,113 @@ format_error_various_reasons(_Config) ->
         end,
         Reasons
     ),
+
+    ok.
+
+%%====================================================================
+%% Additional Tests for Better Coverage
+%%====================================================================
+
+update_app_files_multiple_apps(Config) ->
+    %% Test update_app_files with multiple apps
+    TestDir = ?config(test_dir, Config),
+
+    %% Create multiple apps
+    App1Dir = filename:join(TestDir, "app1"),
+    App2Dir = filename:join(TestDir, "app2"),
+
+    Apps = lists:map(
+        fun({AppName, AppDir}) ->
+            EbinDir = filename:join(AppDir, "ebin"),
+            ok = filelib:ensure_dir(filename:join(EbinDir, "dummy")),
+
+            %% Create .app file
+            AppFile = filename:join(EbinDir, atom_to_list(AppName) ++ ".app"),
+            AppContent = io_lib:format("{application, ~p, [{vsn, \"0.1.0\"}, {modules, []}]}.", [AppName]),
+            ok = file:write_file(AppFile, AppContent),
+
+            %% Create beam files
+            BeamFile = filename:join(EbinDir, atom_to_list(AppName) ++ ".beam"),
+            ok = file:write_file(BeamFile, <<>>),
+
+            {ok, AppInfo} = rebar_app_info:new(AppName, "0.1.0", AppDir),
+            AppInfo1 = rebar_app_info:ebin_dir(AppInfo, EbinDir),
+            rebar_app_info:app_file(AppInfo1, AppFile)
+        end,
+        [{app1, App1Dir}, {app2, App2Dir}]
+    ),
+
+    State = rebar_state:new(),
+    State1 = rebar_state:project_apps(State, Apps),
+
+    %% Call update_app_files
+    ok = r3lfe_prv_release:update_app_files(State1),
+
+    ok.
+
+update_app_file_updates_modules(Config) ->
+    %% Test that update_app_file actually updates the modules list
+    TestDir = ?config(test_dir, Config),
+
+    EbinDir = filename:join(TestDir, "ebin"),
+    ok = filelib:ensure_dir(filename:join(EbinDir, "dummy")),
+
+    %% Create .app file with empty modules list
+    AppFile = filename:join(EbinDir, "testapp.app"),
+    AppContent = "{application, testapp, [{vsn, \"0.1.0\"}, {modules, []}]}.",
+    ok = file:write_file(AppFile, AppContent),
+
+    %% Create beam files
+    BeamFiles = [
+        filename:join(EbinDir, "mod1.beam"),
+        filename:join(EbinDir, "mod2.beam")
+    ],
+    lists:foreach(fun(F) -> ok = file:write_file(F, <<>>) end, BeamFiles),
+
+    %% Create AppInfo
+    {ok, AppInfo} = rebar_app_info:new(testapp, "0.1.0", TestDir),
+    AppInfo1 = rebar_app_info:ebin_dir(AppInfo, EbinDir),
+    AppInfo2 = rebar_app_info:app_file(AppInfo1, AppFile),
+
+    %% Call update_app_file
+    ok = r3lfe_prv_release:update_app_file(AppInfo2),
+
+    %% Read updated app file
+    {ok, [{application, testapp, Props}]} = file:consult(AppFile),
+
+    %% Check that modules list was updated
+    Modules = proplists:get_value(modules, Props),
+    ?assertEqual(2, length(Modules)),
+    ?assert(lists:member(mod1, Modules)),
+    ?assert(lists:member(mod2, Modules)),
+
+    ok.
+
+show_usage_info_output(Config) ->
+    %% Test show_usage_info function
+    TestDir = ?config(test_dir, Config),
+
+    State = rebar_state:new(),
+    State1 = rebar_state:set(State, base_dir, TestDir),
+    State2 = rebar_state:set(State1, relx, [
+        {release, {testrel, "1.0.0"}, [testapp]}
+    ]),
+
+    %% Call show_usage_info (should not crash)
+    ok = r3lfe_prv_release:show_usage_info(State2),
+
+    ok.
+
+info_output_validation(_Config) ->
+    %% Test info function output
+    Result = r3lfe_prv_release:info("Build LFE release"),
+
+    ?assert(is_list(Result)),
+    ?assert(length(Result) > 0),
+
+    %% Should contain key information
+    Flat = lists:flatten(Result),
+    ?assert(string:str(Flat, "relx") > 0),
+    ?assert(string:str(Flat, "release") > 0),
 
     ok.
