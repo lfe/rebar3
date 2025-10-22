@@ -5,7 +5,7 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.5.0] - 2025-01-XX
+## [0.5.0] - 2025-10-22
 
 ### 🎉 Complete Rewrite
 
@@ -24,6 +24,11 @@ This is a ground-up rewrite of the rebar3_lfe plugin with modern architecture an
 - **Multi-OTP Support**: Tested on Erlang/OTP 24-28
 - **Comprehensive Testing**: >90% code coverage with unit, integration, and property tests
 - **Modern CI/CD**: GitHub Actions with multi-version testing
+- **Expression Evaluation**: `rebar3 lfe eval` command for evaluating LFE expressions
+  - Execute expressions without starting a REPL
+  - Full LFE language support (lambdas, let, conditionals, etc.)
+  - Access to compiled project modules and dependencies
+  - Useful for quick calculations, testing, automation, and CI/CD scripts
 - **Script Support**: `rebar3 lfe run` command for executing LFE scripts with main/1
   - Supports `--main` option for script path
   - Pass arguments after `--` separator
