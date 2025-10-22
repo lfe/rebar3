@@ -7,6 +7,14 @@
     format_error/1
 ]).
 
+%% Exported for testing
+-ifdef(TEST).
+-export([
+    clean_app/1,
+    info/1
+]).
+-endif.
+
 -include_lib("rebar3_lfe/include/r3lfe.hrl").
 
 -define(PROVIDER, clean).
