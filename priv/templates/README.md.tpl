@@ -59,8 +59,8 @@ Copyright © {{copyright_year}}, {{author_name}} <{{author_email}}>.
 [gh-actions-badge]: https://github.com/ORG/{{name}}/actions/workflows/cicd.yml/badge.svg
 [gh-actions]: https://github.com/ORG/{{name}}/actions/workflows/cicd.yml
 [lfe]: https://github.com/lfe/lfe
-[lfe-badge]: https://img.shields.io/badge/lfe-2.1-blue.svg
-[erlang-badge]: https://img.shields.io/badge/erlang-21%20to%2026-blue.svg
+[lfe-badge]: https://img.shields.io/badge/lfe-2.2-blue.svg
+[erlang-badge]: https://img.shields.io/badge/erlang-24%20to%2028-blue.svg
 [version]: https://github.com/ORG/{{name}}/blob/main/.github/workflows/cicd.yml
 [github-tags]: https://github.com/ORG/{{name}}/tags
 [github-tags-badge]: https://img.shields.io/github/tag/ORG/{{name}}.svg

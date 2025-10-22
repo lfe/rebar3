@@ -13,7 +13,7 @@ on:
 jobs:
 
   builds:
-    name: Erlang ${{ matrix.otp_version }} build
+    name: Erlang ${{ matrix.otp_version }}
     runs-on: ubuntu-latest
 
     strategy:
@@ -35,4 +35,4 @@ jobs:
     - name: Proper Tests
       run: rebar3 as test do compile, proper --regressions
     - name: Run Unit Tests
-      run: rebar3 as test lfe ltest -tall
+      run: rebar3 as test lfe ltest

@@ -32,6 +32,7 @@
 ]}.
 
 {alias, [
+    %% should be run with `rebar3 as test coverge`
     {coverage, [
         {proper, "-c"},
         {cover, "-v --min_coverage=0"}
