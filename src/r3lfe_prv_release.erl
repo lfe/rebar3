@@ -7,6 +7,12 @@
     format_error/1
 ]).
 
+%% For testing
+-export([
+    get_release_name/1,
+    get_release_output_dir/1
+]).
+
 -include_lib("rebar3_lfe/include/r3lfe.hrl").
 
 -define(PROVIDER, release).
@@ -152,7 +158,12 @@ get_release_name(State) ->
         none ->
             case rebar_state:project_apps(State) of
                 [AppInfo | _] ->
-                    atom_to_list(rebar_app_info:name(AppInfo));
+                    Name = rebar_app_info:name(AppInfo),
+                    case is_binary(Name) of
+                        true -> binary_to_list(Name);
+                        false when is_atom(Name) -> atom_to_list(Name);
+                        false when is_list(Name) -> Name
+                    end;
                 [] ->
                     "myapp"
             end

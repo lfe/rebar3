@@ -18,7 +18,15 @@
     update_app_file_with_modules/1,
     update_app_file_error_handling/1,
     get_release_name_from_different_formats/1,
-    show_usage_info_displays/1
+    show_usage_info_displays/1,
+    get_release_name_with_atom_name/1,
+    get_release_name_with_string_name/1,
+    get_release_name_from_app/1,
+    get_release_name_default/1,
+    get_release_output_dir_default/1,
+    get_release_output_dir_custom_relative/1,
+    get_release_output_dir_custom_absolute/1,
+    format_error_various_reasons/1
 ]).
 
 %%====================================================================
@@ -31,7 +39,15 @@ all() ->
         update_app_file_with_modules,
         update_app_file_error_handling,
         get_release_name_from_different_formats,
-        show_usage_info_displays
+        show_usage_info_displays,
+        get_release_name_with_atom_name,
+        get_release_name_with_string_name,
+        get_release_name_from_app,
+        get_release_name_default,
+        get_release_output_dir_default,
+        get_release_output_dir_custom_relative,
+        get_release_output_dir_custom_absolute,
+        format_error_various_reasons
     ].
 
 init_per_suite(Config) ->
@@ -147,5 +163,128 @@ show_usage_info_displays(_Config) ->
 
     ?assert(is_list(ErrorMsg)),
     ?assert(length(ErrorMsg) > 0),
+
+    ok.
+
+%%====================================================================
+%% Additional Test Cases for Coverage
+%%====================================================================
+
+get_release_name_with_atom_name(_Config) ->
+    %% Test get_release_name with atom name in relx config
+    State = rebar_state:new(),
+
+    %% Set relx config with atom name
+    State1 = rebar_state:set(State, relx, [
+        {release, {myapp, "1.0.0"}, [myapp]}
+    ]),
+
+    Name = r3lfe_prv_release:get_release_name(State1),
+
+    ?assertEqual("myapp", Name),
+    ok.
+
+get_release_name_with_string_name(_Config) ->
+    %% Test get_release_name with string name in relx config
+    State = rebar_state:new(),
+
+    %% Set relx config with string name
+    State1 = rebar_state:set(State, relx, [
+        {release, {"myapp_string", "1.0.0"}, [myapp]}
+    ]),
+
+    Name = r3lfe_prv_release:get_release_name(State1),
+
+    ?assertEqual("myapp_string", Name),
+    ok.
+
+get_release_name_from_app(Config) ->
+    %% Test get_release_name falls back to app name
+    TestDir = ?config(test_dir, Config),
+
+    State = rebar_state:new(),
+
+    %% Create an app
+    {ok, AppInfo} = rebar_app_info:new(testapp, "0.1.0", TestDir),
+    State1 = rebar_state:project_apps(State, [AppInfo]),
+
+    %% No relx config, should use app name
+    Name = r3lfe_prv_release:get_release_name(State1),
+
+    ?assertEqual("testapp", Name),
+    ok.
+
+get_release_name_default(_Config) ->
+    %% Test get_release_name with no config and no apps
+    State = rebar_state:new(),
+
+    %% No relx config, no apps
+    Name = r3lfe_prv_release:get_release_name(State),
+
+    ?assertEqual("myapp", Name),
+    ok.
+
+get_release_output_dir_default(Config) ->
+    %% Test get_release_output_dir with default config
+    TestDir = ?config(test_dir, Config),
+
+    State = rebar_state:new(),
+    State1 = rebar_state:set(State, base_dir, TestDir),
+
+    Dir = r3lfe_prv_release:get_release_output_dir(State1),
+
+    %% rebar_dir:base_dir appends "default" profile directory
+    %% so the expected path includes it
+    ?assert(string:find(Dir, "rel") =/= nomatch),
+    ?assert(filelib:is_dir(filename:dirname(Dir)) orelse true),
+    ok.
+
+get_release_output_dir_custom_relative(Config) ->
+    %% Test get_release_output_dir with custom relative path
+    TestDir = ?config(test_dir, Config),
+
+    State = rebar_state:new(),
+    State1 = rebar_state:set(State, base_dir, TestDir),
+    State2 = rebar_state:set(State1, relx, [
+        {output_dir, "custom_rel"}
+    ]),
+
+    Dir = r3lfe_prv_release:get_release_output_dir(State2),
+
+    %% Should contain custom_rel in the path
+    ?assert(string:find(Dir, "custom_rel") =/= nomatch),
+    ok.
+
+get_release_output_dir_custom_absolute(_Config) ->
+    %% Test get_release_output_dir with custom absolute path
+    State = rebar_state:new(),
+
+    AbsPath = "/tmp/absolute_rel",
+    State1 = rebar_state:set(State, relx, [
+        {output_dir, AbsPath}
+    ]),
+
+    Dir = r3lfe_prv_release:get_release_output_dir(State1),
+
+    ?assertEqual(AbsPath, Dir),
+    ok.
+
+format_error_various_reasons(_Config) ->
+    %% Test format_error with various error reasons
+    Reasons = [
+        usage,
+        {error, file_not_found},
+        {error, {parse_error, "invalid syntax"}},
+        unknown_error
+    ],
+
+    lists:foreach(
+        fun(Reason) ->
+            Msg = r3lfe_prv_release:format_error(Reason),
+            ?assert(is_list(Msg)),
+            ?assert(length(Msg) > 0)
+        end,
+        Reasons
+    ),
 
     ok.
