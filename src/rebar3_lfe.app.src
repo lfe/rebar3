@@ -1,5 +1,5 @@
 {application, rebar3_lfe,
- [{description, "The LFE build and software management tool"},
+ [{description, "A modern rebar3 plugin for LFE projects"},
   {vsn, "0.5.0"},
   {registered, []},
   {applications, [

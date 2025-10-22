@@ -7,7 +7,7 @@
 [![Erlang](https://img.shields.io/badge/erlang-24--28-blue.svg)](https://www.erlang.org)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
-**A modern, reliable rebar3 plugin for LFE (Lisp Flavoured Erlang) projects.**
+**A modern rebar3 plugin for LFE projects**
 
 ## ✨ Why rebar3_lfe?
 
