@@ -17,7 +17,10 @@
     escriptize_provider_registers/1,
     run_escript_provider_registers/1,
     escriptize_builds_escript/1,
-    run_escript_executes/1
+    run_escript_executes/1,
+    escriptize_do_succeeds/1,
+    escriptize_format_error/1,
+    escriptize_info_contains_description/1
 ]).
 
 %%====================================================================
@@ -29,7 +32,10 @@ all() ->
         escriptize_provider_registers,
         run_escript_provider_registers,
         escriptize_builds_escript,
-        run_escript_executes
+        run_escript_executes,
+        escriptize_do_succeeds,
+        escriptize_format_error,
+        escriptize_info_contains_description
     ].
 
 init_per_suite(Config) ->
@@ -114,5 +120,51 @@ run_escript_executes(_Config) ->
 
     %% Should get an error since no escript exists
     ?assertMatch({error, _}, Result),
+
+    ok.
+
+escriptize_do_succeeds(_Config) ->
+    %% Test that do/1 succeeds when called
+    %% The actual escriptize work is done by the default provider
+    %% This provider just ensures paths are set
+    State = rebar_state:new(),
+    {ok, State1} = r3lfe_prv_escriptize:init(State),
+
+    Result = r3lfe_prv_escriptize:do(State1),
+
+    %% Should succeed
+    ?assertMatch({ok, _}, Result),
+
+    ok.
+
+escriptize_format_error(_Config) ->
+    %% Test format_error/1
+    Error1 = {some_error, "details"},
+    Error2 = simple_error,
+
+    Msg1 = r3lfe_prv_escriptize:format_error(Error1),
+    Msg2 = r3lfe_prv_escriptize:format_error(Error2),
+
+    %% Should return formatted messages
+    ?assert(is_list(Msg1)),
+    ?assert(is_list(Msg2)),
+
+    ok.
+
+escriptize_info_contains_description(_Config) ->
+    %% Test that info/1 returns meaningful description
+    Description = "Build an LFE escript executable",
+    Info = r3lfe_prv_escriptize:info(Description),
+
+    %% Should be a list
+    ?assert(is_list(Info)),
+
+    %% Should contain the description
+    InfoStr = lists:flatten(Info),
+    ?assert(string:str(InfoStr, Description) > 0),
+
+    %% Should contain some key information
+    ?assert(string:str(InfoStr, "escript") > 0),
+    ?assert(string:str(InfoStr, "main") > 0),
 
     ok.

@@ -3,6 +3,11 @@
 
 -export([init/1, do/1, format_error/1]).
 
+%% Exported for testing
+-ifdef(TEST).
+-export([info/1]).
+-endif.
+
 -include_lib("rebar3_lfe/include/r3lfe.hrl").
 
 -define(PROVIDER, escriptize).
