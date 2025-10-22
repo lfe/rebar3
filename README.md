@@ -6,6 +6,8 @@
 [![Erlang](https://img.shields.io/badge/erlang-24--28-blue.svg)](https://www.erlang.org)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
+[![Project Logo][logo]][logo-large]
+
 **A modern rebar3 plugin for LFE projects**
 
 ## ✨ Why rebar3_lfe?
@@ -164,5 +166,7 @@ Apache 2.0 - See [LICENSE](LICENSE)
 
 ---
 
+[logo]: https://avatars2.githubusercontent.com/u/15242004?s=250
+[logo-large]: https://avatars2.githubusercontent.com/u/15242004
 [gh-actions-badge]: https://github.com/lfe-rebar3/rebar3_lfe/workflows/CI%2FCD/badge.svg
 [gh-actions]: https://github.com/lfe-rebar3/rebar3_lfe/actions
