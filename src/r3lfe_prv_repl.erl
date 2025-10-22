@@ -10,13 +10,11 @@
 -export([build_banner/0]).
 
 %% Exported for testing
--ifdef(TEST).
 -export([
     read_vm_args/1,
     build_shell_args/1,
     merge_repl_opts/2
 ]).
--endif.
 
 -include_lib("rebar3_lfe/include/r3lfe.hrl").
 
