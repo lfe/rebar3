@@ -34,6 +34,7 @@
 ```bash
 rebar3 lfe compile    # Compile your code
 rebar3 lfe repl       # Start REPL
+rebar3 lfe eval '(+ 1 2 3)'  # Evaluate LFE expressions
 rebar3 lfe ltest      # Run tests
 ```
 
@@ -84,6 +85,7 @@ src/myapp.lfe:10: error: undefined function foo/1
 - `compile` - Smart, incremental compilation
 - `clean` - Remove build artifacts
 - `repl` - Interactive LFE shell
+- `eval` - Evaluate LFE expressions
 - `ltest` - Run tests
 - `versions` - Version information
 

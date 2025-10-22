@@ -145,6 +145,19 @@ rebar3 lfe repl --apps myapp,mylib
 rebar3 lfe repl --script init.lfe
 ```
 
+### Quick Expression Evaluation
+
+```bash
+# Evaluate expressions without starting a REPL
+rebar3 lfe eval '(+ 1 2 3)'
+
+# Complex expressions
+rebar3 lfe eval '(lists:map (lambda (x) (* x x)) (list 1 2 3))'
+
+# Call your project code
+rebar3 lfe eval '(myapp:version)'
+```
+
 ### Testing
 
 ```bash

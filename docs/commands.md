@@ -100,6 +100,84 @@ rebar3 lfe repl --script init.lfe
 > (q)                       ; Quit
 ```
 
+### eval
+
+Evaluate a single LFE expression from the command line.
+
+```bash
+rebar3 lfe eval '<expression>'
+```
+
+**Features:**
+- Quick expression evaluation without starting a REPL
+- Full LFE language support (lambdas, let, conditionals, etc.)
+- Access to compiled project modules and dependencies
+- Proper LFE-formatted output
+
+**Use Cases:**
+- Quick calculations and data transformations
+- Testing function calls during development
+- One-off data processing tasks
+- CI/CD scripts and automation
+- Debugging and exploration
+
+**Examples:**
+```bash
+# Simple arithmetic
+rebar3 lfe eval '(+ 1 2 3)'
+# Output: 6
+
+# Complex calculation
+rebar3 lfe eval '(* 2 (+ 1 2 3 4 5 6))'
+# Output: 42
+
+# List operations
+rebar3 lfe eval '(lists:map (lambda (x) (* x x)) (list 1 2 3 4 5))'
+# Output: (1 4 9 16 25)
+
+# Conditionals
+rebar3 lfe eval '(if (> 5 3) 'yes 'no)'
+# Output: yes
+
+# Let bindings
+rebar3 lfe eval '(let ((x 10) (y 20)) (+ x y))'
+# Output: 30
+
+# I/O operations
+rebar3 lfe eval '(: io format "Hello from LFE!~n" ())'
+# Output: Hello from LFE!
+#         ok
+
+# Call compiled project code
+rebar3 lfe compile
+rebar3 lfe eval '(myapp:version)'
+
+# Use with pipes
+echo "data" | rebar3 lfe eval '(: io get_line "")'
+```
+
+**Shell Quoting:**
+
+The expression must be quoted to prevent shell interpretation:
+
+```bash
+# Good - single quotes
+rebar3 lfe eval '(+ 1 2 3)'
+
+# Good - escaped double quotes
+rebar3 lfe eval "(+ 1 2 3)"
+
+# Bad - unquoted (shell will interpret parentheses)
+rebar3 lfe eval (+ 1 2 3)  # Error!
+```
+
+**Notes:**
+- Expressions are evaluated in a clean LFE environment
+- The compiled project and dependencies are available on the code path
+- Side effects (I/O, file operations, etc.) are executed
+- The result is printed in LFE format, not Erlang format
+- Only a single expression is evaluated (use `progn` for multiple forms)
+
 ### ltest
 
 Run tests using ltest framework.
