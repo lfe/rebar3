@@ -7,6 +7,14 @@
     format_error/1
 ]).
 
+%% Exported for testing
+-ifdef(TEST).
+-export([
+    build_test_opts/1,
+    add_test_paths/1
+]).
+-endif.
+
 -include_lib("rebar3_lfe/include/r3lfe.hrl").
 
 -define(PROVIDER, ltest).
