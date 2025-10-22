@@ -92,10 +92,11 @@ benchmark_package_preparation() ->
 
     try
         AllFiles = r3lfe_package:discover_files(TestDir),
+        FilesWithSrcDir = [{F, TestDir} || F <- AllFiles],
 
         %% Benchmark preparation
         {PrepTime, {ok, PackageInfos}} = timer:tc(fun() ->
-            r3lfe_package:prepare_packages(AllFiles)
+            r3lfe_package:prepare_packages(FilesWithSrcDir)
         end),
 
         %% Benchmark cleanup

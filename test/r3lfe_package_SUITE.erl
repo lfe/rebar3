@@ -220,8 +220,8 @@ prepare_packages_single(Config) ->
     SourceFile = filename:join(SubDir, "module.lfe"),
     test_utils:write_file(SourceFile, "(defmodule myapp.module)\n"),
 
-    %% Prepare packages
-    {ok, PackageInfos} = r3lfe_package:prepare_packages([SourceFile]),
+    %% Prepare packages with {File, SourceDir} tuples
+    {ok, PackageInfos} = r3lfe_package:prepare_packages([{SourceFile, SrcDir}]),
 
     ?assertEqual(1, length(PackageInfos)),
 
@@ -261,8 +261,9 @@ prepare_packages_multiple(Config) ->
         lists:seq(1, 5)
     ),
 
-    %% Prepare all packages
-    {ok, PackageInfos} = r3lfe_package:prepare_packages(Files),
+    %% Prepare all packages with {File, SourceDir} tuples
+    FilesWithSrcDir = [{F, SrcDir} || F <- Files],
+    {ok, PackageInfos} = r3lfe_package:prepare_packages(FilesWithSrcDir),
 
     ?assertEqual(5, length(PackageInfos)),
 
@@ -296,8 +297,8 @@ prepare_packages_none(Config) ->
     FlatFile = filename:join(SrcDir, "flat.lfe"),
     test_utils:write_file(FlatFile, "(defmodule flat)\n"),
 
-    %% Prepare packages
-    {ok, PackageInfos} = r3lfe_package:prepare_packages([FlatFile]),
+    %% Prepare packages with {File, SourceDir} tuple
+    {ok, PackageInfos} = r3lfe_package:prepare_packages([{FlatFile, SrcDir}]),
 
     %% Should return empty list (no packages)
     ?assertEqual(0, length(PackageInfos)),
@@ -357,8 +358,9 @@ package_lifecycle_full(Config) ->
     AllFiles = r3lfe_package:discover_files(SrcDir),
     ?assertEqual(3, length(AllFiles)),
 
-    %% Prepare packages
-    {ok, PackageInfos} = r3lfe_package:prepare_packages(AllFiles),
+    %% Prepare packages with {File, SourceDir} tuples
+    FilesWithSrcDir = [{F, SrcDir} || F <- AllFiles],
+    {ok, PackageInfos} = r3lfe_package:prepare_packages(FilesWithSrcDir),
 
     %% Should have 2 packages (flat.lfe is not a package)
     ?assertEqual(2, length(PackageInfos)),
