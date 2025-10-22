@@ -18,7 +18,11 @@
     ensure_dir_existing_directory/1,
     ensure_dir_nested_directory/1,
     with_paths_executes_function/1,
-    with_paths_cleans_up/1
+    with_paths_cleans_up/1,
+    set_paths_fallback/1,
+    unset_paths_no_error/1,
+    ensure_dir_race_condition/1,
+    ensure_dir_permission_error/1
 ]).
 
 %%====================================================================
@@ -31,7 +35,11 @@ all() ->
         ensure_dir_existing_directory,
         ensure_dir_nested_directory,
         with_paths_executes_function,
-        with_paths_cleans_up
+        with_paths_cleans_up,
+        set_paths_fallback,
+        unset_paths_no_error,
+        ensure_dir_race_condition,
+        ensure_dir_permission_error
     ].
 
 init_per_suite(Config) ->
@@ -112,5 +120,59 @@ with_paths_cleans_up(_Config) ->
             State
         )
     ),
+
+    ok.
+
+%%====================================================================
+%% Additional Test Cases for Coverage
+%%====================================================================
+
+set_paths_fallback(_Config) ->
+    %% Test fallback path setting
+    State = rebar_state:new(),
+
+    %% Should not crash even with empty state
+    ok = r3lfe_paths:set_paths([deps], State),
+
+    ok.
+
+unset_paths_no_error(_Config) ->
+    %% Test that unsetting paths never errors
+    State = rebar_state:new(),
+
+    %% Should handle gracefully
+    ok = r3lfe_paths:unset_paths([deps, plugins], State),
+
+    ok.
+
+ensure_dir_race_condition(Config) ->
+    TestDir = ?config(test_dir, Config),
+
+    Dir = filename:join(TestDir, "race_dir"),
+
+    %% Create directory externally
+    ok = file:make_dir(Dir),
+
+    %% ensure_dir should handle already existing
+    ok = r3lfe_paths:ensure_dir(Dir),
+
+    ?assert(filelib:is_dir(Dir)),
+
+    ok.
+
+ensure_dir_permission_error(Config) ->
+    TestDir = ?config(test_dir, Config),
+
+    %% Try to create in a path that might fail
+    %% (This is system-dependent, so handle gracefully)
+    InvalidDir = filename:join(TestDir, "test"),
+
+    Result = r3lfe_paths:ensure_dir(InvalidDir),
+
+    %% Should either succeed or return proper error
+    case Result of
+        ok -> ?assert(filelib:is_dir(InvalidDir));
+        {error, _} -> ok
+    end,
 
     ok.

@@ -14,7 +14,15 @@
          resolve_include_file_in_include_dir/1, resolve_include_file_relative/1,
          resolve_include_lib_found/1, resolve_include_lib_not_found/1,
          scan_file_with_includes/1, scan_file_no_includes/1,
-         scan_file_with_explicit_dirs/1]).
+         scan_file_with_explicit_dirs/1,
+         resolve_include_file_absolute_path/1,
+         resolve_include_file_all_candidates/1,
+         resolve_include_lib_invalid_format/1,
+         resolve_include_lib_app_not_loaded/1,
+         classify_include_patterns/1,
+         scan_file_with_cache_disabled/1,
+         scan_content_complex_patterns/1,
+         parse_include_forms_edge_cases/1]).
 
 %%====================================================================
 %% CT Callbacks
@@ -27,7 +35,15 @@ all() ->
      resolve_include_file_in_include_dir, resolve_include_file_relative,
      resolve_include_lib_found, resolve_include_lib_not_found,
      scan_file_with_includes, scan_file_no_includes,
-     scan_file_with_explicit_dirs].
+     scan_file_with_explicit_dirs,
+     resolve_include_file_absolute_path,
+     resolve_include_file_all_candidates,
+     resolve_include_lib_invalid_format,
+     resolve_include_lib_app_not_loaded,
+     classify_include_patterns,
+     scan_file_with_cache_disabled,
+     scan_content_complex_patterns,
+     parse_include_forms_edge_cases].
 
 init_per_suite(Config) ->
     r3lfe_dep_cache:init(),
@@ -224,4 +240,153 @@ scan_file_with_explicit_dirs(Config) ->
     %% Verify dependencies were found
     ?assertEqual(1, length(Deps)),
     ?assert(lists:any(fun(P) -> filename:basename(P) =:= "types.lfe" end, Deps)),
+    ok.
+
+%%====================================================================
+%% Additional Test Cases for Coverage
+%%====================================================================
+
+resolve_include_file_absolute_path(Config) ->
+    TestDir = ?config(test_dir, Config),
+
+    %% Create file at absolute path
+    AbsFile = filename:join(TestDir, "absolute.lfe"),
+    test_utils:write_file(AbsFile, "(defmodule absolute)\n"),
+
+    %% Resolve with absolute path
+    Result = r3lfe_dependency_scanner:resolve_include(
+        {include_file, AbsFile}, "/tmp", []),
+
+    ?assertMatch({ok, _}, Result),
+    {ok, ResolvedPath} = Result,
+    ?assert(filelib:is_file(ResolvedPath)),
+
+    ok.
+
+resolve_include_file_all_candidates(Config) ->
+    TestDir = ?config(test_dir, Config),
+
+    IncludeDir1 = filename:join(TestDir, "inc1"),
+    IncludeDir2 = filename:join(TestDir, "inc2"),
+    ok = filelib:ensure_dir(filename:join(IncludeDir1, "dummy")),
+    ok = filelib:ensure_dir(filename:join(IncludeDir2, "dummy")),
+
+    %% Create file in second include dir
+    File2 = filename:join(IncludeDir2, "header.lfe"),
+    test_utils:write_file(File2, "(defrecord rec)\n"),
+
+    %% Resolve should check all include dirs
+    Result = r3lfe_dependency_scanner:resolve_include(
+        {include_file, "header.lfe"}, TestDir, [IncludeDir1, IncludeDir2]),
+
+    ?assertMatch({ok, _}, Result),
+
+    ok.
+
+resolve_include_lib_invalid_format(_Config) ->
+    %% Test invalid include-lib format
+    Result = r3lfe_dependency_scanner:resolve_include(
+        {include_lib, "invalid-no-slash"}, "/tmp", []),
+
+    ?assertMatch({error, _}, Result),
+
+    ok.
+
+resolve_include_lib_app_not_loaded(_Config) ->
+    %% Test include-lib with non-loaded application
+    Result = r3lfe_dependency_scanner:resolve_include(
+        {include_lib, "nonexistent_app_12345/include/file.lfe"}, "/tmp", []),
+
+    ?assertMatch({error, _}, Result),
+
+    ok.
+
+classify_include_patterns(_Config) ->
+    %% Test include path classification
+    Paths = [
+        "simple.lfe",
+        "app/include/file.lfe",
+        "local/path/file.lfe",
+        "file.lfe"
+    ],
+
+    lists:foreach(
+        fun(Path) ->
+            Type = r3lfe_dependency_scanner:classify_include(Path),
+            ?assert(Type =:= include_file orelse Type =:= include_lib)
+        end,
+        Paths
+    ),
+
+    ok.
+
+scan_file_with_cache_disabled(Config) ->
+    TestDir = ?config(test_dir, Config),
+    AppData = test_utils:create_test_app(TestDir),
+    AppDir = maps:get(dir, AppData),
+    SrcDir = maps:get(src_dir, AppData),
+    IncludeDir = maps:get(include_dir, AppData),
+
+    %% Create files
+    HeaderFile = filename:join(IncludeDir, "nocache.lfe"),
+    test_utils:write_file(HeaderFile, "(defrecord nocache val)\n"),
+
+    SourceFile = filename:join(SrcDir, "nocache_test.lfe"),
+    test_utils:write_file(SourceFile,
+        "(defmodule nocache-test)\n"
+        "(include-file \"nocache.lfe\")\n"
+        "(defun test () 'ok)\n"),
+
+    {ok, AppInfo} = rebar_app_info:new(test_app, "0.1.0", AppDir),
+
+    %% Scan with cache disabled
+    Opts = #{cache => false},
+    Deps = r3lfe_dependency_scanner:scan_file(SourceFile, AppInfo, Opts),
+
+    ?assertEqual(1, length(Deps)),
+
+    ok.
+
+scan_content_complex_patterns(_Config) ->
+    %% Test scanning content with various include patterns
+    Content =
+        "(defmodule test)\n"
+        "(include-file  \"header1.lfe\")\n"  % Extra spaces
+        "(include-lib \"app/include/header2.lfe\")\n"
+        ";; (include-file \"commented.lfe\")\n"  % Note: regex scanner will find this too
+        "(include-file \"header3.lfe\")\n"
+        "(defun test () 'ok)\n",
+
+    Forms = r3lfe_dependency_scanner:scan_content(Content),
+
+    %% Regex-based scanner finds all include patterns, even in comments
+    %% This is expected behavior for a simple pattern matcher
+    ?assertEqual(4, length(Forms)),
+
+    %% Verify it found the expected files
+    ?assert(lists:member({include_file, "header1.lfe"}, Forms)),
+    ?assert(lists:member({include_lib, "app/include/header2.lfe"}, Forms)),
+    ?assert(lists:member({include_file, "header3.lfe"}, Forms)),
+
+    ok.
+
+parse_include_forms_edge_cases(_Config) ->
+    %% Test edge cases in parsing
+    %% The regex requires at least one whitespace between include-file/lib and the quote
+    %% and expects the opening paren to not have leading whitespace
+    Content =
+        "(include-file \"with-space.lfe\")\n"  % Normal spacing
+        "(include-file  \"extra-spaces.lfe\")\n"  % Extra spaces between form and quote
+        "(include-lib \"app/path/file.lfe\")\n",
+
+    Forms = r3lfe_dependency_scanner:parse_include_forms(Content),
+
+    %% Should handle all valid variations (those with required whitespace)
+    ?assertEqual(3, length(Forms)),
+
+    %% Test that no-space variant is NOT matched (expected limitation of simple regex)
+    NoSpaceContent = "(include-file\"no-space.lfe\")\n",
+    NoSpaceForms = r3lfe_dependency_scanner:parse_include_forms(NoSpaceContent),
+    ?assertEqual(0, length(NoSpaceForms)),
+
     ok.

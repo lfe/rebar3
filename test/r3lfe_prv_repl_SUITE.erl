@@ -22,7 +22,8 @@
     build_shell_args_with_vm_args/1,
     build_shell_args_with_erl_option/1,
     build_shell_args_combined/1,
-    merge_repl_opts_cmd_overrides_config/1
+    merge_repl_opts_cmd_overrides_config/1,
+    build_banner_generates_output/1
 ]).
 
 %%====================================================================
@@ -39,7 +40,8 @@ all() ->
         build_shell_args_with_vm_args,
         build_shell_args_with_erl_option,
         build_shell_args_combined,
-        merge_repl_opts_cmd_overrides_config
+        merge_repl_opts_cmd_overrides_config,
+        build_banner_generates_output
     ].
 
 init_per_suite(Config) ->
@@ -186,4 +188,14 @@ merge_repl_opts_cmd_overrides_config(_Config) ->
 
     %% Config-only options should still be present
     ?assertEqual(true, maps:get(nobanner, MergedOpts)),
+    ok.
+
+build_banner_generates_output(_Config) ->
+    Banner = r3lfe_prv_repl:build_banner(),
+
+    %% Should contain expected elements
+    ?assert(is_list(Banner)),
+    ?assert(length(Banner) > 0),
+    ?assert(string:find(Banner, "LFE") =/= nomatch),
+
     ok.

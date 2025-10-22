@@ -19,7 +19,8 @@
     build_test_opts_default/1,
     build_test_opts_with_listener/1,
     build_test_opts_eunit_listener/1,
-    add_test_paths_adds_test_dir/1
+    add_test_paths_adds_test_dir/1,
+    ltest_format_error_messages/1
 ]).
 
 %%====================================================================
@@ -33,7 +34,8 @@ all() ->
         build_test_opts_default,
         build_test_opts_with_listener,
         build_test_opts_eunit_listener,
-        add_test_paths_adds_test_dir
+        add_test_paths_adds_test_dir,
+        ltest_format_error_messages
     ].
 
 init_per_suite(Config) ->
@@ -136,4 +138,20 @@ add_test_paths_adds_test_dir(Config) ->
     %% This would call add_test_paths internally
     %% We verify it doesn't crash
     ?assert(is_tuple(State1)),
+    ok.
+
+ltest_format_error_messages(_Config) ->
+    %% Test error message formatting
+    Error1 = {test_failed, "module_test"},
+    Error2 = {suite_not_found, "my_suite"},
+    Error3 = unknown_error,
+
+    Msg1 = r3lfe_prv_ltest:format_error(Error1),
+    Msg2 = r3lfe_prv_ltest:format_error(Error2),
+    Msg3 = r3lfe_prv_ltest:format_error(Error3),
+
+    ?assert(is_list(Msg1)),
+    ?assert(is_list(Msg2)),
+    ?assert(is_list(Msg3)),
+
     ok.

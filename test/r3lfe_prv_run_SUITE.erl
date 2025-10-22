@@ -15,7 +15,8 @@
 %% Test cases
 -export([
     run_provider_registers/1,
-    run_no_main_error/1
+    run_no_main_error/1,
+    run_format_error_types/1
 ]).
 
 %%====================================================================
@@ -25,7 +26,8 @@
 all() ->
     [
         run_provider_registers,
-        run_no_main_error
+        run_no_main_error,
+        run_format_error_types
     ].
 
 init_per_suite(Config) ->
@@ -68,5 +70,24 @@ run_no_main_error(_Config) ->
     Result = r3lfe_prv_run:do(State1),
 
     ?assertMatch({error, _}, Result),
+
+    ok.
+
+run_format_error_types(_Config) ->
+    Errors = [
+        no_main_file,
+        {file_not_found, "/tmp/missing.lfe"},
+        {lfescript_error, some_reason},
+        {run_error, another_reason}
+    ],
+
+    lists:foreach(
+        fun(Error) ->
+            Msg = r3lfe_prv_run:format_error(Error),
+            ?assert(is_list(Msg)),
+            ?assert(length(Msg) > 0)
+        end,
+        Errors
+    ),
 
     ok.

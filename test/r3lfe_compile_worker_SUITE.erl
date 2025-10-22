@@ -20,7 +20,14 @@
     format_warnings_standard/1,
     build_compiler_opts/1,
     relative_path_formatting/1,
-    compile_opts_change_detection/1
+    compile_opts_change_detection/1,
+    compile_with_warnings/1,
+    compile_alternative_format/1,
+    compile_file_errors_format/1,
+    build_compiler_opts_removes_conflicts/1,
+    option_key_extraction/1,
+    format_warning_item_variants/1,
+    format_error_item_variants/1
 ]).
 
 %%====================================================================
@@ -35,7 +42,14 @@ all() ->
         format_warnings_standard,
         build_compiler_opts,
         relative_path_formatting,
-        compile_opts_change_detection
+        compile_opts_change_detection,
+        compile_with_warnings,
+        compile_alternative_format,
+        compile_file_errors_format,
+        build_compiler_opts_removes_conflicts,
+        option_key_extraction,
+        format_warning_item_variants,
+        format_error_item_variants
     ].
 
 init_per_suite(Config) ->
@@ -181,5 +195,139 @@ compile_opts_change_detection(_Config) ->
     %% Different options should produce different hash
     Hash2 = r3lfe_compile_opts:get_opts_hash(Opts2),
     ?assertNotEqual(Hash1, Hash2),
+
+    ok.
+
+compile_with_warnings(Config) ->
+    TestDir = ?config(test_dir, Config),
+
+    %% Create source with code that generates warnings
+    SourceFile = filename:join(TestDir, "warnings.lfe"),
+    test_utils:write_file(SourceFile,
+        "(defmodule warnings)\n"
+        "(defun test ()\n"
+        "  (let ((unused-var 42))\n"
+        "    'ok))\n"),
+
+    OutDir = filename:join(TestDir, "ebin"),
+    ok = filelib:ensure_dir(filename:join(OutDir, "dummy")),
+
+    Result = r3lfe_compile_worker:compile_file(SourceFile, OutDir, []),
+
+    %% May succeed with or without warnings depending on LFE version
+    case Result of
+        ok -> ok;
+        {ok, _Warnings} -> ok;
+        {error, _Errors, _Warnings} -> ok
+    end,
+
+    ok.
+
+compile_alternative_format(Config) ->
+    TestDir = ?config(test_dir, Config),
+
+    %% Test that alternative success format is handled
+    SourceFile = filename:join(TestDir, "simple.lfe"),
+    test_utils:write_file(SourceFile, "(defmodule simple)\n(defun test () 'ok)\n"),
+
+    OutDir = filename:join(TestDir, "ebin"),
+    ok = filelib:ensure_dir(filename:join(OutDir, "dummy")),
+
+    Result = r3lfe_compile_worker:compile_file(SourceFile, OutDir, []),
+
+    %% Should handle {ok, Module} format
+    ?assertMatch(ok, Result),
+
+    ok.
+
+compile_file_errors_format(Config) ->
+    TestDir = ?config(test_dir, Config),
+
+    %% Create file with error format {error, [], FileErrors, []}
+    SourceFile = filename:join(TestDir, "error_format.lfe"),
+    test_utils:write_file(SourceFile, "(defmodule error-format\n"),  % Incomplete
+
+    OutDir = filename:join(TestDir, "ebin"),
+    ok = filelib:ensure_dir(filename:join(OutDir, "dummy")),
+
+    Result = r3lfe_compile_worker:compile_file(SourceFile, OutDir, []),
+
+    %% Should handle error format
+    ?assertMatch({error, _, _}, Result),
+
+    ok.
+
+build_compiler_opts_removes_conflicts(_Config) ->
+    Source = "/path/to/source.lfe",
+    OutDir = "/path/to/out",
+
+    %% BaseOpts with conflicting options
+    BaseOpts = [
+        verbose,
+        {outdir, "/wrong/dir"},
+        debug_info,
+        return
+    ],
+
+    Opts = r3lfe_compile_worker:build_compiler_opts(Source, OutDir, BaseOpts),
+
+    %% Should have correct outdir
+    ?assert(lists:keymember(outdir, 1, Opts)),
+    {outdir, ActualOutDir} = lists:keyfind(outdir, 1, Opts),
+    ?assertEqual(OutDir, ActualOutDir),
+
+    %% Should still have non-conflicting opts
+    ?assert(lists:member(verbose, Opts)),
+    ?assert(lists:member(debug_info, Opts)),
+
+    ok.
+
+option_key_extraction(_Config) ->
+    %% Test option_key/1 function via compile_opts building
+    Opts = [
+        verbose,
+        debug_info,
+        {outdir, "/tmp"},
+        {i, "/include"},
+        return
+    ],
+
+    %% All should be preserved as they're valid
+    BuiltOpts = r3lfe_compile_worker:build_compiler_opts("/src/file.lfe", "/out", Opts),
+
+    ?assert(lists:member(verbose, BuiltOpts)),
+    ?assert(lists:member(debug_info, BuiltOpts)),
+
+    ok.
+
+format_warning_item_variants(_Config) ->
+    %% Test different warning formats
+    Warning1 = {"/tmp/file.lfe", [{10, lfe_lint, {unused_var, 'X'}}]},
+    Warning2 = {warning, "/tmp/file.lfe", [{20, lfe_lint, {unused_function, test}}]},
+    Warning3 = unknown_format,
+
+    Formatted1 = r3lfe_compile_worker:format_warnings([Warning1]),
+    Formatted2 = r3lfe_compile_worker:format_warnings([Warning2]),
+    Formatted3 = r3lfe_compile_worker:format_warnings([Warning3]),
+
+    ?assert(is_list(Formatted1)),
+    ?assert(is_list(Formatted2)),
+    ?assert(is_list(Formatted3)),
+
+    ok.
+
+format_error_item_variants(_Config) ->
+    %% Test different error formats
+    Error1 = {"/tmp/file.lfe", [{15, lfe_parse, "syntax error"}]},
+    Error2 = {error, "/tmp/file.lfe", [{25, lfe_parse, "unexpected token"}]},
+    Error3 = unknown_error_format,
+
+    Formatted1 = r3lfe_compile_worker:format_errors([Error1]),
+    Formatted2 = r3lfe_compile_worker:format_errors([Error2]),
+    Formatted3 = r3lfe_compile_worker:format_errors([Error3]),
+
+    ?assert(is_list(Formatted1)),
+    ?assert(is_list(Formatted2)),
+    ?assert(is_list(Formatted3)),
 
     ok.

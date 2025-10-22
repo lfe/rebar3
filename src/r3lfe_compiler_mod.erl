@@ -14,7 +14,8 @@
 %% Exported for testing
 -export([
     needs_compilation/3,
-    source_to_target/2
+    source_to_target/2,
+    check_dependencies_newer/3
 ]).
 
 -include_lib("rebar3_lfe/include/r3lfe.hrl").

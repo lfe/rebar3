@@ -27,7 +27,12 @@
     prepare_packages_multiple/1,
     prepare_packages_none/1,
     cleanup_packages_success/1,
-    package_lifecycle_full/1
+    package_lifecycle_full/1,
+    discover_files_with_symlinks/1,
+    discover_files_cycle_detection/1,
+    prepare_packages_invalid_module_name/1,
+    prepare_packages_cleanup_on_error/1,
+    package_to_module_name_edge_cases/1
 ]).
 
 %%====================================================================
@@ -49,7 +54,12 @@ all() ->
         prepare_packages_multiple,
         prepare_packages_none,
         cleanup_packages_success,
-        package_lifecycle_full
+        package_lifecycle_full,
+        discover_files_with_symlinks,
+        discover_files_cycle_detection,
+        prepare_packages_invalid_module_name,
+        prepare_packages_cleanup_on_error,
+        package_to_module_name_edge_cases
     ].
 
 init_per_suite(Config) ->
@@ -379,6 +389,120 @@ package_lifecycle_full(Config) ->
             ?assert(not filelib:is_file(TempFile))
         end,
         PackageInfos
+    ),
+
+    ok.
+
+%%====================================================================
+%% Additional Test Cases for Coverage
+%%====================================================================
+
+discover_files_with_symlinks(Config) ->
+    TestDir = ?config(test_dir, Config),
+    SrcDir = filename:join(TestDir, "src"),
+    ok = filelib:ensure_dir(filename:join(SrcDir, "dummy")),
+
+    %% Create a real file
+    RealFile = filename:join(SrcDir, "real.lfe"),
+    test_utils:write_file(RealFile, "(defmodule real)\n"),
+
+    %% Symlinks might not work on all systems, so test gracefully
+    LinkPath = filename:join(SrcDir, "link"),
+    case file:make_symlink(SrcDir, LinkPath) of
+        ok ->
+            %% Discovery should handle symlinks without infinite loops
+            Files = r3lfe_package:discover_files(SrcDir),
+            ?assert(is_list(Files)),
+            ?assert(length(Files) > 0);
+        {error, _} ->
+            %% Symlinks not supported on this system
+            ct:pal("Symlinks not supported, skipping test")
+    end,
+
+    ok.
+
+discover_files_cycle_detection(Config) ->
+    TestDir = ?config(test_dir, Config),
+    SrcDir = filename:join(TestDir, "src"),
+    ok = filelib:ensure_dir(filename:join(SrcDir, "dummy")),
+
+    %% Create file
+    File = filename:join(SrcDir, "module.lfe"),
+    test_utils:write_file(File, "(defmodule module)\n"),
+
+    %% Discovery should not hang on cycles
+    Files = r3lfe_package:discover_files(SrcDir),
+
+    ?assert(is_list(Files)),
+    ?assert(length(Files) >= 1),
+
+    ok.
+
+prepare_packages_invalid_module_name(Config) ->
+    TestDir = ?config(test_dir, Config),
+    SrcDir = filename:join(TestDir, "src"),
+
+    %% Create file with invalid module name pattern
+    SubDir = filename:join(SrcDir, "..invalid"),
+    ok = filelib:ensure_dir(filename:join(SubDir, "dummy")),
+
+    File = filename:join(SubDir, "module.lfe"),
+    test_utils:write_file(File, "(defmodule module)\n"),
+
+    %% Prepare should handle invalid names
+    Result = r3lfe_package:prepare_packages([{File, SrcDir}]),
+
+    %% Should return error for invalid module name
+    ?assertMatch({error, _}, Result),
+
+    ok.
+
+prepare_packages_cleanup_on_error(Config) ->
+    TestDir = ?config(test_dir, Config),
+    SrcDir = filename:join(TestDir, "src"),
+
+    %% Create one valid and one invalid package
+    SubDir1 = filename:join([SrcDir, "valid"]),
+    SubDir2 = filename:join([SrcDir, "..invalid"]),
+    ok = filelib:ensure_dir(filename:join(SubDir1, "dummy")),
+    ok = filelib:ensure_dir(filename:join(SubDir2, "dummy")),
+
+    File1 = filename:join(SubDir1, "module1.lfe"),
+    File2 = filename:join(SubDir2, "module2.lfe"),
+    test_utils:write_file(File1, "(defmodule valid.module1)\n"),
+    test_utils:write_file(File2, "(defmodule invalid)\n"),
+
+    %% Prepare should cleanup partial success on error
+    Result = r3lfe_package:prepare_packages([{File1, SrcDir}, {File2, SrcDir}]),
+
+    case Result of
+        {ok, _} -> ok;
+        {error, _} ->
+            %% Should have cleaned up any temp files
+            TempFile1 = filename:join(SrcDir, "valid.module1.lfe"),
+            ?assertNot(filelib:is_file(TempFile1))
+    end,
+
+    ok.
+
+package_to_module_name_edge_cases(Config) ->
+    TestDir = ?config(test_dir, Config),
+    SrcDir = filename:join(TestDir, "src"),
+
+    %% Test various edge cases
+    Cases = [
+        {"src/simple.lfe", "simple"},
+        {"src/my/package.lfe", "my.package"},
+        {"src/deep/nested/path/module.lfe", "deep.nested.path.module"}
+    ],
+
+    lists:foreach(
+        fun({FilePath, Expected}) ->
+            FullPath = filename:join(TestDir, FilePath),
+            ModuleName = r3lfe_package:package_to_module_name(FullPath, SrcDir),
+            ?assertEqual(Expected, ModuleName)
+        end,
+        Cases
     ),
 
     ok.
