@@ -8,6 +8,19 @@
     info/1
 ]).
 
+%% Exported for testing
+-ifdef(TEST).
+-export([
+    get_command/1,
+    validate_command/1,
+    find_release_script/1,
+    get_release_name/1,
+    get_release_output_dir/1,
+    build_command_line/2,
+    is_interactive_command/1
+]).
+-endif.
+
 -include_lib("rebar3_lfe/include/r3lfe.hrl").
 
 -define(PROVIDER, 'run-release').
@@ -156,7 +169,12 @@ get_release_name(State) ->
             %% Fallback to first project app
             case rebar_state:project_apps(State) of
                 [AppInfo | _] ->
-                    atom_to_list(rebar_app_info:name(AppInfo));
+                    Name = rebar_app_info:name(AppInfo),
+                    %% Name might be binary or atom
+                    case is_binary(Name) of
+                        true -> binary_to_list(Name);
+                        false -> atom_to_list(Name)
+                    end;
                 [] ->
                     "myapp"  % Last resort default
             end
