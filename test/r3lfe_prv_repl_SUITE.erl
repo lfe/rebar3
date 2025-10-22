@@ -22,8 +22,13 @@
     build_shell_args_with_vm_args/1,
     build_shell_args_with_erl_option/1,
     build_shell_args_combined/1,
+    build_shell_args_with_custom_module/1,
     merge_repl_opts_cmd_overrides_config/1,
-    build_banner_generates_output/1
+    merge_repl_opts_empty/1,
+    build_banner_generates_output/1,
+    repl_provider_registers/1,
+    format_error_app_start_failed/1,
+    format_error_generic/1
 ]).
 
 %%====================================================================
@@ -40,8 +45,13 @@ all() ->
         build_shell_args_with_vm_args,
         build_shell_args_with_erl_option,
         build_shell_args_combined,
+        build_shell_args_with_custom_module,
         merge_repl_opts_cmd_overrides_config,
-        build_banner_generates_output
+        merge_repl_opts_empty,
+        build_banner_generates_output,
+        repl_provider_registers,
+        format_error_app_start_failed,
+        format_error_generic
     ].
 
 init_per_suite(Config) ->
@@ -197,5 +207,59 @@ build_banner_generates_output(_Config) ->
     ?assert(is_list(Banner)),
     ?assert(length(Banner) > 0),
     ?assert(string:find(Banner, "LFE") =/= nomatch),
+
+    ok.
+
+build_shell_args_with_custom_module(_Config) ->
+    %% Build shell args with custom start module
+    Opts = #{start_module => custom_shell},
+
+    Args = r3lfe_prv_repl:build_shell_args(Opts),
+
+    %% Should use custom module
+    ?assertMatch([{shell_args, [{custom_shell, start, []}]}, {nobanner, true}], Args),
+    ok.
+
+merge_repl_opts_empty(_Config) ->
+    %% Merge with empty config and command opts
+    ConfigOpts = [],
+    CmdOpts = [],
+
+    MergedOpts = r3lfe_prv_repl:merge_repl_opts(ConfigOpts, CmdOpts),
+
+    %% Should return empty map
+    ?assertEqual(#{}, MergedOpts),
+    ok.
+
+repl_provider_registers(_Config) ->
+    %% Test that provider registers successfully
+    State = rebar_state:new(),
+
+    {ok, State1} = r3lfe_prv_repl:init(State),
+
+    Providers = rebar_state:providers(State1),
+    ?assert(length(Providers) > 0),
+
+    ok.
+
+format_error_app_start_failed(_Config) ->
+    %% Test format_error for app_start_failed
+    Error = {app_start_failed, myapp, {not_started, dependency}},
+
+    Result = r3lfe_prv_repl:format_error(Error),
+
+    ?assert(is_list(Result)),
+    ?assert(string:str(lists:flatten(Result), "Failed to start") > 0),
+    ?assert(string:str(lists:flatten(Result), "myapp") > 0),
+
+    ok.
+
+format_error_generic(_Config) ->
+    %% Test format_error for generic error
+    Error = some_random_error,
+
+    Result = r3lfe_prv_repl:format_error(Error),
+
+    ?assert(is_list(Result)),
 
     ok.
