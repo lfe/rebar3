@@ -99,7 +99,7 @@ test-new-lfe-app: clean setup
 	rebar3 compile && \
 	rebar3 new lfe-app example-app && \
 	cd example-app && \
-	rebar3 lfe compile
+	rebar3 compile
 
 test-new-lfe-escript: clean setup
 	rebar3 compile
@@ -107,7 +107,7 @@ test-new-lfe-escript: clean setup
 	rebar3 compile && \
 	rebar3 new lfe-escript example-escript && \
 	cd example-escript && \
-	rebar3 lfe compile && \
+	rebar3 compile && \
 	rebar3 lfe escriptize && \
 	rebar3 lfe run-escript 1 2 5
 
@@ -117,7 +117,7 @@ test-new-lfe-release: clean setup
 	rebar3 compile && \
 	rebar3 new lfe-release example-release && \
 	cd example-release && \
-	rebar3 lfe compile && \
+	rebar3 compile && \
 	rebar3 lfe release
 
 test-versions-cmd: clean setup
