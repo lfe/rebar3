@@ -5,6 +5,29 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.1] - 2025-10-22
+
+### Maintenance Release
+
+Minor cleanup and maintenance updates following the 0.5.0 release.
+
+#### Changed
+
+- **README**: Simplified title to "rebar3_lfe" and removed coverage badge
+- **Templates**: Changed app.src version from `git` to `"0.1.0"` for clearer versioning
+  - Updated `app-app.src.tpl` template
+  - Updated `app-lib.src.tpl` template
+- **Makefile**: Streamlined test targets
+  - Updated template test targets to use `rebar3 compile` instead of `rebar3 lfe compile` for consistency
+  - Removed deprecated `test-clean-build-cmd` target
+
+#### Fixed
+
+- Test targets now use correct compilation commands for generated projects
+- Removed obsolete clean-build command references
+
+---
+
 ## [0.5.0] - 2025-10-22
 
 ### 🎉 Complete Rewrite
