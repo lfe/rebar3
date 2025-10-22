@@ -12,7 +12,7 @@ compile:
 	@rebar3 compile
 
 clean:
-	@rm -rf _build rebar.lock $(SYS_TEST_DIR) $(GLOBAL_INSTALL)
+	@rm -rf _build rebar.lock $(SYS_TEST_DIR) $(GLOBAL_INSTALL) ebin test/*.beam
 
 check: clean
 	@rebar3 check
@@ -40,7 +40,7 @@ quality: xref dialyzer
 ci: clean compile quality test coverage
 
 # Publish to hex.pm
-publish:
+publish: clean
 	@echo "\nPublishing to hex.pm ...\n"
 	@rebar3 hex publish package
 
