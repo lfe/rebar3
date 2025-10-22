@@ -53,7 +53,11 @@ $ touch include/records.lfe
 $ rebar3 lfe compile
 Compiling 3 LFE files...  # Only files using the header
 Compiled 3 files in 0.3s
+
+$ make repl
 ```
+
+[![LFE REPL](priv/images/screenshot-repl.png)](priv/images/screenshot-repl.png)
 
 ### 📦 Package System
 
