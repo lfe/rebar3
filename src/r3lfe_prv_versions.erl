@@ -201,9 +201,11 @@ display_versions(#{apps := Apps, languages := Langs, tools := Tools, deps := Dep
             )
     end,
 
-    %% Only display Project Applications section if there are apps
+    %% Only display Project Applications section if there are multiple apps
+    %% (skip if just one app - the project itself)
     case Apps of
         [] -> ok;
+        [_SingleApp] -> ok;  %% Skip if only one application
         _ ->
             io:format("~n=== Project Applications ===~n"),
             lists:foreach(
