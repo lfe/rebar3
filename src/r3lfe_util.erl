@@ -112,21 +112,44 @@ get_plugin_version_from_app(AppName, State) ->
 -spec get_plugin_version_from_file(atom(), rebar_state:t()) -> string().
 get_plugin_version_from_file(AppName, State) ->
     try
-        PluginsDir = rebar_dir:plugins_dir(State),
-        %% Look for the app file in plugins/appname/ebin/appname.app
-        AppFile = filename:join([PluginsDir, atom_to_list(AppName), "ebin", atom_to_list(AppName) ++ ".app"]),
-        case filelib:is_file(AppFile) of
-            true ->
-                case file:consult(AppFile) of
-                    {ok, [{application, AppName, AppProps}]} ->
-                        proplists:get_value(vsn, AppProps, "unknown");
-                    _ ->
-                        "unknown"
-                end;
-            false ->
-                "unknown"
-        end
+        BaseDir = rebar_dir:base_dir(State),
+        AppNameStr = atom_to_list(AppName),
+        AppFileName = AppNameStr ++ ".app",
+
+        %% Try multiple possible locations for the plugin's .app file
+        PossiblePaths = [
+            %% Current profile's plugins directory
+            filename:join([rebar_dir:plugins_dir(State), AppNameStr, "ebin", AppFileName]),
+            %% Default profile
+            filename:join([BaseDir, "default", "plugins", AppNameStr, "ebin", AppFileName]),
+            %% Test profile
+            filename:join([BaseDir, "test", "plugins", AppNameStr, "ebin", AppFileName]),
+            %% Dev profile
+            filename:join([BaseDir, "dev", "plugins", AppNameStr, "ebin", AppFileName]),
+            %% Global plugins directory
+            filename:join([rebar_dir:global_cache_dir(rebar_state:opts(State)), "plugins", AppNameStr, "ebin", AppFileName])
+        ],
+
+        %% Try each path until we find the file
+        find_and_read_app_file(AppName, PossiblePaths)
     catch
         _:_ ->
             "unknown"
+    end.
+
+%% @doc Try to find and read the .app file from a list of possible paths.
+-spec find_and_read_app_file(atom(), [string()]) -> string().
+find_and_read_app_file(_AppName, []) ->
+    "unknown";
+find_and_read_app_file(AppName, [Path | Rest]) ->
+    case filelib:is_file(Path) of
+        true ->
+            case file:consult(Path) of
+                {ok, [{application, AppName, AppProps}]} ->
+                    proplists:get_value(vsn, AppProps, "unknown");
+                _ ->
+                    find_and_read_app_file(AppName, Rest)
+            end;
+        false ->
+            find_and_read_app_file(AppName, Rest)
     end.
