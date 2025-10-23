@@ -6,6 +6,15 @@
     ensure_app_loaded/1
 ]).
 
+%% Exported for testing
+-ifdef(TEST).
+-export([
+    get_plugin_version_from_app/2,
+    get_plugin_version_from_file/2,
+    find_and_read_app_file/2
+]).
+-endif.
+
 -include_lib("rebar3_lfe/include/r3lfe.hrl").
 
 %%====================================================================

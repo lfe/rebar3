@@ -29,6 +29,10 @@
     get_deps_info_sorts_alphabetically/1,
     get_plugins_info_filters_build_tools/1,
     get_plugins_info_sorts_alphabetically/1,
+    format_heading_correct_length/1,
+    format_heading_centered_text/1,
+    format_heading_all_same_length/1,
+    format_heading_has_spaces/1,
     display_versions_output/1,
     display_versions_empty_sections/1,
     display_versions_with_deps_and_plugins/1,
@@ -58,6 +62,10 @@ all() ->
         get_deps_info_sorts_alphabetically,
         get_plugins_info_filters_build_tools,
         get_plugins_info_sorts_alphabetically,
+        format_heading_correct_length,
+        format_heading_centered_text,
+        format_heading_all_same_length,
+        format_heading_has_spaces,
         display_versions_output,
         display_versions_empty_sections,
         display_versions_with_deps_and_plugins,
@@ -319,6 +327,77 @@ get_plugins_info_sorts_alphabetically(_Config) ->
 
     %% Check that names are sorted
     ?assertEqual(Names, lists:sort(Names)),
+
+    ok.
+
+%%====================================================================
+%% Test format_heading/1
+%%====================================================================
+
+format_heading_correct_length(_Config) ->
+    %% Test that all headings have the same length (28 chars)
+    Headings = [
+        r3lfe_prv_versions:format_heading("Languages"),
+        r3lfe_prv_versions:format_heading("Build Tools"),
+        r3lfe_prv_versions:format_heading("Dependencies"),
+        r3lfe_prv_versions:format_heading("Plugins"),
+        r3lfe_prv_versions:format_heading("Project Applications")
+    ],
+
+    %% All should be 28 characters
+    lists:foreach(
+        fun(Heading) ->
+            ?assertEqual(28, length(Heading))
+        end,
+        Headings
+    ),
+
+    ok.
+
+format_heading_centered_text(_Config) ->
+    %% Test that text is centered with equal padding
+    Heading = r3lfe_prv_versions:format_heading("Test"),
+
+    %% Should be 28 characters total
+    ?assertEqual(28, length(Heading)),
+    ?assert(string:str(Heading, " Test ") > 0),
+
+    %% Count equals signs before and after text
+    [Before, After] = string:split(Heading, " Test ", all),
+    BeforeEquals = length([C || C <- Before, C =:= $=]),
+    AfterEquals = length([C || C <- After, C =:= $=]),
+
+    %% Should be equal or differ by 1 (for odd-length text)
+    ?assert(abs(BeforeEquals - AfterEquals) =< 1),
+
+    ok.
+
+format_heading_all_same_length(_Config) ->
+    %% Test various heading texts all produce same length
+    TestHeadings = ["A", "AB", "ABC", "ABCDEFGHIJ", "Short", "Very Long Heading"],
+
+    Lengths = [length(r3lfe_prv_versions:format_heading(H)) || H <- TestHeadings],
+
+    %% All should be 28
+    lists:foreach(
+        fun(Len) ->
+            ?assertEqual(28, Len)
+        end,
+        Lengths
+    ),
+
+    ok.
+
+format_heading_has_spaces(_Config) ->
+    %% Test that heading has spaces around text
+    Heading = r3lfe_prv_versions:format_heading("Languages"),
+
+    %% Should start with "===" and end with "===" (28 chars total, so last 3 start at position 25)
+    ?assertEqual("===", string:slice(Heading, 0, 3)),
+    ?assertEqual("===", string:slice(Heading, 25, 3)),
+
+    %% Should have space before and after text
+    ?assert(string:str(Heading, " Languages ") > 0),
 
     ok.
 

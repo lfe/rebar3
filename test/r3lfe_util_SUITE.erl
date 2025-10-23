@@ -20,7 +20,12 @@
     get_all_deps_with_profiles_multiple_profiles/1,
     get_all_plugins_with_profiles_empty/1,
     get_all_plugins_with_profiles_default/1,
-    get_all_plugins_with_profiles_multiple_profiles/1
+    get_all_plugins_with_profiles_multiple_profiles/1,
+    get_plugin_version_from_app_loaded/1,
+    get_plugin_version_from_app_not_loaded/1,
+    get_plugin_version_from_file_nonexistent/1,
+    find_and_read_app_file_empty_list/1,
+    find_and_read_app_file_not_found/1
 ]).
 
 %%====================================================================
@@ -37,7 +42,12 @@ all() ->
         get_all_deps_with_profiles_multiple_profiles,
         get_all_plugins_with_profiles_empty,
         get_all_plugins_with_profiles_default,
-        get_all_plugins_with_profiles_multiple_profiles
+        get_all_plugins_with_profiles_multiple_profiles,
+        get_plugin_version_from_app_loaded,
+        get_plugin_version_from_app_not_loaded,
+        get_plugin_version_from_file_nonexistent,
+        find_and_read_app_file_empty_list,
+        find_and_read_app_file_not_found
     ].
 
 init_per_suite(Config) ->
@@ -198,5 +208,71 @@ get_all_plugins_with_profiles_multiple_profiles(_Config) ->
     %% Check that different profiles are represented
     Profiles2 = [maps:get(profile, P) || P <- Result],
     ?assert(lists:member(default, Profiles2)),
+
+    ok.
+
+%%====================================================================
+%% Test get_plugin_version_from_app/2
+%%====================================================================
+
+get_plugin_version_from_app_loaded(_Config) ->
+    %% Test with a loaded application (kernel should always be loaded)
+    State = rebar_state:new(),
+    Result = r3lfe_util:get_plugin_version_from_app(kernel, State),
+
+    %% Should return a version string
+    ?assert(is_list(Result)),
+    ?assert(length(Result) > 0),
+    ?assertNotEqual("unknown", Result),
+
+    ok.
+
+get_plugin_version_from_app_not_loaded(_Config) ->
+    %% Test with a non-existent application
+    State = rebar_state:new(),
+    Result = r3lfe_util:get_plugin_version_from_app(nonexistent_plugin_xyz_123, State),
+
+    %% Should return "unknown" since it can't be loaded and file doesn't exist
+    ?assertEqual("unknown", Result),
+
+    ok.
+
+%%====================================================================
+%% Test get_plugin_version_from_file/2
+%%====================================================================
+
+get_plugin_version_from_file_nonexistent(_Config) ->
+    %% Test with a non-existent plugin
+    State = rebar_state:new(),
+    Result = r3lfe_util:get_plugin_version_from_file(nonexistent_plugin_abc, State),
+
+    %% Should return "unknown"
+    ?assertEqual("unknown", Result),
+
+    ok.
+
+%%====================================================================
+%% Test find_and_read_app_file/2
+%%====================================================================
+
+find_and_read_app_file_empty_list(_Config) ->
+    %% Test with empty path list
+    Result = r3lfe_util:find_and_read_app_file(test_app, []),
+
+    %% Should return "unknown"
+    ?assertEqual("unknown", Result),
+
+    ok.
+
+find_and_read_app_file_not_found(_Config) ->
+    %% Test with paths that don't exist
+    Paths = [
+        "/nonexistent/path/test_app/ebin/test_app.app",
+        "/another/fake/path/test_app/ebin/test_app.app"
+    ],
+    Result = r3lfe_util:find_and_read_app_file(test_app, Paths),
+
+    %% Should return "unknown"
+    ?assertEqual("unknown", Result),
 
     ok.

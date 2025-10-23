@@ -151,21 +151,19 @@ get_rebar3_version() ->
     end.
 
 %% @doc Format a section heading with centered text and equal padding.
-%% All headings will be the same length as "=== Project Applications ===".
+%% All headings will be the same length as "=== Project Applications ===" (28 chars).
 -spec format_heading(string()) -> string().
 format_heading(Text) ->
-    %% Total length is based on "=== Project Applications ===" = 29 chars
-    TotalLength = 29,
-    %% We want "=== " + Text + " ===" with Text centered
-    %% Calculate padding needed
+    %% Total length is based on "=== Project Applications ===" = 28 chars
+    TotalLength = 28,
     TextLength = length(Text),
-    %% Available space for text and spaces: TotalLength - 6 (for "===" on each side)
-    AvailableSpace = TotalLength - 6,
-    %% Calculate padding on each side of text
-    TotalPadding = AvailableSpace - TextLength,
+    %% Format is: "===" + equals_padding + " " + Text + " " + equals_padding + "==="
+    %% So: 3 + LeftPad + 1 + TextLen + 1 + RightPad + 3 = 28
+    %% Therefore: LeftPad + TextLen + RightPad = 20
+    TotalPadding = TotalLength - 8 - TextLength,  %% 8 = "===" + " " + " " + "==="
     LeftPadding = TotalPadding div 2,
     RightPadding = TotalPadding - LeftPadding,
-    %% Build the heading: "===" + left padding + " " + Text + " " + right padding + "==="
+    %% Build the heading
     lists:flatten([
         "===",
         lists:duplicate(LeftPadding, $=),
