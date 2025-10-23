@@ -17,6 +17,7 @@
     get_rebar3_version/0,
     get_deps_info/1,
     get_plugins_info/1,
+    format_heading/1,
     display_versions/1,
     info/1
 ]).
@@ -149,10 +150,34 @@ get_rebar3_version() ->
         undefined -> "unknown"
     end.
 
+%% @doc Format a section heading with centered text and equal padding.
+%% All headings will be the same length as "=== Project Applications ===".
+-spec format_heading(string()) -> string().
+format_heading(Text) ->
+    %% Total length is based on "=== Project Applications ===" = 29 chars
+    TotalLength = 29,
+    %% We want "=== " + Text + " ===" with Text centered
+    %% Calculate padding needed
+    TextLength = length(Text),
+    %% Available space for text and spaces: TotalLength - 6 (for "===" on each side)
+    AvailableSpace = TotalLength - 6,
+    %% Calculate padding on each side of text
+    TotalPadding = AvailableSpace - TextLength,
+    LeftPadding = TotalPadding div 2,
+    RightPadding = TotalPadding - LeftPadding,
+    %% Build the heading: "===" + left padding + " " + Text + " " + right padding + "==="
+    lists:flatten([
+        "===",
+        lists:duplicate(LeftPadding, $=),
+        " ", Text, " ",
+        lists:duplicate(RightPadding, $=),
+        "==="
+    ]).
+
 -spec display_versions(map()) -> ok.
 display_versions(#{apps := Apps, languages := Langs, tools := Tools, deps := Deps, plugins := Plugins}) ->
     %% Always display Languages section
-    io:format("~n=== Languages ===~n"),
+    io:format("~n~s~n", [format_heading("Languages")]),
     lists:foreach(
         fun({Name, Vsn}) ->
             io:format("  ~-20s ~s~n", [Name, Vsn])
@@ -161,7 +186,7 @@ display_versions(#{apps := Apps, languages := Langs, tools := Tools, deps := Dep
     ),
 
     %% Always display Build Tools section
-    io:format("~n=== Build Tools ===~n"),
+    io:format("~n~s~n", [format_heading("Build Tools")]),
     lists:foreach(
         fun({Name, Vsn}) ->
             io:format("  ~-20s ~s~n", [Name, Vsn])
@@ -173,7 +198,7 @@ display_versions(#{apps := Apps, languages := Langs, tools := Tools, deps := Dep
     case Deps of
         [] -> ok;
         _ ->
-            io:format("~n=== Dependencies ===~n"),
+            io:format("~n~s~n", [format_heading("Dependencies")]),
             lists:foreach(
                 fun(#{name := Name, version := Vsn, profile := Profile}) ->
                     case Profile of
@@ -189,7 +214,7 @@ display_versions(#{apps := Apps, languages := Langs, tools := Tools, deps := Dep
     case Plugins of
         [] -> ok;
         _ ->
-            io:format("~n=== Plugins ===~n"),
+            io:format("~n~s~n", [format_heading("Plugins")]),
             lists:foreach(
                 fun(#{name := Name, version := Vsn, profile := Profile}) ->
                     case Profile of
@@ -207,7 +232,7 @@ display_versions(#{apps := Apps, languages := Langs, tools := Tools, deps := Dep
         [] -> ok;
         [_SingleApp] -> ok;  %% Skip if only one application
         _ ->
-            io:format("~n=== Project Applications ===~n"),
+            io:format("~n~s~n", [format_heading("Project Applications")]),
             lists:foreach(
                 fun({Name, Vsn}) ->
                     io:format("  ~-20s ~s~n", [Name, Vsn])
