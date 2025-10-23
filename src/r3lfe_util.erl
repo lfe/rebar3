@@ -49,66 +49,38 @@ get_all_deps_with_profiles(State) ->
 %% Includes both 'plugins' and 'project_plugins'.
 -spec get_all_plugins_with_profiles(rebar_state:t()) -> [#{name => atom(), version => string(), profile => atom()}].
 get_all_plugins_with_profiles(State) ->
-    %% Try to get all_plugin_deps from state (list of app_info records)
-    %% This contains all loaded plugins across all profiles
-    case rebar_state:get(State, all_plugin_deps, undefined) of
-        undefined ->
-            %% Fallback: parse config manually
-            get_plugins_from_config(State);
-        PluginDeps ->
-            %% Convert plugin app_info records to our format
-            lists:map(
-                fun(AppInfo) ->
-                    Name = rebar_app_info:name(AppInfo),
-                    Vsn = rebar_app_info:original_vsn(AppInfo),
-                    AppName = case is_binary(Name) of
-                        true -> binary_to_atom(Name, utf8);
-                        false -> Name
-                    end,
-                    #{name => AppName, version => Vsn, profile => default}
-                end,
-                PluginDeps
-            )
-    end.
-
-%% @doc Fallback method to get plugins from config when all_plugin_deps is not available.
--spec get_plugins_from_config(rebar_state:t()) -> [#{name => atom(), version => string(), profile => atom()}].
-get_plugins_from_config(State) ->
-    %% Get top-level plugins (default profile)
+    %% Get plugin names from config
     TopLevelPlugins = rebar_state:get(State, plugins, []),
     TopLevelProjectPlugins = rebar_state:get(State, project_plugins, []),
-    DefaultPlugins = extract_plugins_info(TopLevelPlugins ++ TopLevelProjectPlugins, default),
 
     %% Get profile-specific plugins
     Profiles = rebar_state:get(State, profiles, []),
-    ProfilePlugins = lists:flatten([
+    ProfilePluginConfigs = lists:flatten([
         begin
             ProfilePluginsList = proplists:get_value(plugins, ProfileConfig, []),
             ProfileProjectPluginsList = proplists:get_value(project_plugins, ProfileConfig, []),
-            extract_plugins_info(ProfilePluginsList ++ ProfileProjectPluginsList, ProfileName)
+            [{Plugin, ProfileName} || Plugin <- ProfilePluginsList ++ ProfileProjectPluginsList]
         end
         || {ProfileName, ProfileConfig} <- Profiles
     ]),
 
-    %% Combine and return
-    DefaultPlugins ++ ProfilePlugins.
+    %% Combine all plugin specs with profile info
+    AllPluginSpecs = [{P, default} || P <- TopLevelPlugins ++ TopLevelProjectPlugins] ++ ProfilePluginConfigs,
+
+    %% Extract name and version for each plugin
+    lists:map(
+        fun({PluginSpec, Profile}) ->
+            Name = extract_name(PluginSpec),
+            %% Try to get version from loaded application, then from plugins dir
+            Vsn = get_plugin_version_from_app(Name, State),
+            #{name => Name, version => Vsn, profile => Profile}
+        end,
+        AllPluginSpecs
+    ).
 
 %%====================================================================
 %% Internal functions
 %%====================================================================
-
-%% @doc Extract plugin information from a list of plugin specifications.
-%% Handles various formats: atom, {atom, version}, {atom, {git, ...}}, etc.
--spec extract_plugins_info([term()], atom()) -> [#{name => atom(), version => string(), profile => atom()}].
-extract_plugins_info(Plugins, Profile) ->
-    lists:map(
-        fun(Plugin) ->
-            Name = extract_name(Plugin),
-            Version = get_plugin_version(Name),
-            #{name => Name, version => Version, profile => Profile}
-        end,
-        Plugins
-    ).
 
 %% @doc Extract the name from a plugin specification.
 %% Handles formats: atom, {atom, _}, etc.
@@ -121,15 +93,40 @@ extract_name(Other) ->
     ?DEBUG("Unexpected plugin format: ~p", [Other]),
     unknown.
 
-%% @doc Get the version of a plugin by loading it and querying its application key.
--spec get_plugin_version(atom()) -> string().
-get_plugin_version(App) ->
-    case ensure_app_loaded(App) of
+%% @doc Get the version of a plugin from loaded app or from .app file in plugins dir.
+-spec get_plugin_version_from_app(atom(), rebar_state:t()) -> string().
+get_plugin_version_from_app(AppName, State) ->
+    %% First try to get from loaded application
+    case ensure_app_loaded(AppName) of
         ok ->
-            case application:get_key(App, vsn) of
+            case application:get_key(AppName, vsn) of
                 {ok, Vsn} -> Vsn;
-                undefined -> "unknown"
+                undefined -> get_plugin_version_from_file(AppName, State)
             end;
         error ->
+            %% Try to read from .app file in plugins directory
+            get_plugin_version_from_file(AppName, State)
+    end.
+
+%% @doc Read plugin version from .app file in the plugins directory.
+-spec get_plugin_version_from_file(atom(), rebar_state:t()) -> string().
+get_plugin_version_from_file(AppName, State) ->
+    try
+        PluginsDir = rebar_dir:plugins_dir(State),
+        %% Look for the app file in plugins/appname/ebin/appname.app
+        AppFile = filename:join([PluginsDir, atom_to_list(AppName), "ebin", atom_to_list(AppName) ++ ".app"]),
+        case filelib:is_file(AppFile) of
+            true ->
+                case file:consult(AppFile) of
+                    {ok, [{application, AppName, AppProps}]} ->
+                        proplists:get_value(vsn, AppProps, "unknown");
+                    _ ->
+                        "unknown"
+                end;
+            false ->
+                "unknown"
+        end
+    catch
+        _:_ ->
             "unknown"
     end.

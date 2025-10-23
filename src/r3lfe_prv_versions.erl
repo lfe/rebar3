@@ -25,7 +25,7 @@
 -include_lib("rebar3_lfe/include/r3lfe.hrl").
 
 -define(PROVIDER, versions).
--define(DEPS, []).
+-define(DEPS, [install_deps]).
 
 %%====================================================================
 %% Provider API
