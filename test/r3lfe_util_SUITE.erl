@@ -232,8 +232,8 @@ get_plugin_version_from_app_not_loaded(_Config) ->
     State = rebar_state:new(),
     Result = r3lfe_util:get_plugin_version_from_app(nonexistent_plugin_xyz_123, State),
 
-    %% Should return "unknown" since it can't be loaded and file doesn't exist
-    ?assertEqual("unknown", Result),
+    %% Should return "not compiled" since it can't be loaded and file doesn't exist
+    ?assertEqual("not compiled", Result),
 
     ok.
 
@@ -246,8 +246,8 @@ get_plugin_version_from_file_nonexistent(_Config) ->
     State = rebar_state:new(),
     Result = r3lfe_util:get_plugin_version_from_file(nonexistent_plugin_abc, State),
 
-    %% Should return "unknown"
-    ?assertEqual("unknown", Result),
+    %% Should return "not compiled"
+    ?assertEqual("not compiled", Result),
 
     ok.
 
@@ -259,8 +259,8 @@ find_and_read_app_file_empty_list(_Config) ->
     %% Test with empty path list
     Result = r3lfe_util:find_and_read_app_file(test_app, []),
 
-    %% Should return "unknown"
-    ?assertEqual("unknown", Result),
+    %% Should return "not compiled"
+    ?assertEqual("not compiled", Result),
 
     ok.
 
@@ -272,7 +272,7 @@ find_and_read_app_file_not_found(_Config) ->
     ],
     Result = r3lfe_util:find_and_read_app_file(test_app, Paths),
 
-    %% Should return "unknown"
-    ?assertEqual("unknown", Result),
+    %% Should return "not compiled"
+    ?assertEqual("not compiled", Result),
 
     ok.

@@ -149,13 +149,13 @@ get_plugin_version_from_file(AppName, State) ->
 %% @doc Try to find and read the .app file from a list of possible paths.
 -spec find_and_read_app_file(atom(), [string()]) -> string().
 find_and_read_app_file(_AppName, []) ->
-    "unknown";
+    "not compiled";
 find_and_read_app_file(AppName, [Path | Rest]) ->
     case filelib:is_file(Path) of
         true ->
             case file:consult(Path) of
                 {ok, [{application, AppName, AppProps}]} ->
-                    proplists:get_value(vsn, AppProps, "unknown");
+                    proplists:get_value(vsn, AppProps, "not compiled");
                 _ ->
                     find_and_read_app_file(AppName, Rest)
             end;
