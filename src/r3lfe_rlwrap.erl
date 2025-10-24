@@ -187,7 +187,7 @@ build_rlwrap_command(_State, Opts) ->
     BaseFlags = [
         "-b", shell_quote(BreakChars),
         "-H", shell_quote(HistoryFile),
-        "-p", PromptColor,
+        "-p", shell_quote(PromptColor),
         "-c",  % Filename completion
         "-r",  % Remember multi-line commands
         "-s", "10000"  % History size
