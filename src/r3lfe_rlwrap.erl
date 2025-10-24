@@ -105,15 +105,19 @@ trampoline_via_rlwrap(State, Opts) ->
 
     %% Execute using spawn_executable which doesn't use shell
     %% This avoids all the shell quoting issues
+    %% We use nouse_stdio and inherit to let rlwrap interact with the terminal
     Port = erlang:open_port(
         {spawn_executable, RlwrapExe},
-        [{args, RlwrapArgs}, exit_status]
+        [{args, RlwrapArgs}, exit_status, use_stdio, in, eof]
     ),
 
     %% Wait for the port to finish
+    %% The port will run until rlwrap/rebar3 exits
     receive
         {Port, {exit_status, Status}} ->
-            erlang:halt(Status)
+            erlang:halt(Status);
+        {Port, eof} ->
+            erlang:halt(0)
     end.
 
 -spec get_rebar3_command() -> string().
