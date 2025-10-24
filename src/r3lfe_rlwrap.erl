@@ -118,16 +118,17 @@ trampoline_via_rlwrap(State, Opts) ->
     %% Execute the script using open_port with nouse_stdio
     %% This allows the child process to inherit stdin/stdout/stderr
     %% and interact directly with the terminal
-    _Port = erlang:open_port(
+    Port = erlang:open_port(
         {spawn, ScriptPath},
-        [nouse_stdio]
+        [nouse_stdio, exit_status]
     ),
 
-    %% Don't wait for the port - just exit immediately
-    %% This allows the spawned rlwrap/rebar3 process to take over the TTY
-    %% The shell script will clean itself up when it exits
-    timer:sleep(100),  % Give the script a moment to start
-    erlang:halt(0).
+    %% Wait for the script to complete
+    %% The port will exit when rlwrap/rebar3 exits
+    receive
+        {Port, {exit_status, Status}} ->
+            erlang:halt(Status)
+    end.
 
 -spec get_rebar3_command() -> string().
 get_rebar3_command() ->
