@@ -98,27 +98,32 @@ warn_no_rlwrap() ->
 trampoline_via_rlwrap(State, Opts) ->
     ?INFO("Restarting under rlwrap for enhanced REPL features...", []),
 
-    %% Build the rlwrap command as a list of arguments
-    {RlwrapExe, RlwrapArgs} = build_rlwrap_args(State, Opts),
+    %% Build the rlwrap command as a shell command string
+    %% We have to use the shell approach because rlwrap needs a TTY
+    RlwrapCmd = build_rlwrap_command(State, Opts),
 
-    ?DEBUG("Executing: ~s ~p", [RlwrapExe, RlwrapArgs]),
+    ?DEBUG("Executing: ~s", [RlwrapCmd]),
 
-    %% Execute using spawn_executable which doesn't use shell
-    %% This avoids all the shell quoting issues
-    %% We use nouse_stdio and inherit to let rlwrap interact with the terminal
-    Port = erlang:open_port(
-        {spawn_executable, RlwrapExe},
-        [{args, RlwrapArgs}, exit_status, use_stdio, in, eof]
-    ),
+    %% Write a small shell script that will exec rlwrap
+    %% This ensures rlwrap replaces the shell process and gets the TTY
+    ScriptPath = "/tmp/rebar3_lfe_rlwrap_" ++ os:getpid() ++ ".sh",
+    Script = "#!/bin/sh\nexec " ++ RlwrapCmd ++ "\n",
 
-    %% Wait for the port to finish
-    %% The port will run until rlwrap/rebar3 exits
-    receive
-        {Port, {exit_status, Status}} ->
-            erlang:halt(Status);
-        {Port, eof} ->
-            erlang:halt(0)
-    end.
+    ok = file:write_file(ScriptPath, Script),
+    ok = file:change_mode(ScriptPath, 8#755),
+
+    ?DEBUG("Running script: ~s", [ScriptPath]),
+
+    %% Execute the script using os:cmd which runs in a shell with a TTY
+    %% and then halt this VM
+    spawn(fun() ->
+        os:cmd(ScriptPath),
+        file:delete(ScriptPath)
+    end),
+
+    %% Give the script a moment to start, then halt
+    timer:sleep(100),
+    erlang:halt(0).
 
 -spec get_rebar3_command() -> string().
 get_rebar3_command() ->
@@ -182,7 +187,9 @@ get_rebar3_command() ->
 %% rlwrap Command Builder
 %%====================================================================
 
-%% Build rlwrap command as argument list (avoids shell quoting issues)
+%% Kept for potential future use with spawn_executable
+%% Currently unused because rlwrap needs TTY access which requires shell
+-ifdef(UNUSED).
 -spec build_rlwrap_args(rebar_state:t(), map()) -> {string(), [string()]}.
 build_rlwrap_args(_State, Opts) ->
     %% Get configuration
@@ -237,8 +244,9 @@ build_rlwrap_args(_State, Opts) ->
     AllArgs = BaseArgs ++ CompletionArgs ++ [Rebar3, "lfe", "repl", ?RLWRAP_ACTIVE_FLAG],
 
     {RlwrapExe, AllArgs}.
+-endif.
 
-%% Legacy function for debugging - builds command as string
+%% Build rlwrap command as shell command string
 -spec build_rlwrap_command(rebar_state:t(), map()) -> string().
 build_rlwrap_command(_State, Opts) ->
     %% Get configuration
@@ -247,13 +255,12 @@ build_rlwrap_command(_State, Opts) ->
     BreakChars = maps:get(break_chars, Opts, "(){}[]"),
     PromptColor = maps:get(prompt_color, Opts, "1;32"),  % Bright green
 
-    %% Build rlwrap flags
-    %% Note: The prompt color contains a semicolon which is a shell metacharacter,
-    %% so it needs to be quoted for the shell, but rlwrap itself expects the raw value
+    %% Build rlwrap flags for shell command
+    %% The -p flag requires its argument attached (e.g., -p1;32)
     BaseFlags = [
         "-b", shell_quote(BreakChars),
         "-H", shell_quote(HistoryFile),
-        "-p", shell_quote(PromptColor),  % Must quote - contains semicolon
+        "-p" ++ PromptColor,  % Attach directly to avoid semicolon issues
         "-c",  % Filename completion
         "-r",  % Remember multi-line commands
         "-s", "10000"  % History size
