@@ -261,14 +261,20 @@ build_rlwrap_command(_State, Opts) ->
     HistoryFile = get_history_file(Opts),
     CompletionFiles = get_completion_files(Opts),
     BreakChars = maps:get(break_chars, Opts, "(){}[]"),
-    PromptColor = maps:get(prompt_color, Opts, "1;32"),  % Bright green
+    %% rlwrap expects format: <attr>;<fg> or <attr>;<fg>;<bg>
+    %% According to error message: attr=[0-8], fg=[30-37], bg=[40-47]
+    %% Let's use just "1;32" which should work (bold green)
+    %% If rlwrap is being strict, we may need to test without -p flag
+    _PromptColor = maps:get(prompt_color, Opts, "1;32"),  % Bright green
 
     %% Build rlwrap flags for shell command
     %% The -p flag requires its argument attached (e.g., -p1;32)
+    %% Temporarily disable -p to test if everything else works
     BaseFlags = [
         "-b", shell_quote(BreakChars),
         "-H", shell_quote(HistoryFile),
-        "-p" ++ PromptColor,  % Attach directly to avoid semicolon issues
+        %% Skip -p for now to test basic functionality
+        %% "-p" ++ PromptColor,  % Attach directly to avoid semicolon issues
         "-c",  % Filename completion
         "-r",  % Remember multi-line commands
         "-s", "10000"  % History size
