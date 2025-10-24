@@ -190,10 +190,12 @@ build_rlwrap_command(_State, Opts) ->
     PromptColor = maps:get(prompt_color, Opts, "1;32"),  % Bright green
 
     %% Build rlwrap flags
+    %% Note: Only quote arguments that need it (paths with spaces, special chars)
+    %% The prompt color is just alphanumeric + semicolon, doesn't need quoting
     BaseFlags = [
         "-b", shell_quote(BreakChars),
         "-H", shell_quote(HistoryFile),
-        "-p", shell_quote(PromptColor),
+        "-p", PromptColor,  % No quoting needed - just numbers and semicolon
         "-c",  % Filename completion
         "-r",  % Remember multi-line commands
         "-s", "10000"  % History size
