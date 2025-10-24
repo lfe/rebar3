@@ -114,16 +114,24 @@ trampoline_via_rlwrap(State, Opts) ->
 
     ?DEBUG("Running script: ~s", [ScriptPath]),
 
-    %% Execute the script using os:cmd which runs in a shell with a TTY
-    %% and then halt this VM
-    spawn(fun() ->
-        os:cmd(ScriptPath),
-        file:delete(ScriptPath)
-    end),
+    %% Execute the script using open_port with nouse_stdio
+    %% This allows the child process to inherit stdin/stdout/stderr
+    %% and interact directly with the terminal
+    Port = erlang:open_port(
+        {spawn, ScriptPath},
+        [nouse_stdio, exit_status]
+    ),
 
-    %% Give the script a moment to start, then halt
-    timer:sleep(100),
-    erlang:halt(0).
+    %% Wait for the script to complete
+    receive
+        {Port, {exit_status, Status}} ->
+            file:delete(ScriptPath),
+            erlang:halt(Status)
+    after 60000 ->
+            %% Timeout after 1 minute (shouldn't happen in normal use)
+            file:delete(ScriptPath),
+            erlang:halt(1)
+    end.
 
 -spec get_rebar3_command() -> string().
 get_rebar3_command() ->
