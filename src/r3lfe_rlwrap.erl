@@ -194,10 +194,12 @@ build_rlwrap_args(_State, Opts) ->
     end,
 
     %% Build rlwrap arguments as a list (no quoting needed!)
+    %% Note: The -p flag requires its argument to be attached (e.g., -p1;32)
+    %% as per rlwrap documentation
     BaseArgs = [
         "-b", BreakChars,
         "-H", HistoryFile,
-        "-p", PromptColor,
+        "-p" ++ PromptColor,  % Attach color code to flag
         "-c",  % Filename completion
         "-r",  % Remember multi-line commands
         "-s", "10000"  % History size
