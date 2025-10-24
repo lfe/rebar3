@@ -107,7 +107,8 @@ trampoline_via_rlwrap(State, Opts) ->
     %% Write a small shell script that will exec rlwrap
     %% This ensures rlwrap replaces the shell process and gets the TTY
     ScriptPath = "/tmp/rebar3_lfe_rlwrap_" ++ os:getpid() ++ ".sh",
-    Script = "#!/bin/sh\nexec " ++ RlwrapCmd ++ "\n",
+    %% Delete the script file before exec (it's already loaded into memory)
+    Script = "#!/bin/sh\nrm -f " ++ ScriptPath ++ "\nexec " ++ RlwrapCmd ++ "\n",
 
     ok = file:write_file(ScriptPath, Script),
     ok = file:change_mode(ScriptPath, 8#755),
@@ -117,21 +118,16 @@ trampoline_via_rlwrap(State, Opts) ->
     %% Execute the script using open_port with nouse_stdio
     %% This allows the child process to inherit stdin/stdout/stderr
     %% and interact directly with the terminal
-    Port = erlang:open_port(
+    _Port = erlang:open_port(
         {spawn, ScriptPath},
-        [nouse_stdio, exit_status]
+        [nouse_stdio]
     ),
 
-    %% Wait for the script to complete
-    receive
-        {Port, {exit_status, Status}} ->
-            file:delete(ScriptPath),
-            erlang:halt(Status)
-    after 60000 ->
-            %% Timeout after 1 minute (shouldn't happen in normal use)
-            file:delete(ScriptPath),
-            erlang:halt(1)
-    end.
+    %% Don't wait for the port - just exit immediately
+    %% This allows the spawned rlwrap/rebar3 process to take over the TTY
+    %% The shell script will clean itself up when it exits
+    timer:sleep(100),  % Give the script a moment to start
+    erlang:halt(0).
 
 -spec get_rebar3_command() -> string().
 get_rebar3_command() ->
@@ -277,7 +273,9 @@ build_rlwrap_command(_State, Opts) ->
         %% "-p" ++ PromptColor,  % Attach directly to avoid semicolon issues
         "-c",  % Filename completion
         "-r",  % Remember multi-line commands
-        "-s", "10000"  % History size
+        "-s", "10000",  % History size
+        "--always-readline",  % Required for REPLs that use character-at-a-time input
+        "-n"  % No warnings (silences the "appears to do nothing" warning)
     ],
 
     %% Add completion files that exist
