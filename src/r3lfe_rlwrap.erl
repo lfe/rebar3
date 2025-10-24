@@ -116,7 +116,11 @@ trampoline_via_rlwrap(State, Opts) ->
 -spec get_rebar3_command() -> string().
 get_rebar3_command() ->
     %% Get the original command that was used to invoke rebar3
+    %% We need to be careful here - init:get_plain_arguments() returns
+    %% all arguments, including Erlang VM args, not just rebar3 command args
     Args = init:get_plain_arguments(),
+
+    ?DEBUG("All init args: ~p", [Args]),
 
     %% Find rebar3 executable
     Rebar3 = case os:find_executable("rebar3") of
@@ -130,14 +134,31 @@ get_rebar3_command() ->
             Path
     end,
 
-    %% Filter out any existing --rlwrap-active or --no-rlwrap flags
+    %% Filter out Erlang VM arguments and flags we don't want
+    %% Keep only arguments that look like rebar3 commands and their options
     FilteredArgs = lists:filter(
         fun(?RLWRAP_ACTIVE_FLAG) -> false;
            ("--no-rlwrap") -> false;
-           (_) -> true
+           ("-extra" ++ _) -> false;  % Erlang VM arg
+           ("-noshell") -> false;      % Erlang VM arg
+           ("-noinput") -> false;      % Erlang VM arg
+           ("+sbtu") -> false;         % Erlang VM arg
+           ("+sbwt") -> false;         % Erlang VM arg
+           ([C|_]) when C >= $0, C =< $9 -> false;  % Numeric args (like "1")
+           (Arg) ->
+               %% Keep arguments that start with - or are words
+               case Arg of
+                   "-" ++ _ -> true;  % Keep flags
+                   _ ->
+                       %% Keep if it's a word (lfe, repl, compile, etc.)
+                       not lists:any(fun(Ch) -> Ch >= $0 andalso Ch =< $9 end, Arg)
+                           orelse lists:member(Arg, ["lfe", "repl", "compile", "test"])
+               end
         end,
         Args
     ),
+
+    ?DEBUG("Filtered args: ~p", [FilteredArgs]),
 
     %% Build command: rebar3 lfe repl --rlwrap-active [original args]
     %% Find where "lfe" and "repl" are in the args
