@@ -80,12 +80,14 @@ do(State) ->
     ?DEBUG("LFE REPL provider starting", []),
 
     %% Check if we should wrap with rlwrap
-    {Opts, Args} = rebar_state:command_parsed_args(State),
+    {Opts, _Args} = rebar_state:command_parsed_args(State),
 
     %% Check for internal flag (prevents infinite loop)
-    case lists:member(?RLWRAP_ACTIVE_FLAG, Args) of
+    %% The flag is parsed into Opts as rlwrap_active
+    case proplists:get_bool(rlwrap_active, Opts) of
         true ->
             %% Already under rlwrap, proceed normally
+            ?DEBUG("Already running under rlwrap (--rlwrap-active detected)", []),
             do_repl(State, Opts);
         false ->
             %% Potentially trampoline through rlwrap
