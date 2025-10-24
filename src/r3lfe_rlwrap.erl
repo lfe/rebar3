@@ -98,20 +98,17 @@ warn_no_rlwrap() ->
 trampoline_via_rlwrap(State, Opts) ->
     ?INFO("Restarting under rlwrap for enhanced REPL features...", []),
 
-    %% Build the rlwrap command
-    RlwrapCmd = build_rlwrap_command(State, Opts),
+    %% Build the rlwrap command as a list of arguments
+    {RlwrapExe, RlwrapArgs} = build_rlwrap_args(State, Opts),
 
-    ?DEBUG("Executing: ~s", [RlwrapCmd]),
+    ?DEBUG("Executing: ~s ~p", [RlwrapExe, RlwrapArgs]),
 
-    %% Execute the command through a shell to properly handle quoting
-    %% We use 'sh -c' to ensure the shell interprets our quoted arguments
-    ShellCmd = "sh -c " ++ shell_quote(RlwrapCmd),
-
-    ?DEBUG("Shell command: ~s", [ShellCmd]),
-
-    %% Execute the command, replacing current process
-    %% Note: This will never return if successful
-    Port = erlang:open_port({spawn, ShellCmd}, [exit_status]),
+    %% Execute using spawn_executable which doesn't use shell
+    %% This avoids all the shell quoting issues
+    Port = erlang:open_port(
+        {spawn_executable, RlwrapExe},
+        [{args, RlwrapArgs}, exit_status]
+    ),
 
     %% Wait for the port to finish
     receive
@@ -181,6 +178,61 @@ get_rebar3_command() ->
 %% rlwrap Command Builder
 %%====================================================================
 
+%% Build rlwrap command as argument list (avoids shell quoting issues)
+-spec build_rlwrap_args(rebar_state:t(), map()) -> {string(), [string()]}.
+build_rlwrap_args(_State, Opts) ->
+    %% Get configuration
+    HistoryFile = get_history_file(Opts),
+    CompletionFiles = get_completion_files(Opts),
+    BreakChars = maps:get(break_chars, Opts, "(){}[]"),
+    PromptColor = maps:get(prompt_color, Opts, "1;32"),  % Bright green
+
+    %% Find rlwrap executable
+    RlwrapExe = case os:find_executable("rlwrap") of
+        false -> "rlwrap";  % Hope it's in PATH
+        RlwrapPath -> RlwrapPath
+    end,
+
+    %% Build rlwrap arguments as a list (no quoting needed!)
+    BaseArgs = [
+        "-b", BreakChars,
+        "-H", HistoryFile,
+        "-p", PromptColor,
+        "-c",  % Filename completion
+        "-r",  % Remember multi-line commands
+        "-s", "10000"  % History size
+    ],
+
+    %% Add completion files that exist
+    CompletionArgs = lists:flatmap(
+        fun(File) ->
+            case filelib:is_file(File) of
+                true -> ["-f", File];
+                false ->
+                    ?DEBUG("Completion file not found: ~s", [File]),
+                    []
+            end
+        end,
+        CompletionFiles
+    ),
+
+    %% Get the rebar3 command parts
+    Rebar3 = case os:find_executable("rebar3") of
+        false ->
+            case filelib:is_file("./rebar3") of
+                true -> "./rebar3";
+                false -> "rebar3"
+            end;
+        Path ->
+            Path
+    end,
+
+    %% Build complete argument list
+    AllArgs = BaseArgs ++ CompletionArgs ++ [Rebar3, "lfe", "repl", ?RLWRAP_ACTIVE_FLAG],
+
+    {RlwrapExe, AllArgs}.
+
+%% Legacy function for debugging - builds command as string
 -spec build_rlwrap_command(rebar_state:t(), map()) -> string().
 build_rlwrap_command(_State, Opts) ->
     %% Get configuration
@@ -190,12 +242,12 @@ build_rlwrap_command(_State, Opts) ->
     PromptColor = maps:get(prompt_color, Opts, "1;32"),  % Bright green
 
     %% Build rlwrap flags
-    %% Note: Only quote arguments that need it (paths with spaces, special chars)
-    %% The prompt color is just alphanumeric + semicolon, doesn't need quoting
+    %% Note: The prompt color contains a semicolon which is a shell metacharacter,
+    %% so it needs to be quoted for the shell, but rlwrap itself expects the raw value
     BaseFlags = [
         "-b", shell_quote(BreakChars),
         "-H", shell_quote(HistoryFile),
-        "-p", PromptColor,  % No quoting needed - just numbers and semicolon
+        "-p", shell_quote(PromptColor),  % Must quote - contains semicolon
         "-c",  % Filename completion
         "-r",  % Remember multi-line commands
         "-s", "10000"  % History size
