@@ -142,8 +142,8 @@ build_rlwrap_command_generates_valid_string(_Config) ->
 
     Result = r3lfe_rlwrap:build_rlwrap_command(State, Opts),
 
-    %% Should start with "exec rlwrap"
-    ?assert(string:str(Result, "exec rlwrap") =:= 1),
+    %% Should start with "rlwrap"
+    ?assert(string:str(Result, "rlwrap") =:= 1),
     %% Should contain rebar3
     ?assert(string:str(Result, "rebar3") > 0),
     %% Should contain the active flag

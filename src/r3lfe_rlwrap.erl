@@ -192,7 +192,7 @@ build_rlwrap_command(_State, Opts) ->
 
     %% Combine everything
     lists:flatten([
-        "exec rlwrap ",
+        "rlwrap ",
         string:join(RlwrapFlags, " "),
         " ",
         Rebar3Cmd
