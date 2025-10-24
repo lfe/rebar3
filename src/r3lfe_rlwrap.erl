@@ -103,9 +103,15 @@ trampoline_via_rlwrap(State, Opts) ->
 
     ?DEBUG("Executing: ~s", [RlwrapCmd]),
 
+    %% Execute the command through a shell to properly handle quoting
+    %% We use 'sh -c' to ensure the shell interprets our quoted arguments
+    ShellCmd = "sh -c " ++ shell_quote(RlwrapCmd),
+
+    ?DEBUG("Shell command: ~s", [ShellCmd]),
+
     %% Execute the command, replacing current process
     %% Note: This will never return if successful
-    Port = erlang:open_port({spawn, RlwrapCmd}, [exit_status]),
+    Port = erlang:open_port({spawn, ShellCmd}, [exit_status]),
 
     %% Wait for the port to finish
     receive
