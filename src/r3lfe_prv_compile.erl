@@ -300,36 +300,47 @@ get_dep_include_dirs(State) ->
 -spec ensure_dep_apps_loaded(rebar_state:t()) -> ok.
 ensure_dep_apps_loaded(State) ->
     AllDeps = rebar_state:all_deps(State),
-    
+
     lists:foreach(
         fun(DepAppInfo) ->
             AppName = rebar_app_info:name(DepAppInfo),
             EbinDir = rebar_app_info:ebin_dir(DepAppInfo),
-            
-            %% Add to code path - this is what code:lib_dir/1 uses
-            case code:add_patha(EbinDir) of
+
+            %% Only try to add the path if the directory actually exists
+            %% Dependencies may not be compiled yet, and that's OK
+            case filelib:is_dir(EbinDir) of
                 true ->
-                    ?DEBUG("Added to code path: ~s", [EbinDir]);
-                {error, bad_directory} ->
-                    ?WARN("Bad directory for ~s: ~s", [AppName, EbinDir])
-            end,
-            
-            %% Try to load the application if .app file exists
-            %% This is optional - code:lib_dir/1 works with just the code path
-            AppNameAtom = case is_binary(AppName) of
-                true -> binary_to_atom(AppName, utf8);
-                false -> AppName
-            end,
-            
-            case application:load(AppNameAtom) of
-                ok -> 
-                    ?DEBUG("Loaded application: ~s", [AppName]);
-                {error, {already_loaded, _}} -> 
-                    ?DEBUG("Application already loaded: ~s", [AppName]);
-                {error, _Reason} ->
-                    %% This is OK - as long as the path is set, include-lib will work
-                    ?DEBUG("Could not load ~s (path is set, include-lib should still work)", 
-                           [AppName])
+                    %% Add to code path - this is what code:lib_dir/1 uses
+                    case code:add_patha(EbinDir) of
+                        true ->
+                            ?DEBUG("Added to code path: ~s", [EbinDir]);
+                        {error, bad_directory} ->
+                            ?WARN("Bad directory for ~s: ~s", [AppName, EbinDir])
+                    end,
+
+                    %% Try to load the application if .app file exists
+                    %% This is optional - code:lib_dir/1 works with just the code path
+                    AppNameAtom = case is_binary(AppName) of
+                        true -> binary_to_atom(AppName, utf8);
+                        false -> AppName
+                    end,
+
+                    case application:load(AppNameAtom) of
+                        ok ->
+                            ?DEBUG("Loaded application: ~s", [AppName]);
+                        {error, {already_loaded, _}} ->
+                            ?DEBUG("Application already loaded: ~s", [AppName]);
+                        {error, _Reason} ->
+                            %% This is OK - as long as the path is set, include-lib will work
+                            ?DEBUG("Could not load ~s (path is set, include-lib should still work)",
+                                   [AppName])
+                    end;
+                false ->
+                    %% Ebin dir doesn't exist yet - dependency not compiled
+                    %% This is normal during the first compile when dependencies
+                    %% are being compiled in dependency order
+                    ?DEBUG("Ebin directory does not exist for ~s (not compiled yet): ~s",
+                           [AppName, EbinDir])
             end
         end,
         AllDeps
