@@ -20,6 +20,7 @@
 
 -define(PROVIDER, repl).
 -define(DEPS, [{?NAMESPACE, compile}]).
+-define(RLWRAP_ACTIVE_FLAG, "--rlwrap-active").
 %% Coloured strings for the LFE banner, red, green, yellow and blue.
 -define(RED(Str), "\e[31m" ++ Str ++ "\e[0m").
 -define(GRN(Str), "\e[1;32m" ++ Str ++ "\e[0m").
@@ -53,7 +54,9 @@ init(State) ->
         {erl, undefined, "erl", string,
          "Additional Erlang VM arguments (e.g., for -prompt)"},
         {vm_args, undefined, "vm_args", string,
-         "Path to vm.args file for VM configuration"}
+         "Path to vm.args file for VM configuration"},
+        {no_rlwrap, undefined, "no-rlwrap", boolean,
+         "Disable rlwrap integration"}
     ],
 
     Provider = providers:create([
@@ -74,11 +77,39 @@ init(State) ->
 do(State) ->
     ?DEBUG("LFE REPL provider starting", []),
 
+    %% Check if we should wrap with rlwrap
+    {Opts, Args} = rebar_state:command_parsed_args(State),
+
+    %% Check for internal flag (prevents infinite loop)
+    case lists:member(?RLWRAP_ACTIVE_FLAG, Args) of
+        true ->
+            %% Already under rlwrap, proceed normally
+            do_repl(State, Opts);
+        false ->
+            %% Potentially trampoline through rlwrap
+            maybe_trampoline_rlwrap(State, Opts)
+    end.
+
+-spec format_error(term()) -> iolist().
+format_error({app_start_failed, App, Reason}) ->
+    io_lib:format("Failed to start application ~s: ~p", [App, Reason]);
+format_error(Reason) ->
+    io_lib:format("~p", [Reason]).
+
+%%====================================================================
+%% Internal functions
+%%====================================================================
+
+%% Internal function that does the actual REPL work
+-spec do_repl(rebar_state:t(), proplists:proplist()) ->
+    {ok, rebar_state:t()} | {error, string()}.
+do_repl(State, Opts) ->
+    ?DEBUG("LFE REPL provider starting (rlwrap-checked)", []),
+
     %% Set up code paths (deps, plugins, and project apps)
     rebar_paths:set_paths([deps, plugins, runtime], State),
 
     %% Get REPL configuration
-    {Opts, _Args} = rebar_state:command_parsed_args(State),
     LfeConfig = rebar_state:get(State, lfe, []),
     ReplConfig = proplists:get_value(repl, LfeConfig, []),
 
@@ -103,15 +134,36 @@ do(State) ->
 
     {ok, State}.
 
--spec format_error(term()) -> iolist().
-format_error({app_start_failed, App, Reason}) ->
-    io_lib:format("Failed to start application ~s: ~p", [App, Reason]);
-format_error(Reason) ->
-    io_lib:format("~p", [Reason]).
+-spec maybe_trampoline_rlwrap(rebar_state:t(), proplists:proplist()) ->
+    {ok, rebar_state:t()} | {error, string()}.
+maybe_trampoline_rlwrap(State, Opts) ->
+    %% Get config
+    LfeConfig = rebar_state:get(State, lfe, []),
+    ReplConfig = proplists:get_value(repl, LfeConfig, []),
+    MergedOpts = merge_repl_opts(ReplConfig, Opts),
 
-%%====================================================================
-%% Internal functions
-%%====================================================================
+    case r3lfe_rlwrap:should_use_rlwrap(MergedOpts) of
+        false ->
+            %% User disabled or not available
+            do_repl(State, Opts);
+        true ->
+            case r3lfe_rlwrap:is_under_rlwrap() of
+                true ->
+                    %% Already wrapped (shouldn't happen, but be safe)
+                    do_repl(State, Opts);
+                false ->
+                    %% Need to trampoline!
+                    case r3lfe_rlwrap:has_rlwrap() of
+                        true ->
+                            %% Ensure completion files exist
+                            r3lfe_completion:ensure_files(),
+                            r3lfe_rlwrap:trampoline_via_rlwrap(State, MergedOpts);
+                        false ->
+                            r3lfe_rlwrap:warn_no_rlwrap(),
+                            do_repl(State, Opts)
+                    end
+            end
+    end.
 
 -spec merge_repl_opts(proplists:proplist(), proplists:proplist()) -> map().
 merge_repl_opts(ConfigOpts, CmdOpts) ->
@@ -405,6 +457,46 @@ info(Description) ->
         "  For shell history and custom prompts, use ERL_AFLAGS:~n"
         "    export ERL_AFLAGS='-kernel shell_history enabled'~n"
         "    rebar3 lfe repl~n"
+        "~n"
+        "rlwrap Integration:~n"
+        "  The REPL automatically uses rlwrap if available, providing:~n"
+        "    • Command history with Up/Down arrows~n"
+        "    • Tab completion for modules and functions~n"
+        "    • Better line editing (Emacs-style keybindings)~n"
+        "    • Persistent history across sessions~n"
+        "~n"
+        "  rlwrap is detected and enabled automatically. No configuration needed!~n"
+        "~n"
+        "  Configuration via rebar.config:~n"
+        "    {lfe, [{repl, [~n"
+        "        {use_rlwrap, true},                    %% Enable/disable~n"
+        "        {history_file, \"~~/.lfe/history\"},     %% Custom history location~n"
+        "        {break_chars, \"()\"},                   %% Word break chars for completion~n"
+        "        {prompt_color, \"1;32\"},                %% ANSI color code (bright green)~n"
+        "        {completion_files, [                   %% Additional completion files~n"
+        "            \"~~/.lfe/completions/myapp.txt\"~n"
+        "        ]}~n"
+        "    ]}]}.~n"
+        "~n"
+        "  Command line options:~n"
+        "    --no-rlwrap           Disable rlwrap for this session~n"
+        "~n"
+        "  Color codes for prompt_color:~n"
+        "    \"1;32\" - Bright green (default)~n"
+        "    \"1;34\" - Bright blue~n"
+        "    \"1;33\" - Bright yellow~n"
+        "    \"31\"   - Red~n"
+        "    \"36\"   - Cyan~n"
+        "~n"
+        "  Break characters control where word breaks occur for tab completion.~n"
+        "  For LFE, parentheses should typically NOT break words, so they're~n"
+        "  included in break_chars by default: \"(){}[]\"~n"
+        "~n"
+        "  Completion files:~n"
+        "    Create text files with one completion entry per line.~n"
+        "    Default locations (auto-loaded if present):~n"
+        "      ~~/.lfe/completions/erlang.txt~n"
+        "      ~~/.lfe/completions/lfe.txt~n"
         "~n"
         "Prompt Customization:~n"
         "  NOTE: Custom prompts require modifying LFE's lfe_shell module~n"

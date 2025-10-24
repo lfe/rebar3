@@ -1,0 +1,249 @@
+-module(r3lfe_rlwrap).
+
+%% Exported for rlwrap integration
+-export([
+    should_use_rlwrap/1,
+    is_under_rlwrap/0,
+    has_rlwrap/0,
+    build_rlwrap_command/2,
+    get_rebar3_command/0,
+    shell_quote/1,
+    get_history_file/1,
+    get_completion_files/1,
+    trampoline_via_rlwrap/2,
+    warn_no_rlwrap/0,
+    expand_home/1
+]).
+
+-include_lib("rebar3_lfe/include/r3lfe.hrl").
+
+-define(RLWRAP_ACTIVE_FLAG, "--rlwrap-active").
+
+%%====================================================================
+%% rlwrap Integration Functions
+%%====================================================================
+
+-spec should_use_rlwrap(map()) -> boolean().
+should_use_rlwrap(Opts) ->
+    %% Check if explicitly disabled
+    case maps:get(use_rlwrap, Opts, true) of
+        false -> false;
+        true ->
+            %% Check for --no-rlwrap flag
+            not maps:get(no_rlwrap, Opts, false)
+    end.
+
+-spec is_under_rlwrap() -> boolean().
+is_under_rlwrap() ->
+    %% Method 1: Check for RLWRAP_COMMAND environment variable
+    case os:getenv("RLWRAP_COMMAND") of
+        false ->
+            %% Method 2: Check parent process (Unix only)
+            case os:type() of
+                {unix, _} ->
+                    check_parent_is_rlwrap();
+                {win32, _} ->
+                    false;
+                _ ->
+                    false
+            end;
+        _ ->
+            true
+    end.
+
+-spec check_parent_is_rlwrap() -> boolean().
+check_parent_is_rlwrap() ->
+    %% Get parent process ID and check its name
+    case os:cmd("ps -o comm= -p $PPID 2>/dev/null") of
+        "rlwrap" ++ _ -> true;
+        _ -> false
+    end.
+
+-spec has_rlwrap() -> boolean().
+has_rlwrap() ->
+    case os:find_executable("rlwrap") of
+        false -> false;
+        Path when is_list(Path) -> filelib:is_file(Path)
+    end.
+
+-spec warn_no_rlwrap() -> ok.
+warn_no_rlwrap() ->
+    Msg = "~n"
+          "╔════════════════════════════════════════════════════════════════╗~n"
+          "║  rlwrap not found - enhanced REPL features unavailable        ║~n"
+          "╠════════════════════════════════════════════════════════════════╣~n"
+          "║  Install rlwrap for:                                          ║~n"
+          "║    • Command history with Up/Down arrows                      ║~n"
+          "║    • Tab completion for functions and modules                 ║~n"
+          "║    • Better line editing (Ctrl+A, Ctrl+E, etc.)              ║~n"
+          "║                                                                ║~n"
+          "║  Install with:                                                ║~n"
+          "║    macOS:    brew install rlwrap                              ║~n"
+          "║    Ubuntu:   apt-get install rlwrap                           ║~n"
+          "║    Fedora:   dnf install rlwrap                               ║~n"
+          "║                                                                ║~n"
+          "║  To disable this warning:                                     ║~n"
+          "║    rebar3 lfe repl --no-rlwrap                                ║~n"
+          "║    or add to rebar.config:                                    ║~n"
+          "║    {lfe, [{repl, [{use_rlwrap, false}]}]}                    ║~n"
+          "╚════════════════════════════════════════════════════════════════╝~n~n",
+    io:format(standard_error, Msg, []),
+    ok.
+
+%%====================================================================
+%% Trampoline Execution Functions
+%%====================================================================
+
+-spec trampoline_via_rlwrap(rebar_state:t(), map()) -> no_return().
+trampoline_via_rlwrap(State, Opts) ->
+    ?INFO("Restarting under rlwrap for enhanced REPL features...", []),
+
+    %% Build the rlwrap command
+    RlwrapCmd = build_rlwrap_command(State, Opts),
+
+    ?DEBUG("Executing: ~s", [RlwrapCmd]),
+
+    %% Execute the command, replacing current process
+    %% Note: This will never return if successful
+    Port = erlang:open_port({spawn, RlwrapCmd}, [exit_status]),
+
+    %% Wait for the port to finish
+    receive
+        {Port, {exit_status, Status}} ->
+            erlang:halt(Status)
+    end.
+
+-spec get_rebar3_command() -> string().
+get_rebar3_command() ->
+    %% Get the original command that was used to invoke rebar3
+    Args = init:get_plain_arguments(),
+
+    %% Find rebar3 executable
+    Rebar3 = case os:find_executable("rebar3") of
+        false ->
+            %% Fallback: check common locations
+            case filelib:is_file("./rebar3") of
+                true -> "./rebar3";
+                false -> "rebar3"  % Hope it's in PATH
+            end;
+        Path ->
+            Path
+    end,
+
+    %% Filter out any existing --rlwrap-active or --no-rlwrap flags
+    FilteredArgs = lists:filter(
+        fun(?RLWRAP_ACTIVE_FLAG) -> false;
+           ("--no-rlwrap") -> false;
+           (_) -> true
+        end,
+        Args
+    ),
+
+    %% Build command: rebar3 lfe repl --rlwrap-active [original args]
+    %% Find where "lfe" and "repl" are in the args
+    case {lists:member("lfe", FilteredArgs), lists:member("repl", FilteredArgs)} of
+        {true, true} ->
+            %% Args already contain lfe and repl, just add our flag
+            string:join([Rebar3 | FilteredArgs] ++ [?RLWRAP_ACTIVE_FLAG], " ");
+        _ ->
+            %% Need to add lfe repl
+            string:join([Rebar3, "lfe", "repl", ?RLWRAP_ACTIVE_FLAG | FilteredArgs], " ")
+    end.
+
+%%====================================================================
+%% rlwrap Command Builder
+%%====================================================================
+
+-spec build_rlwrap_command(rebar_state:t(), map()) -> string().
+build_rlwrap_command(_State, Opts) ->
+    %% Get configuration
+    HistoryFile = get_history_file(Opts),
+    CompletionFiles = get_completion_files(Opts),
+    BreakChars = maps:get(break_chars, Opts, "(){}[]"),
+    PromptColor = maps:get(prompt_color, Opts, "1;32"),  % Bright green
+
+    %% Build rlwrap flags
+    BaseFlags = [
+        "-b", shell_quote(BreakChars),
+        "-H", shell_quote(HistoryFile),
+        "-p", PromptColor,
+        "-c",  % Filename completion
+        "-r",  % Remember multi-line commands
+        "-s", "10000"  % History size
+    ],
+
+    %% Add completion files that exist
+    CompletionFlags = lists:flatmap(
+        fun(File) ->
+            case filelib:is_file(File) of
+                true -> ["-f", shell_quote(File)];
+                false ->
+                    ?DEBUG("Completion file not found: ~s", [File]),
+                    []
+            end
+        end,
+        CompletionFiles
+    ),
+
+    RlwrapFlags = BaseFlags ++ CompletionFlags,
+
+    %% Get the rebar3 command to wrap
+    Rebar3Cmd = get_rebar3_command(),
+
+    %% Combine everything
+    lists:flatten([
+        "exec rlwrap ",
+        string:join(RlwrapFlags, " "),
+        " ",
+        Rebar3Cmd
+    ]).
+
+-spec get_history_file(map()) -> string().
+get_history_file(Opts) ->
+    case maps:get(history_file, Opts, undefined) of
+        undefined ->
+            %% Default location
+            Home = os:getenv("HOME", "/tmp"),
+            LfeDir = filename:join([Home, ".lfe"]),
+            %% Ensure directory exists
+            filelib:ensure_dir(filename:join(LfeDir, "dummy")),
+            filename:join(LfeDir, "history");
+        Path ->
+            %% Expand ~ if present
+            expand_home(Path)
+    end.
+
+-spec get_completion_files(map()) -> [string()].
+get_completion_files(Opts) ->
+    %% Base completion files
+    Home = os:getenv("HOME", "/tmp"),
+    LfeDir = filename:join(Home, ".lfe"),
+    CompletionDir = filename:join(LfeDir, "completions"),
+
+    BaseFiles = [
+        filename:join(CompletionDir, "erlang.txt"),
+        filename:join(CompletionDir, "lfe.txt")
+    ],
+
+    %% User-provided additional files
+    UserFiles = maps:get(completion_files, Opts, []),
+    ExpandedUserFiles = [expand_home(F) || F <- UserFiles],
+
+    %% Return all files (we filter for existence in build_rlwrap_command)
+    BaseFiles ++ ExpandedUserFiles.
+
+-spec shell_quote(string()) -> string().
+shell_quote(Str) ->
+    %% Escape single quotes by replacing ' with '\''
+    Escaped = re:replace(Str, "'", "'\\\\''", [global, {return, list}]),
+    "'" ++ Escaped ++ "'".
+
+-spec expand_home(string()) -> string().
+expand_home("~/" ++ Rest) ->
+    Home = os:getenv("HOME", "/tmp"),
+    filename:join(Home, Rest);
+expand_home("~" ++ Rest) ->
+    Home = os:getenv("HOME", "/tmp"),
+    filename:join(Home, Rest);
+expand_home(Path) ->
+    Path.
