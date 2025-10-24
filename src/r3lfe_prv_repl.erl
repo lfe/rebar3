@@ -56,7 +56,9 @@ init(State) ->
         {vm_args, undefined, "vm_args", string,
          "Path to vm.args file for VM configuration"},
         {no_rlwrap, undefined, "no-rlwrap", boolean,
-         "Disable rlwrap integration"}
+         "Disable rlwrap integration"},
+        {rlwrap_active, undefined, "rlwrap-active", boolean,
+         "Internal flag - indicates REPL is already running under rlwrap"}
     ],
 
     Provider = providers:create([
