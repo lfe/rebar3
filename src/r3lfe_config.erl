@@ -26,12 +26,27 @@
 %% @doc Get LFE compiler options from rebar state/app config
 -spec get_lfe_opts(rebar_app_info:t() | rebar_state:t()) -> [term()].
 get_lfe_opts(AppInfo) when is_tuple(AppInfo) ->
+    AppDir = rebar_app_info:dir(AppInfo),
+
     case rebar_app_info:opts(AppInfo) of
         undefined ->
             ?DEFAULT_LFE_OPTS;
         Opts ->
-            LfeOpts = rebar_opts:get(Opts, lfe_opts, []),
-            ErlOpts = rebar_opts:get(Opts, erl_opts, []),
+            %% First try to get options from the app's own rebar.config
+            %% This is critical for dependencies that have their own erl_opts
+            {LfeOpts, ErlOpts} = case read_app_config(AppDir) of
+                {ok, AppConfig} ->
+                    %% Use the app's own config if available
+                    AppLfeOpts = proplists:get_value(lfe_opts, AppConfig, []),
+                    AppErlOpts = proplists:get_value(erl_opts, AppConfig, []),
+                    {AppLfeOpts, AppErlOpts};
+                error ->
+                    %% Fallback to rebar3's merged opts
+                    MergedLfeOpts = rebar_opts:get(Opts, lfe_opts, []),
+                    MergedErlOpts = rebar_opts:get(Opts, erl_opts, []),
+                    {MergedLfeOpts, MergedErlOpts}
+            end,
+
             merge_opts(?DEFAULT_LFE_OPTS, LfeOpts ++ ErlOpts)
     end;
 get_lfe_opts(State) ->
@@ -107,6 +122,23 @@ merge_opts(Defaults, Overrides) ->
 %%====================================================================
 %% Internal functions
 %%====================================================================
+
+%% @doc Read an application's rebar.config file
+-spec read_app_config(file:filename()) -> {ok, [term()]} | error.
+read_app_config(AppDir) ->
+    ConfigFile = filename:join(AppDir, "rebar.config"),
+    case filelib:is_file(ConfigFile) of
+        true ->
+            case file:consult(ConfigFile) of
+                {ok, Config} ->
+                    {ok, Config};
+                {error, Reason} ->
+                    ?DEBUG("Failed to read ~s: ~p", [ConfigFile, Reason]),
+                    error
+            end;
+        false ->
+            error
+    end.
 
 %% @doc Extract a key from an option for deduplication
 -spec option_key(term()) -> term().
