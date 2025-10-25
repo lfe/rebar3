@@ -222,27 +222,22 @@ resolve_include_lib(Path) ->
     case string:split(Path, "/", leading) of
         [AppName, RestPath] ->
             %% Convert app name string to atom
-            try list_to_existing_atom(AppName) of
-                AppAtom ->
-                    case code:lib_dir(AppAtom) of
-                        {error, bad_name} ->
-                            ?DEBUG("Application not found: ~s", [AppName]),
-                            {error, {app_not_found, AppName}};
-                        AppDir ->
-                            FullPath = filename:join(AppDir, RestPath),
-                            case filelib:is_file(FullPath) of
-                                true ->
-                                    {ok, filename:absname(FullPath)};
-                                false ->
-                                    ?DEBUG("File not found: ~s", [FullPath]),
-                                    {error, not_found}
-                            end
+            %% Use list_to_atom (not list_to_existing_atom) because dependency
+            %% applications may not be loaded yet during compilation
+            AppAtom = list_to_atom(AppName),
+            case code:lib_dir(AppAtom) of
+                {error, bad_name} ->
+                    ?DEBUG("Application not found: ~s", [AppName]),
+                    {error, {app_not_found, AppName}};
+                AppDir ->
+                    FullPath = filename:join(AppDir, RestPath),
+                    case filelib:is_file(FullPath) of
+                        true ->
+                            {ok, filename:absname(FullPath)};
+                        false ->
+                            ?DEBUG("File not found: ~s", [FullPath]),
+                            {error, not_found}
                     end
-            catch
-                error:badarg ->
-                    %% App name not loaded as atom yet
-                    ?DEBUG("Application name not loaded: ~s", [AppName]),
-                    {error, {app_not_loaded, AppName}}
             end;
         _ ->
             ?ERROR("Invalid include-lib path format: ~s", [Path]),
