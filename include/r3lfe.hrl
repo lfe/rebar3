@@ -17,6 +17,7 @@
 
 %%% Compiler options
 -define(DEFAULT_LFE_OPTS, [
+    debug_info,
     return,
     report_errors,
     report_warnings
