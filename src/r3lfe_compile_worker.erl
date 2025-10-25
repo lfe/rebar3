@@ -76,6 +76,21 @@ compile_file(Source, OutDir, Opts, ExtraOpts) ->
             ?ERROR("Failed to compile ~s", [Source]),
             ?ERROR("File Errors: ~p", [FileErrors]),
             FormattedErrors = format_errors(FileErrors),
+            {error, FormattedErrors, []};
+
+        {error, NestedErrors, [], []} when is_list(NestedErrors) ->
+            %% LFE nested error format: {error, [{error, FileErrors, []}], [], []}
+            %% This happens with certain compiler warnings treated as errors
+            ?ERROR("Failed to compile ~s", [Source]),
+            ?ERROR("Nested Errors: ~p", [NestedErrors]),
+            %% Extract file errors from nested format
+            FileErrors = lists:flatmap(
+                fun({error, Errs, _Warns}) -> Errs;
+                   (Other) -> [Other]
+                end,
+                NestedErrors
+            ),
+            FormattedErrors = format_errors(FileErrors),
             {error, FormattedErrors, []}
     end.
 
