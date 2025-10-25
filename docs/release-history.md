@@ -5,6 +5,107 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.2] - 2025-10-24
+
+### Major Feature Release with Critical Bug Fix
+
+This release adds automatic rlwrap integration for enhanced REPL experience, significantly improves the versions command, and fixes a critical data loss bug from 0.5.1.
+
+**Upgrade urgency**: CRITICAL - All users of 0.5.1 should upgrade immediately to avoid potential data loss from the clean bug
+
+#### Added
+
+- **🎉 Automatic rlwrap Integration**: Enhanced REPL with line editing, history, and tab completion
+  - Auto-detects and wraps REPL with rlwrap when available (no configuration needed)
+  - Persistent command history across sessions stored in `~/.lfe/history`
+  - Tab completion for Erlang modules and LFE special forms
+  - Emacs-style line editing keybindings (Ctrl-A, Ctrl-E, Ctrl-K, etc.)
+  - Configurable via `rebar.config` (history file, colors, completion files)
+  - New `--no-rlwrap` flag to disable integration
+  - New modules: `r3lfe_rlwrap.erl`, `r3lfe_completion.erl`
+  - Graceful degradation with informative warning when rlwrap not available
+  - Cross-platform support (Unix/Linux/macOS)
+  - See `docs/design/021-rlwrap-integration.md` for details
+
+- **Enhanced `rebar3 lfe versions` Command**: Complete project version information
+  - New Dependencies section showing all project dependencies with versions
+  - New Plugins section showing all plugins with versions
+  - Profile information for non-default profile deps/plugins
+  - Alphabetically sorted output for easier scanning
+  - New utility module `r3lfe_util.erl` with helper functions
+  - Smart plugin version lookup across multiple profile directories
+  - Uniform heading formatting with centered text
+  - Auto-hide sections when empty or redundant
+  - See `docs/design/020-versions-cmd-update.md` for details
+
+- **Documentation**: New screenshot showing enhanced REPL with rlwrap
+
+#### Fixed
+
+- **CRITICAL**: Fixed `clean/2` function that was deleting source files instead of compiled beam files
+  - The compiler module's clean function was receiving source `.lfe` files from rebar3 but deleting them directly
+  - According to the rebar3 compiler contract, clean should convert source files to their corresponding `.beam` targets before deletion
+  - Running `rebar3 clean` would have resulted in **catastrophic data loss** by deleting user source code
+  - Fixed in `src/r3lfe_compiler_mod.erl` to properly convert `.lfe` sources to `.beam` files in the output directory
+  - Updated test suite to verify correct behavior (delete beam files, preserve source files)
+  - See commit `48f68ae` for full details
+
+- **Compiler**: Fixed "Bad directory" warnings for uncompiled dependencies
+  - The compiler was trying to add dependency ebin directories before they were compiled
+  - Now checks if ebin directory exists before adding to code path
+  - Eliminates confusing warnings during normal compilation
+
+- **REPL**: Fixed multiple rlwrap integration issues through iterative debugging
+  - Fixed infinite trampolining loop by adding `--rlwrap-active` internal flag
+  - Fixed argument filtering to exclude Erlang VM args
+  - Fixed shell quoting issues by using `spawn_executable` instead of shell commands
+  - Fixed TTY access for interactive terminal control
+  - Fixed character-mode support with `--always-readline` flag
+  - Fixed port handling to properly wait for REPL termination
+
+- **Versions Command**: Fixed version detection and display issues
+  - LFE version now loads application before querying
+  - Plugin versions read from `.app` files instead of trying to load uncompiled apps
+  - Dependencies now show actual versions from rebar3's resolved state
+  - Plugin name corrected from `r3lfe` to `rebar3_lfe` in Build Tools
+  - Plugin version messages changed from 'unknown' to 'not compiled' when appropriate
+
+#### Changed
+
+- **Templates**: Updated all project templates for better publishing workflow
+  - Changed `plugins` to `project_plugins` for consistency with rebar3 best practices
+  - Added `rebar3_hex` to default `project_plugins`
+  - Added `publish` alias to all template `rebar.config` files
+  - Updated `Makefile.tpl` to use simpler publish command
+
+- **Documentation**: Reorganized design docs with numbered indices (001-021)
+  - Easier navigation and reference
+  - Clear chronological ordering of design decisions
+
+- **Configuration**: Updated coverage requirements and options
+  - Reduced minimum code coverage from 90% to 80% for more realistic targets
+  - Simplified coverage configuration in `rebar.config`
+  - Updated CI workflow to use coverage alias
+
+- **Build**: Fixed Makefile test targets and removed obsolete tasks
+
+#### Testing
+
+- **New Test Suites**:
+  - `r3lfe_rlwrap_SUITE.erl`: 13 comprehensive tests for rlwrap integration
+  - `r3lfe_util_SUITE.erl`: 14 tests for utility functions (9 deps/plugins + 5 version lookup)
+
+- **Enhanced Test Coverage**:
+  - `r3lfe_prv_versions_SUITE.erl`: Added 12 new tests (total: 25 tests)
+    - 4 heading formatter tests
+    - 5 plugin version lookup tests
+    - 3 new version extraction tests
+  - `r3lfe_compiler_mod_SUITE.erl`: Updated clean test to verify correct behavior
+
+- **Total**: All 434 tests passing with comprehensive coverage
+
+---
+
 ## [0.5.1] - 2025-10-22
 
 ### Maintenance Release
