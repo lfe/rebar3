@@ -159,18 +159,26 @@ compile(Source, OutMappings, _Dict, Opts) ->
     end.
 
 %% @doc Clean compiled files
+%% NOTE: Files parameter contains SOURCE files (.lfe), but we need to delete
+%% the corresponding compiled .beam files, not the sources!
 -spec clean([file:filename()], rebar_app_info:t()) -> ok.
-clean(Files, _AppInfo) ->
+clean(Files, AppInfo) ->
+    OutDir = r3lfe_config:get_out_dir(AppInfo),
     lists:foreach(
-        fun(File) ->
-            case file:delete(File) of
+        fun(SourceFile) ->
+            %% Convert source file to corresponding beam file
+            BaseName = filename:basename(SourceFile, ?LFE_SRC_EXTENSION),
+            BeamFile = filename:join(OutDir, BaseName ++ ?BEAM_EXTENSION),
+
+            case file:delete(BeamFile) of
                 ok ->
-                    ?DEBUG("Deleted: ~s", [File]),
+                    ?DEBUG("Deleted: ~s", [BeamFile]),
                     ok;
                 {error, enoent} ->
+                    %% Beam file doesn't exist, nothing to clean
                     ok;
                 {error, Reason} ->
-                    ?WARN("Failed to delete ~s: ~p", [File, Reason])
+                    ?WARN("Failed to delete ~s: ~p", [BeamFile, Reason])
             end
         end,
         Files

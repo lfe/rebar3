@@ -234,38 +234,68 @@ needs_compilation_target_newer(Config) ->
 
 clean_removes_beam_files(Config) ->
     TestDir = ?config(test_dir, Config),
+    SrcDir = filename:join(TestDir, "src"),
+    EbinDir = filename:join(TestDir, "ebin"),
+    filelib:ensure_dir(filename:join(SrcDir, "dummy")),
+    filelib:ensure_dir(filename:join(EbinDir, "dummy")),
 
-    %% Create some .beam files
-    Files = [
-        filename:join(TestDir, "module1.beam"),
-        filename:join(TestDir, "module2.beam")
+    %% Create source .lfe files
+    SourceFiles = [
+        filename:join(SrcDir, "module1.lfe"),
+        filename:join(SrcDir, "module2.lfe")
     ],
 
+    %% Create corresponding .beam files in ebin
+    BeamFiles = [
+        filename:join(EbinDir, "module1.beam"),
+        filename:join(EbinDir, "module2.beam")
+    ],
+
+    %% Write source files
+    lists:foreach(
+        fun(File) ->
+            test_utils:write_file(File, "(defmodule test ())")
+        end,
+        SourceFiles
+    ),
+
+    %% Write beam files
     lists:foreach(
         fun(File) ->
             test_utils:write_file(File, "fake beam content")
         end,
-        Files
+        BeamFiles
     ),
 
-    %% Verify they exist
+    %% Verify source and beam files exist
     lists:foreach(
         fun(File) ->
             ?assert(filelib:is_file(File))
         end,
-        Files
+        SourceFiles ++ BeamFiles
     ),
 
-    %% Clean them
-    {ok, AppInfo} = rebar_app_info:new(test_app, "0.1.0", TestDir),
-    ok = r3lfe_compiler_mod:clean(Files, AppInfo),
+    %% Set up AppInfo with proper ebin_dir
+    {ok, AppInfo0} = rebar_app_info:new(test_app, "0.1.0", TestDir),
+    AppInfo = rebar_app_info:ebin_dir(AppInfo0, EbinDir),
 
-    %% Files should be deleted
+    %% Clean - pass SOURCE files, not beam files
+    ok = r3lfe_compiler_mod:clean(SourceFiles, AppInfo),
+
+    %% Beam files should be deleted
     lists:foreach(
         fun(File) ->
             ?assertNot(filelib:is_file(File))
         end,
-        Files
+        BeamFiles
+    ),
+
+    %% Source files should still exist
+    lists:foreach(
+        fun(File) ->
+            ?assert(filelib:is_file(File))
+        end,
+        SourceFiles
     ),
     ok.
 
