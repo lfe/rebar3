@@ -75,7 +75,7 @@ jobs:
 
       - name: Generate coverage
         if: matrix.coverage
-        run: rebar3 cover -v
+        run: rebar3 coverage
 
       - name: Upload coverage to Codecov
         if: matrix.coverage
