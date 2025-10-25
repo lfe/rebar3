@@ -37,10 +37,20 @@ context(AppInfo) ->
     IncludeDirs = r3lfe_config:get_include_dirs(AppInfo),
     OutDir = r3lfe_config:get_out_dir(AppInfo),
 
-    ?DEBUG("Compiler context for ~s:", [rebar_app_info:name(AppInfo)]),
+    %% Get merged LFE compiler options
+    LfeOpts = r3lfe_config:get_lfe_opts(AppInfo),
+
+    %% Store AppInfo in process dictionary so compile/4 can access it
+    %% This is necessary because rebar3's compiler interface doesn't provide
+    %% a way to pass custom data from context/1 to compile/4
+    AppName = rebar_app_info:name(AppInfo),
+    put({r3lfe_app_info, AppName}, AppInfo),
+
+    ?DEBUG("Compiler context for ~s:", [AppName]),
     ?DEBUG("  Source dirs: ~p", [SrcDirs]),
     ?DEBUG("  Include dirs: ~p", [IncludeDirs]),
     ?DEBUG("  Output dir: ~s", [OutDir]),
+    ?DEBUG("  LFE options: ~p", [LfeOpts]),
 
     #{
         src_dirs => SrcDirs,
@@ -124,10 +134,26 @@ compile(Source, OutMappings, _Dict, Opts) ->
         [] -> "ebin"  % Fallback
     end,
 
-    %% Get LFE compiler options from Opts (if available)
-    LfeOpts = case lists:keyfind(lfe_opts, 1, Opts) of
-        {lfe_opts, Opts1} -> Opts1;
-        false -> []
+    %% Try to get AppInfo from process dictionary (set in context/1)
+    %% We need to figure out which app this file belongs to from the path
+    AppName = get_app_name_from_path(Source, OutDir),
+    AppInfo = case AppName of
+        undefined -> undefined;
+        Name -> get({r3lfe_app_info, Name})
+    end,
+
+    %% Get merged LFE compiler options
+    %% These include defaults, erl_opts, and lfe_opts
+    BaseLfeOpts = case AppInfo of
+        undefined ->
+            %% Fallback: try to get from Opts, or use defaults
+            case lists:keyfind(lfe_opts, 1, Opts) of
+                {lfe_opts, LfeOpts} -> LfeOpts;
+                false -> ?DEFAULT_LFE_OPTS
+            end;
+        _ ->
+            %% Get properly merged options from config
+            r3lfe_config:get_lfe_opts(AppInfo)
     end,
 
     %% Get include directories from Opts and add to compiler options
@@ -136,18 +162,20 @@ compile(Source, OutMappings, _Dict, Opts) ->
         false -> []
     end,
     IncludeOpts = [{i, Dir} || Dir <- IncludeDirs],
-    FinalOpts = LfeOpts ++ IncludeOpts,
+    FinalOpts = BaseLfeOpts ++ IncludeOpts,
+
+    ?DEBUG("Compiling ~s with options: ~p", [Source, FinalOpts]),
 
     %% Compile the file
     case r3lfe_compile_worker:compile_file(Source, OutDir, FinalOpts) of
         ok ->
-            %% Save options hash for future checks
-            r3lfe_compile_opts:save_opts_hash(Source, LfeOpts),
+            %% Save options hash for future checks (use BaseLfeOpts without include dirs)
+            r3lfe_compile_opts:save_opts_hash(Source, BaseLfeOpts),
             ok;
 
         {ok, Warnings} ->
             %% Format warnings as strings for rebar3
-            r3lfe_compile_opts:save_opts_hash(Source, LfeOpts),
+            r3lfe_compile_opts:save_opts_hash(Source, BaseLfeOpts),
             WarningStrs = format_diagnostics(Warnings),
             {ok, WarningStrs};
 
@@ -311,4 +339,26 @@ source_to_target(Source, OutMappings) ->
         [] ->
             %% Shouldn't happen, but have a fallback
             filename:rootname(Source) ++ ?BEAM_EXTENSION
+    end.
+
+%% @doc Extract app name from source file path
+%% Tries to determine which application a source file belongs to
+-spec get_app_name_from_path(file:filename(), file:filename()) -> atom() | undefined.
+get_app_name_from_path(_Source, OutDir) ->
+    %% OutDir is typically something like:
+    %% /path/to/project/_build/default/lib/appname/ebin
+    %% or /path/to/project/ebin
+    %% Extract the app name from the path
+    Parts = filename:split(OutDir),
+    case lists:reverse(Parts) of
+        ["ebin" | Rest] ->
+            case Rest of
+                [AppNameStr | _] ->
+                    %% Convert to atom for process dictionary lookup
+                    try list_to_existing_atom(AppNameStr)
+                    catch error:badarg -> list_to_atom(AppNameStr)
+                    end;
+                [] -> undefined
+            end;
+        _ -> undefined
     end.
