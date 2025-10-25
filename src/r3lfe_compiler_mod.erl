@@ -51,6 +51,7 @@ context(AppInfo) ->
     ?DEBUG("  Include dirs: ~p", [IncludeDirs]),
     ?DEBUG("  Output dir: ~s", [OutDir]),
     ?DEBUG("  LFE options: ~p", [LfeOpts]),
+    ?DEBUG("  Full LFE options (checking no_auto_import): ~200p", [LfeOpts]),
 
     #{
         src_dirs => SrcDirs,
@@ -165,6 +166,15 @@ compile(Source, OutMappings, _Dict, Opts) ->
     FinalOpts = BaseLfeOpts ++ IncludeOpts,
 
     ?DEBUG("Compiling ~s with options: ~p", [Source, FinalOpts]),
+    ?DEBUG("Compiling ~s - Full options (checking no_auto_import): ~200p", [Source, FinalOpts]),
+
+    %% Temporary debug - check if no_auto_import is present
+    case lists:keyfind(no_auto_import, 1, FinalOpts) of
+        {no_auto_import, _} = NoAutoImport ->
+            io:format("~n[DEBUG] Found no_auto_import in options for ~s: ~p~n", [Source, NoAutoImport]);
+        false ->
+            io:format("~n[DEBUG] WARNING: no_auto_import NOT found in options for ~s~n", [Source])
+    end,
 
     %% Compile the file
     case r3lfe_compile_worker:compile_file(Source, OutDir, FinalOpts) of
