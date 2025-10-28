@@ -12,7 +12,7 @@
     (statename-2 3)
     (code_change 4)))
 
-; Documentation taken from https://github.com/vim-erlang/vim-erlang-skeletons
+;; Documentation taken from https://github.com/vim-erlang/vim-erlang-skeletons
 
 ;;; ------------------------------------------------------------------
 ;;; config functions
@@ -26,8 +26,9 @@
 ;;; ------------------------------------------------------------------
 ;;; gen_statem API implementation
 ;;; ------------------------------------------------------------------
-
-; see: http://erlang.org/doc/man/gen_statem.html#start_link-3
+;;;
+;;; see: http://erlang.org/doc/man/gen_statem.html#start_link-3
+;;;
 
 (defun start_link_local ()
   (start_link_local (initial-args)))
@@ -36,9 +37,9 @@
   (start_link_local args (initial-opts)))
 
 (defun start_link_local (args opts)
-  (gen_statem:start_link `#(local ,(SERVER)) 
-                          (MODULE) 
-                          args 
+  (gen_statem:start_link `#(local ,(SERVER))
+                          (MODULE)
+                          args
                           opts))
 (defun start_link ()
   (start_link (initial-args)))
@@ -68,8 +69,8 @@
 ;; @end
 ;;--------------------------------------------------------------------
 
-; Note: if you need your initial data be different than just
-; args, make a function to create initial data from args
+;; Note: if you need your initial data be different than just
+;; args, make a function to create initial data from args
 
 (defun init (args)
   (process_flag 'trap_exit 'true)
@@ -87,9 +88,9 @@
 ;; @end
 ;;--------------------------------------------------------------------
 
-; Note: this template is for a "state_functions" version of gen_statem
-; Use the twin template for "handle_event_function" in case you implement
-; a "handle_event" function.
+;; Note: this template is for a "state_functions" version of gen_statem
+;; Use the twin template for "handle_event_function" in case you implement
+;; a "handle_event" function.
 
 (defun callback_mode ()
   'state_functions)
@@ -121,12 +122,12 @@
 ;; @end
 ;;--------------------------------------------------------------------
 
-; with Action example
+;; with Action example
 (defun statename-1 ((`#(call ,caller) _event-content data)
     ; choose next state and calculate next data
   `#(next_state next-statename ,data (list `#(reply ,caller ok)))))
 
-; without Action example
+;; without Action example
 (defun statename-2 (event-type _event-content data)
     ; choose next state and calculate next data
   `#(next_state next-statename ,data))
@@ -143,7 +144,7 @@
 ;;--------------------------------------------------------------------
 
 (defun format_status ((_opts (= (list _process-dict state-name data) data-list))
-    (list #('data (list #("State", #(state-name data)))))))
+    (list `#(data (#("State" #(,state-name ,data)))))))
 
 ;;--------------------------------------------------------------------
 ;; @private

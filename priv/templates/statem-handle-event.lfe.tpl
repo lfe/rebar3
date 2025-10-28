@@ -11,14 +11,11 @@
     (terminate 3)
     (code_change 4)))
 
-
-
-; Documentation taken from https://github.com/vim-erlang/vim-erlang-skeletons
+;; Documentation taken from https://github.com/vim-erlang/vim-erlang-skeletons
 
 ;;; ------------------------------------------------------------------
 ;;; config functions
 ;;; ------------------------------------------------------------------
-
 
 (defun SERVER () (MODULE))
 (defun initial-args () '#())
@@ -28,8 +25,9 @@
 ;;; ------------------------------------------------------------------
 ;;; gen_statem API implementation
 ;;; ------------------------------------------------------------------
-
-; see: http://erlang.org/doc/man/gen_statem.html#start_link-3
+;;;
+;;; see: http://erlang.org/doc/man/gen_statem.html#start_link-3
+;;;
 
 (defun start_link_local ()
   (start_link_local (initial-args)))
@@ -38,9 +36,9 @@
   (start_link_local args (initial-opts)))
 
 (defun start_link_local (args opts)
-  (gen_statem:start_link `#(local ,(SERVER)) 
-                          (MODULE) 
-                          args 
+  (gen_statem:start_link `#(local ,(SERVER))
+                          (MODULE)
+                          args
                           opts))
 
 (defun start_link ()
@@ -69,10 +67,11 @@
 ;;                     {stop, Reason}
 ;; @end
 ;;--------------------------------------------------------------------
-
-; Note: if you need your initial data be different than just
-; args, make a function to create initial data from args
-
+;;
+;; Note: if you need your initial data be different than just
+;; args, make a function to create initial data from args
+;;
+;;--------------------------------------------------------------------
 (defun init (args)
   (process_flag 'trap_exit 'true)
   `#(ok state-name ,args))
@@ -88,11 +87,12 @@
 ;;                          [handle_event_function, state_enter]
 ;; @end
 ;;--------------------------------------------------------------------
-
-; Note: this template is for a "handle_event_function" version of gen_statem
-; Use the twin template for "state_names" in case you implement
-; your own state name functions.
-
+;;
+;; Note: this template is for a "handle_event_function" version of gen_statem
+;; Use the twin template for "state_names" in case you implement
+;; your own state name functions.
+;;
+;;--------------------------------------------------------------------
 (defun callback_mode ()
   'handle_event_function)
 
@@ -107,7 +107,7 @@
 ;; @end
 ;;--------------------------------------------------------------------
 (defun format_status ((_opts (= (list _process-dict state-name data) data-list))
-    (list #('data (list #("State", #(state-name data)))))))
+    (list `#(data (#("State" #(,state-name ,data)))))))
 
 ;;--------------------------------------------------------------------
 ;; @private
@@ -135,7 +135,7 @@
 ;;                   {stop_and_reply, Reason, Replies, NewData}
 ;; @end
 ;;--------------------------------------------------------------------
-(defun handle_event 
+(defun handle_event
   ((event event-data state-name _data)
     `(error `#(unhandled-event ,event ,event-data ,state-name)))
   ((`#(call ,_from) event-data state-name _data)
