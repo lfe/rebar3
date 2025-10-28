@@ -5,6 +5,60 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.3] - 2025-10-25
+
+### Critical Bug Fix Release
+
+This release addresses several critical compiler bugs discovered in 0.5.2 that could cause compilation failures for certain dependency configurations.
+
+**Upgrade urgency**: HIGH - Users experiencing compilation failures with dependencies should upgrade immediately
+
+#### Fixed
+
+- **CRITICAL**: Fixed dependency erl_opts not being read from rebar.config
+  - Dependencies' `erl_opts` (such as `no_auto_import`) were not being applied when compiling dependency LFE files
+  - This caused compilation failures when dependencies defined functions that conflicted with Erlang BIFs
+  - The fix reads each app's own `rebar.config` directly to get its specific `erl_opts` and `lfe_opts`
+  - Particularly fixes compilation of libraries like yuri that define `get/1` function and require `{no_auto_import, [{get,1}]}`
+  - See commit `4c29467` for details
+
+- **CRITICAL**: Fixed compile/4 not using merged compiler options
+  - The compiler's `compile/4` function was not properly merging compiler options from config
+  - Options like `debug_info` and custom `erl_opts` were being ignored during compilation
+  - Fixed in `src/r3lfe_compiler_mod.erl` to properly retrieve and merge options from AppInfo
+  - See commit `a51cc23` for details
+
+- **CRITICAL**: Fixed dependency include-lib resolution failing for unloaded apps
+  - Dependency header file resolution via `include-lib` was failing for applications not yet loaded in the VM
+  - The scanner now uses `code:lib_dir/1` which handles both loaded and unloaded applications
+  - Also improved error messages when dependencies cannot be found
+  - Fixed in `src/r3lfe_dependency_scanner.erl`
+  - See commit `9d74a63` for details
+
+- **Compiler**: Fixed crash on nested LFE compiler error format
+  - LFE compiler occasionally returns nested error format: `{error, [{error, FileErrors, []}], [], []}`
+  - The error handler now properly extracts and formats errors from this nested structure
+  - Prevents cryptic crashes and provides clear error messages to users
+  - Fixed in `src/r3lfe_compile_worker.erl`
+  - See commit `6349f1b` for details
+
+#### Changed
+
+- **Build**: Set `debug_info` as default compiler option
+  - All compiled modules now include debug information by default
+  - Enables better debugging, analysis, and hot code reloading
+  - Can still be disabled via project-specific `erl_opts` if needed
+  - Updated in `include/r3lfe.hrl`
+
+#### Internal
+
+- Added comprehensive debug logging for troubleshooting compilation issues
+  - Debug output shows configuration reading, option merging, and compilation steps
+  - Helps diagnose issues with dependency compilation
+  - Can be enabled via `DEBUG=1` or `DIAGNOSTIC=1` environment variables
+
+---
+
 ## [0.5.2] - 2025-10-24
 
 ### Major Feature Release with Critical Bug Fix
