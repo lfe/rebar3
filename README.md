@@ -8,23 +8,28 @@
 
 [![Project Logo][logo]][logo-large]
 
-**A modern rebar3 plugin for LFE projects**
+*A modern rebar3 plugin for LFE projects*
+
+**⚠️ IMPORTANT! ⚠️**
+
+* `rebar3_lfe` is currently getting a 100% re-write, *from scratch!* - if you want to experiment with this bleeding edge, use the latest of the 0.5.x release.
+* If "Danger" is not your middle name, then continue using the latest 0.4.x release
 
 ## ✨ Why rebar3_lfe?
 
-- **🚀 Fast**: Incremental compilation is 10-30x faster than full rebuilds
-- **🎯 Correct**: Header changes automatically trigger recompilation
-- **🛡️ Reliable**: >90% test coverage, tested on Erlang/OTP 24-28
-- **📦 Powerful**: Nested module packages with proper cleanup
-- **💬 Clear**: Professional error messages that help you fix issues
-- **🔧 Modern**: Uses rebar3's latest compiler infrastructure
+* **🚀 Fast**: Incremental compilation is 10-30x faster than full rebuilds
+* **🎯 Correct**: Header changes automatically trigger recompilation
+* **🛡️ Reliable**: >90% test coverage, tested on Erlang/OTP 24-28
+* **📦 Powerful**: Nested module packages with proper cleanup
+* **💬 Clear**: Professional error messages that help you fix issues
+* **🔧 Modern**: Uses rebar3's latest compiler infrastructure
 
 ## Quick Start
 
 ```erlang
 %% rebar.config
 {plugins, [
-    {rebar3_lfe, "0.5.0"}
+    {rebar3_lfe, "0.5.x"}
 ]}.
 
 {deps, [
@@ -61,8 +66,8 @@ Compiled 3 files in 0.3s
 
 REPL support in rebar3_lfe has changed slightly in 0.5.0:
 
-- Easier support for customising the LFE REPL prompt
-- `rlwrap` for more consistent experience with readline support (dedicated LFE history file, etc.)
+* Easier support for customising the LFE REPL prompt
+* `rlwrap` for more consistent experience with readline support (dedicated LFE history file, etc.)
 
 There is a new `Makefile` target that is included with all generated projects (`rebar3 new lfe-*`) which makes it easier for projects to use rlwrap and prompt customisations:
 
@@ -100,40 +105,40 @@ src/myapp.lfe:10: error: undefined function foo/1
 
 **Core:**
 
-- `compile` - Smart, incremental compilation
-- `clean` - Remove build artifacts
-- `repl` - Interactive LFE shell
-- `eval` - Evaluate LFE expressions
-- `ltest` - Run tests
-- `versions` - Version information
+* `compile` - Smart, incremental compilation
+* `clean` - Remove build artifacts
+* `repl` - Interactive LFE shell
+* `eval` - Evaluate LFE expressions
+* `ltest` - Run tests
+* `versions` - Version information
 
 **Scripts & Escripts:**
 
-- `run` - Execute LFE scripts (main/1)
-- `escriptize` - Build standalone executables
-- `run-escript` - Execute built escripts
+* `run` - Execute LFE scripts (main/1)
+* `escriptize` - Build standalone executables
+* `run-escript` - Execute built escripts
 
 **Releases:**
 
-- `release` - Build OTP releases
-- `run-release` - Manage releases (start/stop/console/etc)
+* `release` - Build OTP releases
+* `run-release` - Manage releases (start/stop/console/etc)
 
 **Utilities:**
 
-- `confabulate` - Convert LFE data to Erlang format
+* `confabulate` - Convert LFE data to Erlang format
 
 **[See All Commands →](docs/commands.md)**
 
 ## Documentation
 
-- **[Quick Start](docs/quickstart.md)** - Get started in 5 minutes
-- **[Commands](docs/commands.md)** - Complete command reference
-- **[Troubleshooting](docs/troubleshooting.md)** - Common issues
-- **[Migration Guide](docs/0.4-to-0.5-migration.md)** - Upgrade from 0.4.x
+* **[Quick Start](docs/quickstart.md)** - Get started in 5 minutes
+* **[Commands](docs/commands.md)** - Complete command reference
+* **[Troubleshooting](docs/troubleshooting.md)** - Common issues
+* **[Migration Guide](docs/0.4-to-0.5-migration.md)** - Upgrade from 0.4.x
 
 ## Examples
 
-- [Simple Library](examples/simple-lib/) - Basic LFE library
+* [Simple Library](examples/simple-lib/) - Basic LFE library
 
 ## Compatibility
 
@@ -149,9 +154,9 @@ src/myapp.lfe:10: error: undefined function foo/1
 
 Version 0.5.0 is a **complete rewrite** with breaking changes:
 
-- Module prefix: `rebar3_lfe_*` → `r3lfe_*`
-- Faster, more reliable compilation
-- Better error messages
+* Module prefix: `rebar3_lfe_*` → `r3lfe_*`
+* Faster, more reliable compilation
+* Better error messages
 
 **[Migration Guide →](./docs/0.4-to-0.5-migration.md)**
 
@@ -168,10 +173,10 @@ make check
 
 ## Support
 
-- **Documentation**: [lfe.github.io/rebar3](https://lfe.github.io/rebar3)
-- **Issues**: [GitHub Issues](https://github.com/lfe/rebar3/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/lfe/rebar3/discussions)
-- **Chat**: `#tooling` in [LFE Discord](https://discord.gg/Uf3PszVHtF)
+* **Documentation**: [lfe.github.io/rebar3](https://lfe.github.io/rebar3)
+* **Issues**: [GitHub Issues](https://github.com/lfe/rebar3/issues)
+* **Discussions**: [GitHub Discussions](https://github.com/lfe/rebar3/discussions)
+* **Chat**: `#tooling` in [LFE Discord](https://discord.gg/Uf3PszVHtF)
 
 ## License
 
