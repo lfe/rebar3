@@ -43,6 +43,7 @@
   {files, [
       "src",
       "include",
+      "priv/templates",
       "README.md",
       "LICENSE",
       "rebar.config"
