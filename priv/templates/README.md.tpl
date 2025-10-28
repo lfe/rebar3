@@ -28,13 +28,19 @@ TBD
 $ rebar3 lfe compile
 ```
 
-# Start the Project REPL [&#x219F;](#table-of-contents)
+## Start the Project REPL [&#x219F;](#table-of-contents)
 
 ```shell
 $ rebar3 lfe repl
 ```
 
-# Tests [&#x219F;](#table-of-contents)
+Or, to use the customised coloured prompt:
+
+```shell
+$ make repl
+```
+
+## Tests [&#x219F;](#table-of-contents)
 
 ```shell
 $ rebar3 as test lfe ltest
