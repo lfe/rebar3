@@ -27,12 +27,9 @@
 -spec get_lfe_opts(rebar_app_info:t() | rebar_state:t()) -> [term()].
 get_lfe_opts(AppInfo) when is_tuple(AppInfo) ->
     AppDir = rebar_app_info:dir(AppInfo),
-    AppName = rebar_app_info:name(AppInfo),
-    io:format("~n[DEBUG get_lfe_opts] Called for app: ~s, dir: ~s~n", [AppName, AppDir]),
 
     case rebar_app_info:opts(AppInfo) of
         undefined ->
-            io:format("[DEBUG get_lfe_opts] AppInfo opts is undefined~n", []),
             ?DEFAULT_LFE_OPTS;
         Opts ->
             %% First try to get options from the app's own rebar.config
@@ -42,19 +39,15 @@ get_lfe_opts(AppInfo) when is_tuple(AppInfo) ->
                     %% Use the app's own config if available
                     AppLfeOpts = proplists:get_value(lfe_opts, AppConfig, []),
                     AppErlOpts = proplists:get_value(erl_opts, AppConfig, []),
-                    io:format("[DEBUG get_lfe_opts] Using app config - LfeOpts: ~p, ErlOpts: ~p~n", [AppLfeOpts, AppErlOpts]),
                     {AppLfeOpts, AppErlOpts};
                 error ->
                     %% Fallback to rebar3's merged opts
                     MergedLfeOpts = rebar_opts:get(Opts, lfe_opts, []),
                     MergedErlOpts = rebar_opts:get(Opts, erl_opts, []),
-                    io:format("[DEBUG get_lfe_opts] Using merged opts - LfeOpts: ~p, ErlOpts: ~p~n", [MergedLfeOpts, MergedErlOpts]),
                     {MergedLfeOpts, MergedErlOpts}
             end,
 
-            FinalOpts = merge_opts(?DEFAULT_LFE_OPTS, LfeOpts ++ ErlOpts),
-            io:format("[DEBUG get_lfe_opts] Final merged opts: ~p~n", [FinalOpts]),
-            FinalOpts
+            merge_opts(?DEFAULT_LFE_OPTS, LfeOpts ++ ErlOpts)
     end;
 get_lfe_opts(State) ->
     Opts = rebar_state:opts(State),
@@ -134,21 +127,16 @@ merge_opts(Defaults, Overrides) ->
 -spec read_app_config(file:filename()) -> {ok, [term()]} | error.
 read_app_config(AppDir) ->
     ConfigFile = filename:join(AppDir, "rebar.config"),
-    io:format("~n[DEBUG] read_app_config: AppDir=~s, ConfigFile=~s~n", [AppDir, ConfigFile]),
     case filelib:is_file(ConfigFile) of
         true ->
-            io:format("[DEBUG] Config file exists, reading...~n", []),
             case file:consult(ConfigFile) of
                 {ok, Config} ->
-                    io:format("[DEBUG] Config read successfully: ~p~n", [Config]),
                     {ok, Config};
                 {error, Reason} ->
-                    io:format("[DEBUG] Failed to read ~s: ~p~n", [ConfigFile, Reason]),
                     ?DEBUG("Failed to read ~s: ~p", [ConfigFile, Reason]),
                     error
             end;
         false ->
-            io:format("[DEBUG] Config file does NOT exist~n", []),
             error
     end.
 
