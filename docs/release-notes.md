@@ -5,6 +5,63 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.4] - 2025-10-31
+
+### Maintenance Release - Templates and Polish
+
+This release fixes template packaging issues and removes debug output that was inadvertently left in 0.5.3.
+
+**Upgrade urgency**: MEDIUM - Users of 0.5.3 should upgrade to remove debug output and get complete template support
+
+#### Fixed
+
+- **CRITICAL**: Added `priv` directory to hex package files list
+  - Templates were missing from hex.pm releases in 0.5.2 and 0.5.3
+  - Users installing from hex couldn't use `rebar3 new` commands
+  - Fixed in `src/rebar3_lfe.app.src` by adding `"priv"` to files list
+  - See commit `014d7f1` for details
+
+- **Output**: Removed debug statements polluting stdout
+  - All `io:format` debug statements left from 0.5.3 troubleshooting have been removed
+  - These were causing unwanted output during normal rebar3 operations
+  - Clean output restored for compilation and other commands
+  - Fixed in `src/r3lfe_config.erl`
+  - See commit `89649cc` for details
+
+- **Templates**: Fixed gen_statem template issues (contributed by Dmitry Matveyev)
+  - Fixed formatting and syntax issues in `statem-handle-event.lfe.tpl`
+  - Fixed formatting and syntax issues in `statem-state-functions.lfe.tpl`
+  - Templates now generate correct LFE code for state machine implementations
+  - See commit `fabecdc` for details
+
+#### Changed
+
+- **Templates**: Improved project template quality (contributed by Joel Jucá)
+  - Added `.env` and `.envrc` to `.gitignore` for better environment management
+  - Fixed heading levels in README template (changed from # to ##)
+  - Added instructions for using `make repl` with customized colored prompt
+  - See commit `aeb5887` for details
+
+- **Templates**: Updated rebar.config templates for better compatibility
+  - Changed hex plugin package references from `rebar3_lfe` to `r3lfe`
+  - Updated all rebar.config template variants (app, lib, escript, main, release)
+  - Updated CI/CD template for consistency
+  - Fixed app.src templates to use correct package name
+  - See commit `dd4e6dc` for details
+
+- **Documentation**: Added warnings about using bleeding-edge branch
+  - README now clearly indicates when users are on the development branch
+  - Helps prevent confusion about stability and features
+  - See commit `9d9b3ba` for details
+
+#### Contributors
+
+Special thanks to:
+- **Dmitry Matveyev** ([@greenfork](https://github.com/greenfork)) - Fixed gen_statem templates
+- **Joel Jucá** ([@joeljuca](https://github.com/joeljuca)) - Improved project templates
+
+---
+
 ## [0.5.3] - 2025-10-25
 
 ### Critical Bug Fix Release
