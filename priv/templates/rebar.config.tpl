@@ -21,11 +21,11 @@
 {profiles, [
     {test, [
         {deps, [
-            {proper, "1.4.0"},
+            {proper, "~> 1.5"},
             {ltest, "~> 0.13"}
         ]},
         {plugins, [
-            {rebar3_proper, "0.12.1"}
+            {rebar3_proper, "~> 0.12"}
         ]},
         {eunit_opts, [verbose]},
         {erl_opts, [{src_dirs, ["src", "test"]}]}

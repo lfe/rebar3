@@ -13,19 +13,19 @@ on:
 jobs:
 
   builds:
-    name: Erlang ${{ matrix.otp_version }}
+    name: Erlang ${{{{ matrix.otp-version }}}}
     runs-on: ubuntu-latest
 
     strategy:
       matrix:
-        otp_version: ['28' ,'27', '26', '25', '24']
+        otp-version: ['28' ,'27', '26', '25', '24']
 
     steps:
     - uses: actions/checkout@v4
     - uses: erlef/setup-beam@v1
       with:
-        otp-version: ${{ matrix.otp_version }}
-        rebar3-version: '3.25'
+        otp-version: ${{{{ matrix.otp-version }}}}
+        rebar3-version: ${{{{ matrix.otp-version >= 26 && '3.25' || '3.23' }}}}
     - name: Compile
       run: rebar3 compile
     - name: Xref Checks

@@ -10,6 +10,6 @@
     {env,[]},
     {modules, []},
 
-    {licenses, ["Apache 2.0"]},
+    {licenses, ["Apache-2.0"]},
     {links, []}
  ]}.
