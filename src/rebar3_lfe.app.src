@@ -1,6 +1,6 @@
 {application, rebar3_lfe,
  [{description, "A modern rebar3 plugin for LFE projects"},
-  {vsn, "0.5.3"},
+  {vsn, "0.5.4"},
   {registered, []},
   {applications, [
     kernel,
