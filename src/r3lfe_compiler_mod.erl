@@ -18,7 +18,7 @@
     check_dependencies_newer/3
 ]).
 
--include_lib("rebar3_lfe/include/r3lfe.hrl").
+-include("r3lfe.hrl").
 
 %%====================================================================
 %% rebar_compiler callbacks

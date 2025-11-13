@@ -15,7 +15,7 @@
     expand_home/1
 ]).
 
--include_lib("rebar3_lfe/include/r3lfe.hrl").
+-include("r3lfe.hrl").
 
 -define(RLWRAP_ACTIVE_FLAG, "--rlwrap-active").
 

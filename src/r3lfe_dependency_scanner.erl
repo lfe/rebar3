@@ -17,7 +17,7 @@
     classify_include/1
 ]).
 
--include_lib("rebar3_lfe/include/r3lfe.hrl").
+-include("r3lfe.hrl").
 
 -type include_type() :: include_file | include_lib.
 -type include_form() :: {include_type(), string()}.

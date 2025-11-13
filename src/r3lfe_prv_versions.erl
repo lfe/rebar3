@@ -23,7 +23,7 @@
 ]).
 -endif.
 
--include_lib("rebar3_lfe/include/r3lfe.hrl").
+-include("r3lfe.hrl").
 
 -define(PROVIDER, versions).
 -define(DEPS, [{default, install_deps}]).

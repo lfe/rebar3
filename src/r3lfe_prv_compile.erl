@@ -13,7 +13,7 @@
     get_dep_include_dirs/1
 ]).
 
--include_lib("rebar3_lfe/include/r3lfe.hrl").
+-include("r3lfe.hrl").
 
 -define(PROVIDER, compile).
 -define(DEPS, [{default, lock}]).

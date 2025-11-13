@@ -10,7 +10,7 @@
     ensure_dir/1
 ]).
 
--include_lib("rebar3_lfe/include/r3lfe.hrl").
+-include("r3lfe.hrl").
 
 %% Exported for testing
 -ifdef(TEST).

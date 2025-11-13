@@ -16,7 +16,7 @@
     validate_module_name/1
 ]).
 
--include_lib("rebar3_lfe/include/r3lfe.hrl").
+-include("r3lfe.hrl").
 
 -type package_info() :: #{
     source_file := file:filename(),      % Original nested file

@@ -9,7 +9,7 @@
     clear/0
 ]).
 
--include_lib("rebar3_lfe/include/r3lfe.hrl").
+-include("r3lfe.hrl").
 
 %% ETS table name
 -define(CACHE_TABLE, r3lfe_dep_cache).

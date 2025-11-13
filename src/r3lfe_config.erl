@@ -17,7 +17,7 @@
     normalize_include_dirs/2
 ]).
 
--include_lib("rebar3_lfe/include/r3lfe.hrl").
+-include("r3lfe.hrl").
 
 %%====================================================================
 %% API functions

@@ -9,7 +9,7 @@
     clear_opts_cache/0
 ]).
 
--include_lib("rebar3_lfe/include/r3lfe.hrl").
+-include("r3lfe.hrl").
 
 %% ETS table for storing compiler option hashes
 -define(OPTS_CACHE, r3lfe_opts_cache).

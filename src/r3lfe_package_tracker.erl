@@ -10,7 +10,7 @@
     cleanup_all/0
 ]).
 
--include_lib("rebar3_lfe/include/r3lfe.hrl").
+-include("r3lfe.hrl").
 
 -define(TRACKER_TABLE, r3lfe_package_tracker).
 

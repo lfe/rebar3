@@ -8,7 +8,7 @@
     report_complete/1
 ]).
 
--include_lib("rebar3_lfe/include/r3lfe.hrl").
+-include("r3lfe.hrl").
 
 -record(progress, {
     total :: integer(),

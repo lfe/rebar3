@@ -12,7 +12,7 @@
     info/1
 ]).
 
--include_lib("rebar3_lfe/include/r3lfe.hrl").
+-include("r3lfe.hrl").
 
 -define(PROVIDER, confabulate).
 -define(DEPS, []).

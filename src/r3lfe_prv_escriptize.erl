@@ -8,7 +8,7 @@
 -export([info/1]).
 -endif.
 
--include_lib("rebar3_lfe/include/r3lfe.hrl").
+-include("r3lfe.hrl").
 
 -define(PROVIDER, escriptize).
 -define(DEPS, [{?NAMESPACE, compile}, {default, escriptize}]).

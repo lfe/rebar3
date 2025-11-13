@@ -15,7 +15,7 @@
 ]).
 -endif.
 
--include_lib("rebar3_lfe/include/r3lfe.hrl").
+-include("r3lfe.hrl").
 
 -define(PROVIDER, clean).
 -define(DEPS, []).

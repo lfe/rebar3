@@ -11,7 +11,7 @@
     relative_path/1
 ]).
 
--include_lib("rebar3_lfe/include/r3lfe.hrl").
+-include("r3lfe.hrl").
 
 -type lfe_error() :: {file:filename(), [{integer(), module(), term()}]}.
 -type lfe_warning() :: {file:filename(), [{integer(), module(), term()}]}.
