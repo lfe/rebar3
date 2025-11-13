@@ -1,10 +1,10 @@
 # rebar3_lfe
 
-[![CI/CD][gh-actions-badge]][gh-actions]
-[![Hex.pm](https://img.shields.io/hexpm/v/rebar3_lfe.svg)](https://hex.pm/packages/rebar3_lfe)
-[![LFE](https://img.shields.io/badge/lfe-2.2+-blue.svg)](https://lfe.io)
-[![Erlang](https://img.shields.io/badge/erlang-24--28-blue.svg)](https://www.erlang.org)
-[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+[![Build Status][gh-actions-badge]][gh-actions]
+[![LFE Versions][lfe-badge]][lfe]
+[![Erlang Versions][erlang-badge]][versions]
+[![Tag][github-tag-badge]][github-tag]
+[![Downloads][hex-downloads]][hex-package]
 
 [![Project Logo][logo]][logo-large]
 
@@ -184,13 +184,15 @@ Apache 2.0 - See [LICENSE](LICENSE)
 
 ---
 
+[logo]: https://avatars2.githubusercontent.com/u/15242004?s=250
+[logo-large]: https://avatars2.githubusercontent.com/u/15242004
+[gh-actions-badge]: https://github.com/lfe/rebar3/workflows/CI%2FCD/badge.svg
+[gh-actions]: https://github.com/lfe/rebar3/actions
 [lfe]: https://github.com/lfe/lfe
 [lfe-badge]: https://img.shields.io/badge/lfe-2.1+-blue.svg
 [erlang-badge]: https://img.shields.io/badge/erlang-21+-blue.svg
 [versions]: https://github.com/lfe/rebar3/blob/master/.github/workflows/cicd.yml
 [github-tag]: https://github.com/lfe/rebar3/tags
 [github-tag-badge]: https://img.shields.io/github/tag/lfe/rebar3.svg
-[github-downloads]: https://img.shields.io/github/downloads/atom/atom/total.svg
-[hex-badge]: https://img.shields.io/hexpm/v/rebar3_lfe.svg?maxAge=2592000
 [hex-package]: https://hex.pm/packages/rebar3_lfe
 [hex-downloads]: https://img.shields.io/hexpm/dt/rebar3_lfe.svg
