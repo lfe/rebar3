@@ -27,7 +27,7 @@ mkdir src
 
 # Create a simple module
 cat > src/myapp.lfe <<EOF
-(defmodule myapp)
+(defmodule myapp (export (hello 1)))
 
 (defun hello (name)
   (io:format "Hello, ~s!~n" (list name)))
