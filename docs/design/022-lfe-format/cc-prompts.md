@@ -5,7 +5,7 @@ Each arc lives in its own subdir: `arcN-<slug>/cc-prompt.md` (the spec) and
 `arcN-<slug>/cc-prompt-fixM-<slug>.md` (scoped fixes). A2 is ready now; A3–A6 are
 drafts to be tightened after the prior arc's report is graded.
 
-Status: **A1 CLOSED** ✅ · **A2 READY** · A3–A6 drafts.
+Status: **A1 CLOSED** ✅ · **A2 CLOSED** ✅ · **A3 READY** · A4–A6 drafts.
 
 Every prompt assumes CC will, at the top of the session:
 - read `CLAUDE.md` (project conventions; `warnings_as_errors` is ON),
@@ -90,11 +90,17 @@ Stop at a proven-lossless token stream.
 
 ---
 
-## Arc A2 — CST with comment attachment  *(READY)*
+## Arc A2 — CST with comment attachment  *(CLOSED ✅)*
 
-> **Hand CC the full implementation spec: `arc2-cst/cc-prompt.md`.** Prescriptive
-> node/trivia data model, the exact attachment algorithm, and three oracles —
-> tuned for Sonnet 4.6. Summary below.
+> Spec: `arc2-cst/cc-prompt.md`. Shipped `src/r3lfe_format_cst.erl`. API A3 builds
+> on: `parse/1 -> {ok, cst_document()} | {error,term()}`; node accessors `type/1`
+> `open/1` `close/1` `prefix/1` `children/1` `leading/1` `trailing/1`
+> `dangling/1`; `document_children/1` `document_dangling/1`; plus
+> `significant_tokens/1` and `comments/1` (oracle helpers). Types renamed
+> `cst_node/0` / `cst_document/0` (avoid built-in `node/0` clash). `trivia()` =
+> `{comment, token()} | blank`. **A3 constraint surfaced here:** prefix nodes
+> (`'` `` ` `` `,` `,@` `#'`) must print *glued* to their inner node (no space) —
+> `#' foo/2` is rejected by the reader.
 
 **Task.** Create `src/r3lfe_format_cst.erl`: consume `r3lfe_format_lexer:tokens/1`
 and build a tree of nodes (`list`/`tuple`/`map`/`binary`/`eval`/`atom`/`number`/
