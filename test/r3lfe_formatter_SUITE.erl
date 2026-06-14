@@ -78,6 +78,19 @@
     fix1_dist_arg_leading_comment/1
 ]).
 
+%% fix2 group (A4·S1·fix2 — head trailing comment + matrix)
+-export([
+    fix2_funcall_head_trail_args/1,
+    fix2_funcall_head_trail_no_args/1,
+    fix2_specform_case_head_trail/1,
+    fix2_specform_progn_head_trail_no_args/1,
+    fix2_specform_progn_head_trail_args/1,
+    fix2_specform_call_head_trail/1,
+    fix2_defun_head_trail/1,
+    fix2_list_head_head_trail/1,
+    fix2_combination_head_and_body_trail/1
+]).
+
 %%====================================================================
 %% CT Callbacks
 %%====================================================================
@@ -85,7 +98,7 @@
 all() ->
     [{group, flat}, {group, breaking},
      {group, comments}, {group, edge}, {group, oracles},
-     {group, indent}, {group, fix1}].
+     {group, indent}, {group, fix1}, {group, fix2}].
 
 groups() ->
     [
@@ -146,6 +159,17 @@ groups() ->
             fix1_close_after_trailing_list_head,
             fix1_dist_arg_trailing_comment,
             fix1_dist_arg_leading_comment
+        ]},
+        {fix2, [], [
+            fix2_funcall_head_trail_args,
+            fix2_funcall_head_trail_no_args,
+            fix2_specform_case_head_trail,
+            fix2_specform_progn_head_trail_no_args,
+            fix2_specform_progn_head_trail_args,
+            fix2_specform_call_head_trail,
+            fix2_defun_head_trail,
+            fix2_list_head_head_trail,
+            fix2_combination_head_and_body_trail
         ]}
     ].
 
@@ -517,7 +541,16 @@ full_corpus() ->
         <<"((a b)\n (c d) ; note\n )">>,
         %% A4·S1·fix1: N≥2 specform with comment on distinguished arg
         <<"(call mod fun ; trailing\n  arg1 arg2)">>,
-        <<"(: mod\n  fun arg1 arg2)">>
+        <<"(: mod\n  fun arg1 arg2)">>,
+        %% A4·S1·fix2: head trailing comment forces body layout
+        <<"(foo ; c\n  a1\n  a2)">>,
+        <<"(foo ; c\n)">>,
+        <<"(case ; c\n  expr\n  (ok yes))">>,
+        <<"(progn ; c\n)">>,
+        <<"(progn ; c\n  a\n  b)">>,
+        <<"(call ; c\n  mod\n  fun\n  arg)">>,
+        <<"(defun ; c\n  name\n  args\n  body)">>,
+        <<"(foo ; c\n  a\n  b ; note\n)">>
     ],
     FileBins = lists:filtermap(
         fun(F) ->
@@ -677,3 +710,65 @@ fix1_dist_arg_leading_comment(_Config) ->
             "closing paren must survive leading comment on 2nd dist arg"),
     assert_idempotent(Src),
     assert_token_preservation(Src).
+
+%%====================================================================
+%% fix2 group — A4·S1·fix2: head trailing comment matrix
+%%====================================================================
+
+%% Helper: verify output is valid (paren intact), token-preserved, idempotent.
+assert_fix2(Src, Expected) ->
+    assert_format(Src, Expected),
+    assert_idempotent(Src),
+    assert_token_preservation(Src),
+    %% Paren intact — closing paren must be present and not swallowed
+    ?assert(binary:match(Expected, <<")">>) =/= nomatch).
+
+fix2_funcall_head_trail_args(_Config) ->
+    %% funcall: head trailing comment → all args fall to body at C+2.
+    assert_fix2(<<"(foo ; c\n  a1\n  a2)">>,
+                <<"(foo ; c\n  a1\n  a2)\n">>).
+
+fix2_funcall_head_trail_no_args(_Config) ->
+    %% funcall: head trailing, no args → close on its own line (not swallowed).
+    %% Note: (foo ; c) without \n before ) would have ) consumed by the comment;
+    %% the source must have a newline before ).
+    assert_fix2(<<"(foo ; c\n)">>,
+                <<"(foo ; c\n)\n">>).
+
+fix2_specform_case_head_trail(_Config) ->
+    %% specform N=1 (case): head trailing → all RestChildren to body.
+    assert_fix2(<<"(case ; c\n  expr\n  (ok yes))">>,
+                <<"(case ; c\n  expr\n  (ok yes))\n">>).
+
+fix2_specform_progn_head_trail_no_args(_Config) ->
+    %% specform N=0 (progn): head trailing, no args → close on own line.
+    %% Need \n before ) so ) is not consumed by the line comment.
+    assert_fix2(<<"(progn ; c\n)">>,
+                <<"(progn ; c\n)\n">>).
+
+fix2_specform_progn_head_trail_args(_Config) ->
+    %% specform N=0 (progn): head trailing with body args.
+    assert_fix2(<<"(progn ; c\n  a\n  b)">>,
+                <<"(progn ; c\n  a\n  b)\n">>).
+
+fix2_specform_call_head_trail(_Config) ->
+    %% specform N=2 (call): head trailing → all args to body (no args on head line).
+    assert_fix2(<<"(call ; c\n  mod\n  fun\n  arg)">>,
+                <<"(call ; c\n  mod\n  fun\n  arg)\n">>).
+
+fix2_defun_head_trail(_Config) ->
+    %% defform (= specform 1): head trailing → all RestChildren to body.
+    assert_fix2(<<"(defun ; c\n  name\n  args\n  body)">>,
+                <<"(defun ; c\n  name\n  args\n  body)\n">>).
+
+fix2_list_head_head_trail(_Config) ->
+    %% list_head: head trailing is already safe (rest starts with \n).
+    %% Verify it stays correct and idempotent.
+    assert_fix2(<<"((a b) ; c\n (c d))">>,
+                <<"((a b) ; c\n (c d))\n">>).
+
+fix2_combination_head_and_body_trail(_Config) ->
+    %% Head trailing + last body child trailing → close on its own line.
+    %% Need \n before ) so ) is not swallowed by the trailing comment.
+    assert_fix2(<<"(foo ; c\n  a\n  b ; note\n)">>,
+                <<"(foo ; c\n  a\n  b ; note\n)\n">>).

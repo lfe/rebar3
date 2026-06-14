@@ -277,17 +277,22 @@ print_classified(list_head, Head, RestChildren, Dangling,
 %% specform N: distinguished args 1..N on head line; body at C+2.
 %% N=0: head alone, all args at C+2.
 %% defform (provisional = specform 1, refined in S2).
-%% Falls back to body layout if N=0 or ANY distinguished arg has a leading or
-%% trailing comment (fix1-b: a comment on a non-last dist arg would swallow the
-%% next arg; a trailing comment on ANY dist arg is unsafe on the head line).
+%% Falls back to body layout when:
+%%   • N=0 (always), OR
+%%   • HeadHasTrail (fix2: a trailing comment on the head ends the line — no
+%%     content may follow it on the head line), OR
+%%   • any distinguished arg has a leading/trailing comment (fix1-b).
+%% Body=[] branch passes HeadHasTrail to close_section so (progn ; c) and
+%% similar still break the close onto its own line (fix2).
 print_classified({specform, N}, Head, RestChildren, Dangling,
                  C, Open, OpenLen, Close, _CloseLen,
                  Indent, IndentStr, CIndStr) ->
     HeadLeadIO = emit_head_leading(r3lfe_format_cst:leading(Head), CIndStr),
     {HeadIO, HeadCol}  = print_node(Head, C + OpenLen),
     {HeadTrailIO, HTC} = emit_trailing(r3lfe_format_cst:trailing(Head), HeadCol),
+    HeadHasTrail = r3lfe_format_cst:trailing(Head) =/= [],
     {DistIO, DistEndCol, Body} =
-        case N =:= 0 of
+        case N =:= 0 orelse HeadHasTrail of
             true ->
                 {[], HTC, RestChildren};
             false ->
@@ -302,8 +307,9 @@ print_classified({specform, N}, Head, RestChildren, Dangling,
         end,
     case Body of
         [] ->
-            %% No body: DistEndCol is after last distinguished arg (never has trail).
-            {CloseIO, CloseCol} = close_section(Dangling, false, DistEndCol,
+            %% No body args. HeadHasTrail forces the close onto its own line
+            %% (covers (progn ; c), (case ; c), and any head-trailing-no-args form).
+            {CloseIO, CloseCol} = close_section(Dangling, HeadHasTrail, DistEndCol,
                                                 Indent, IndentStr, C, CIndStr, Close),
             {[HeadLeadIO, Open, HeadIO, HeadTrailIO, DistIO, CloseIO], CloseCol};
         _ ->
@@ -324,7 +330,8 @@ print_classified(defform, Head, RestChildren, Dangling,
 
 %% funcall: a1 on head line; a2..aN aligned under a1's column.
 %% Align column = C + len(Open) + len(flat(head)) + 1.
-%% If a1 has a leading comment, all RestChildren fall to body at C+2 (idempotency).
+%% Falls back to body layout when head has a trailing comment (fix2: nothing may
+%% follow it on the head line) or when a1 has a leading comment (fix1).
 print_classified(funcall, Head, RestChildren, Dangling,
                  C, Open, OpenLen, Close, _CloseLen,
                  Indent, IndentStr, CIndStr) ->
@@ -342,9 +349,9 @@ print_classified(funcall, Head, RestChildren, Dangling,
                                                 Indent, IndentStr, C, CIndStr, Close),
             {[HeadLeadIO, Open, HeadIO, HeadTrailIO, CloseIO], CloseCol};
         [A1 | RestArgs] ->
-            case head_has_leading_comment(A1) of
+            case HeadHasTrail orelse head_has_leading_comment(A1) of
                 true ->
-                    %% a1 has a leading comment: all rest as body at C+2 (idempotency).
+                    %% Head trailing or a1 leading comment: all rest as body at C+2.
                     {AllIO, LastCol, HasTrail} = print_rest_loop(RestChildren, Indent,
                                                                   IndentStr, true),
                     {CloseIO, CloseCol} = close_section(Dangling, HasTrail, LastCol,
