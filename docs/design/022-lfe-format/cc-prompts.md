@@ -5,7 +5,24 @@ Each arc lives in its own subdir: `arcN-<slug>/cc-prompt.md` (the spec) and
 `arcN-<slug>/cc-prompt-fixM-<slug>.md` (scoped fixes). A2 is ready now; A3–A6 are
 drafts to be tightened after the prior arc's report is graded.
 
-Status: **A1 CLOSED** ✅ · **A2 CLOSED** ✅ · **A3 READY** · A4–A6 drafts.
+Status: **A1 ✅ · A2 ✅ · A3 ✅** · **A4 IN PROGRESS** (split S1→S2→S3;
+**S1 READY** = `arc4-indent/cc-prompt-s1-table.md`) · A5–A6 drafts.
+
+A4 decision (Duncan): plain calls **align continuation args under the first arg**
+(faithful to `lfe-indent.el`), not +2 hang. Shared ref `arc4-indent/cc-prompt.md`
+carries the full indent table + reflow semantics. Sub-slices: S1 = table + 3
+primitives (specform / funcall-align / list-head) + provisional defform; S2 =
+def-forms + docstrings + clause layout; S3 = style-guide conformance.
+
+A3·S2 added the +2 break algebra: 0-based column threaded through
+`print_node/2` → `print_broken_container/2`; `flat_width/1` is exactly
+`length(flat_render/1)` so the `Col + W =< 80` fit-check is sound; idempotency
+holds. S3 (comments/blanks/edges, full-corpus oracles) closes the arc.
+
+A3·S1 shipped `src/r3lfe_formatter.erl` with `format/1` (flat rendering) +
+`r3lfe_formatter_SUITE` group `flat`. Public return spec is the abstract
+`{ok, iolist()} | {error, term()}`, with a documented targeted
+`-dialyzer({no_underspecs, format/1})` — **keep both in S2/S3; do not narrow.**
 
 Every prompt assumes CC will, at the top of the session:
 - read `CLAUDE.md` (project conventions; `warnings_as_errors` is ON),
@@ -21,6 +38,16 @@ Shared non-negotiables to restate in each handoff:
   `rebar3 dialyzer` clean and compile under `warnings_as_errors`.
 - Report against the arc's ledger rows at the end; name any deferral, no silent
   drops.
+
+**Output-budget discipline (every prompt — CC is Sonnet 4.6 with a 32k output
+cap per turn).** A one-shot attempt at all of A3 blew the cap and produced
+nothing. So: keep each handoff's deliverable **small** (one module portion + a
+small test group); write code straight to files with Write/Edit and **do not
+paste files back** into the reply; keep prose to a few lines; build modules and
+suites **incrementally**, running tests between steps. When an arc's deliverable
+is large, it is **split into sub-slices** (`cc-prompt-sN-<slug>.md`) handed one at
+a time — prefer this to raising `CLAUDE_CODE_MAX_OUTPUT_TOKENS` (which only lets a
+failed attempt waste more). Apply the same sub-slicing to A4–A6.
 
 ---
 
@@ -133,6 +160,13 @@ indent table yet — every head uses the generic rule.
 **Acceptance.** Idempotency (`format(format(x)) == format(x)`) and
 AST-equivalence on the corpus; visually reasonable output on generic forms;
 comments never lost (round-trip the corpus and diff comment sets).
+
+> **Split (after the 32k-cap incident).** `arc3-printer/cc-prompt.md` is now the
+> **shared reference**; hand CC the sub-slices one at a time:
+> `cc-prompt-s1-flat.md` (pipeline + flat render, comment-free) →
+> `cc-prompt-s2-breaking.md` (the +2 break algebra, comment-free) →
+> `cc-prompt-s3-comments.md` (comments/blanks/edges; full-corpus oracles — closes
+> A3). Each is sized to stay well under the output cap.
 
 ---
 
