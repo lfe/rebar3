@@ -58,13 +58,34 @@
     oracle_ast_equivalence/1
 ]).
 
+%% indent group (Arc A4·S1)
+-export([
+    indent_funcall_align/1,
+    indent_specform_case/1,
+    indent_specform_progn/1,
+    indent_specform_if/1,
+    indent_list_head/1,
+    indent_defform_provisional/1
+]).
+
+%% fix1 group (A4·S1·fix1 — comment-ends-line)
+-export([
+    fix1_close_after_trailing_progn/1,
+    fix1_close_after_trailing_case/1,
+    fix1_close_after_trailing_funcall/1,
+    fix1_close_after_trailing_list_head/1,
+    fix1_dist_arg_trailing_comment/1,
+    fix1_dist_arg_leading_comment/1
+]).
+
 %%====================================================================
 %% CT Callbacks
 %%====================================================================
 
 all() ->
     [{group, flat}, {group, breaking},
-     {group, comments}, {group, edge}, {group, oracles}].
+     {group, comments}, {group, edge}, {group, oracles},
+     {group, indent}, {group, fix1}].
 
 groups() ->
     [
@@ -109,6 +130,22 @@ groups() ->
             oracle_token_preservation,
             oracle_comment_preservation,
             oracle_ast_equivalence
+        ]},
+        {indent, [], [
+            indent_funcall_align,
+            indent_specform_case,
+            indent_specform_progn,
+            indent_specform_if,
+            indent_list_head,
+            indent_defform_provisional
+        ]},
+        {fix1, [], [
+            fix1_close_after_trailing_progn,
+            fix1_close_after_trailing_case,
+            fix1_close_after_trailing_funcall,
+            fix1_close_after_trailing_list_head,
+            fix1_dist_arg_trailing_comment,
+            fix1_dist_arg_leading_comment
         ]}
     ].
 
@@ -244,38 +281,33 @@ breaking_ast_equivalence(_Config) ->
     lists:foreach(fun assert_ast_equiv/1, Inputs).
 
 breaking_golden_wide_form(_Config) ->
-    %% A form > 80 cols: breaks to (+2 hanging).
+    %% funcall rule (A4): a1 on head line, a2 aligned under a1.
     %% "(foo " ++ 71 X's ++ " bar)" = 81 chars -> must break.
+    %% AlignCol = 0+1+3+1=5; X's fit at col 5 (5+71=76≤80); bar at col 5.
+    %% Updated from A3 (+2 hang) for A4 funcall rule.
     Xs = list_to_binary(lists:duplicate(71, $X)),
     Input    = <<"(foo ", Xs/binary, " bar)">>,
-    Expected = <<"(foo\n  ", Xs/binary, "\n  bar)\n">>,
+    Expected = <<"(foo ", Xs/binary, "\n     bar)\n">>,
     assert_format(Input, Expected).
 
 breaking_golden_nested_inner_fits(_Config) ->
-    %% Outer breaks; inner list fits flat at its indent of 2.
-    %% "(outer (inner-a inner-b) baz)" fits in 30 cols, but let's make outer break.
-    %% Total: "(outer " + 50 X's + " (a b) baz)" where X's push it past 80.
-    %% "(outer " + 73 x's + " (a b) baz)" = 7+73+6+5 = 91 > 80 -> breaks
+    %% funcall rule (A4): outer breaks, inner (a b) fits flat at AlignCol=7.
+    %% "(outer " + 73 x's + " (a b) baz)" = 91 chars > 80.
+    %% AlignCol = 0+1+5+1=7 ("outer"=5); x's at col 7 (7+73=80); rest at col 7.
+    %% Updated from A3 (+2 hang) for A4 funcall rule.
     Xs2 = list_to_binary(lists:duplicate(73, $x)),
     Input2    = <<"(outer ", Xs2/binary, " (a b) baz)">>,
-    Expected2 = <<"(outer\n  ", Xs2/binary, "\n  (a b)\n  baz)\n">>,
+    Expected2 = <<"(outer ", Xs2/binary, "\n       (a b)\n       baz)\n">>,
     assert_format(Input2, Expected2).
 
 breaking_golden_single_child(_Config) ->
-    %% Container with one child that is too wide to fit flat:
-    %% "(foo)" at any column fits trivially; test a 1-child container that breaks
-    %% because the whole thing > 80.
-    %% "(some-really-long-head)" = 24 chars, always flat.
-    %% Make a container with a head that breaks itself:
-    %% "(outer (inner 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23))"
-    %%   -> outer + inner. Inner flat_width = "(inner 1 2 ... 23)" - let me use simple:
-    %% Simple: "(a b)" = 5 chars, at col 0 fits. Single child means close hugs head.
-    %% Test that a 2-child list where head is the only wide part breaks correctly.
-    %% (head trailing-baz) where head is 77 chars -> total 83 > 80
+    %% funcall rule (A4): head 77 h's, a1=baz.
+    %% AlignCol=79; 79+3=82>80, baz can't break (symbol) → stays on head line.
+    %% Output is one 82-char line; no cross-line break possible for single symbol arg.
+    %% Updated from A3 (+2 hang) for A4 funcall rule.
     Head = list_to_binary(lists:duplicate(77, $h)),
-    Input = <<"(", Head/binary, " baz)">>,
-    %% Broken: "(h...h\n  baz)" - head at col 1 (1+77=78 <= 80, fits flat as head!)
-    Expected = <<"(", Head/binary, "\n  baz)\n">>,
+    Input    = <<"(", Head/binary, " baz)">>,
+    Expected = <<"(", Head/binary, " baz)\n">>,
     assert_format(Input, Expected).
 
 breaking_tqstring_verbatim(_Config) ->
@@ -369,14 +401,15 @@ comment_head_leading_single_child(_Config) ->
 
 comment_head_leading_blank_only(_Config) ->
     %% Head has blank-only leading (no comment): stays on opener line, blank dropped.
-    %% Two \n are needed: a single \n after ( is structural and produces no blank in
-    %% the head's leading; two \n trigger the blank accumulator.
+    %% funcall rule (A4): alpha is head, beta is a1; fits on head line → (alpha beta).
+    %% Two \n are needed for alpha to get leading=[blank]; single \n is structural.
+    %% Updated from A3 (+2 hang) for A4 funcall rule.
     Src = <<"(\n\nalpha beta)">>,
     {ok, IO1} = r3lfe_formatter:format(Src),
     Out1 = iolist_to_binary(IO1),
-    %% First pass: alpha's blank-in-leading forces break; blank dropped; head on opener
-    ?assertEqual(<<"(alpha\n  beta)\n">>, Out1),
-    %% Second pass: no trivia left → flat
+    %% First pass: alpha's blank forces break; funcall puts beta on head line → flat
+    ?assertEqual(<<"(alpha beta)\n">>, Out1),
+    %% Idempotent: both passes give (alpha beta)
     assert_format(Out1, <<"(alpha beta)\n">>).
 
 %%====================================================================
@@ -405,13 +438,14 @@ edge_tqstring_form(_Config) ->
     assert_idempotent(Input).
 
 edge_wide_with_comment(_Config) ->
-    %% A form > 80 cols that also has a trailing comment: must break.
+    %% A form > 80 cols with trailing comment: funcall rule (A4).
+    %% AlignCol=5; X's at col 5; bar at col 5; trailing stays on last line.
+    %% Updated from A3 (+2 hang) for A4 funcall rule.
     Xs = list_to_binary(lists:duplicate(71, $X)),
     Src = <<"(foo ", Xs/binary, " bar) ; note">>,
     {ok, OutIO} = r3lfe_formatter:format(Src),
     Out = iolist_to_binary(OutIO),
-    %% form breaks; trailing comment stays on the last line before \n
-    Expected = <<"(foo\n  ", Xs/binary, "\n  bar) ; note\n">>,
+    Expected = <<"(foo ", Xs/binary, "\n     bar) ; note\n">>,
     ?assertEqual(Expected, Out),
     assert_idempotent(Src).
 
@@ -475,7 +509,15 @@ full_corpus() ->
         %% fix1: head-leading comment (idempotency repro)
         <<"(;; c\nalpha beta)">>,
         <<"(;; c\nalpha)">>,
-        <<"(;; c\nalpha (b c))">>
+        <<"(;; c\nalpha (b c))">>,
+        %% A4·S1·fix1: trailing comment on last child — close on own line
+        <<"(progn\n  a\n  b ; note\n  )">>,
+        <<"(case x\n  (ok y) ; good\n  )">>,
+        <<"(some-fn a\n         b ; note\n         )">>,
+        <<"((a b)\n (c d) ; note\n )">>,
+        %% A4·S1·fix1: N≥2 specform with comment on distinguished arg
+        <<"(call mod fun ; trailing\n  arg1 arg2)">>,
+        <<"(: mod\n  fun arg1 arg2)">>
     ],
     FileBins = lists:filtermap(
         fun(F) ->
@@ -516,3 +558,122 @@ assert_comment_preservation(Input) ->
                      || T <- r3lfe_format_cst:comments(OutDoc)],
     ?assertEqual(InComments, OutComments,
                  io_lib:format("comment-preservation failed for ~200p", [Input])).
+
+%%====================================================================
+%% indent group — Arc A4·S1 goldens
+%%====================================================================
+
+indent_funcall_align(_Config) ->
+    %% funcall: a1 on head line; a2..aN aligned under a1's column.
+    %% "some-function" = 13 chars; AlignCol = 0+1+13+1 = 15.
+    %% Three 22-char args → flat_width = 2+13+3+22*3+2 = 86 > 80.
+    A = list_to_binary(lists:duplicate(22, $a)),
+    B = list_to_binary(lists:duplicate(22, $b)),
+    C = list_to_binary(lists:duplicate(22, $c)),
+    Input    = <<"(some-function ", A/binary, " ", B/binary, " ", C/binary, ")">>,
+    Pad      = list_to_binary(lists:duplicate(15, $\s)),
+    Expected = <<"(some-function ", A/binary, "\n",
+                 Pad/binary, B/binary, "\n",
+                 Pad/binary, C/binary, ")\n">>,
+    assert_format(Input, Expected),
+    assert_idempotent(Input).
+
+indent_specform_case(_Config) ->
+    %% specform 1 (case): distinguished expr on head line; clauses at C+2.
+    %% (case aa (a b) ... (w x)) with 12 clauses = 81 chars > 80.
+    Input = <<"(case aa (a b) (c d) (e f) (g h) (i j) (k l) (m n) (o p) (q r) (s t) (u v) (w x))">>,
+    Expected = <<"(case aa\n  (a b)\n  (c d)\n  (e f)\n  (g h)\n  (i j)\n  (k l)\n  (m n)\n  (o p)\n  (q r)\n  (s t)\n  (u v)\n  (w x))\n">>,
+    assert_format(Input, Expected),
+    assert_idempotent(Input).
+
+indent_specform_progn(_Config) ->
+    %% specform 0 (progn): head alone on opener line; all args at C+2.
+    %% 13 five-char items = flat_width 84 > 80.
+    Input = <<"(progn aaaaa bbbbb ccccc ddddd eeeee fffff ggggg hhhhh iiiii jjjjj kkkkk lllll mmmmm)">>,
+    Expected = <<"(progn\n  aaaaa\n  bbbbb\n  ccccc\n  ddddd\n  eeeee\n  fffff\n  ggggg\n  hhhhh\n  iiiii\n  jjjjj\n  kkkkk\n  lllll\n  mmmmm)\n">>,
+    assert_format(Input, Expected),
+    assert_idempotent(Input).
+
+indent_specform_if(_Config) ->
+    %% specform 1 (if): distinguished condition on head line; branches at C+2.
+    %% flat_width > 80 with long predicate.
+    Cond = <<"(some-long-predicate-function arg-one arg-two arg-three arg-four arg-five)">>,
+    Input    = <<"(if ", Cond/binary, " yes no)">>,
+    Expected = <<"(if ", Cond/binary, "\n  yes\n  no)\n">>,
+    assert_format(Input, Expected),
+    assert_idempotent(Input).
+
+indent_list_head(_Config) ->
+    %% list_head: head not a symbol; all elements aligned under first at C+1.
+    %% Six `(aa bb cc dd)` items (14 chars each) = flat_width 91 > 80.
+    Input = <<"((aa bb cc dd) (ee ff gg hh) (ii jj kk ll) (mm nn oo pp) (qq rr ss tt) (uu vv ww xx))">>,
+    Expected = <<"((aa bb cc dd)\n (ee ff gg hh)\n (ii jj kk ll)\n (mm nn oo pp)\n (qq rr ss tt)\n (uu vv ww xx))\n">>,
+    assert_format(Input, Expected),
+    assert_idempotent(Input).
+
+indent_defform_provisional(_Config) ->
+    %% defform (provisional = specform 1): name (d1) on head line; rest at C+2.
+    %% S2 will refine this with proper signature-line + docstring layout.
+    Args = <<"(a b c d e f g h i j k l m n o p q)">>,
+    Body = <<"(+ a b c d e f g h i j k l m n o p q)">>,
+    Input = <<"(defun my-function ", Args/binary, " ", Body/binary, ")">>,
+    %% Provisional: my-function is d1 on head line; args and body at C+2.
+    Expected = <<"(defun my-function\n  ", Args/binary, "\n  ", Body/binary, ")\n">>,
+    assert_format(Input, Expected),
+    assert_idempotent(Input).
+
+%%====================================================================
+%% fix1 group — A4·S1·fix1: comment-ends-line regressions
+%%====================================================================
+
+fix1_close_after_trailing_progn(_Config) ->
+    %% Trailing comment on last body child of a progn: close must go on its own line.
+    Src = <<"(progn\n  a\n  b ; note\n  )">>,
+    assert_format(Src, <<"(progn\n  a\n  b ; note\n)\n">>),
+    assert_idempotent(Src),
+    assert_token_preservation(Src).
+
+fix1_close_after_trailing_case(_Config) ->
+    %% Trailing comment on last clause of a case: close on own line.
+    Src = <<"(case x\n  (ok y) ; good\n  )">>,
+    assert_format(Src, <<"(case x\n  (ok y) ; good\n)\n">>),
+    assert_idempotent(Src),
+    assert_token_preservation(Src).
+
+fix1_close_after_trailing_funcall(_Config) ->
+    %% Trailing comment on last aligned arg of funcall: close on own line.
+    Src = <<"(some-fn a\n         b ; note\n         )">>,
+    assert_format(Src, <<"(some-fn a\n         b ; note\n)\n">>),
+    assert_idempotent(Src),
+    assert_token_preservation(Src).
+
+fix1_close_after_trailing_list_head(_Config) ->
+    %% Trailing comment on last element of list_head list: close on own line.
+    Src = <<"((a b)\n (c d) ; note\n )">>,
+    assert_format(Src, <<"((a b)\n (c d) ; note\n)\n">>),
+    assert_idempotent(Src),
+    assert_token_preservation(Src).
+
+fix1_dist_arg_trailing_comment(_Config) ->
+    %% Trailing comment on a non-last distinguished arg (call, N=2):
+    %% must fall back to body layout so neither arg nor close is swallowed.
+    Src = <<"(call mod fun ; trailing\n  arg1 arg2)">>,
+    %% Falls back: all RestChildren at C+2; trailing comment on fun forces close
+    %% to own line since fun becomes last on its line (but there's a body here).
+    {ok, OutIO} = r3lfe_formatter:format(Src),
+    Out = iolist_to_binary(OutIO),
+    %% Verify the closing paren is present (not swallowed by comment)
+    ?assert(binary:match(Out, <<")">>) =/= nomatch,
+            "closing paren must survive trailing comment on dist arg"),
+    assert_idempotent(Src),
+    assert_token_preservation(Src).
+
+fix1_dist_arg_leading_comment(_Config) ->
+    %% Leading comment on the 2nd distinguished arg of `:` (N=2): fall back to body.
+    Src = <<"(:\n  mod\n  ;; c\n  fun arg1 arg2)">>,
+    {ok, OutIO} = r3lfe_formatter:format(Src),
+    Out = iolist_to_binary(OutIO),
+    ?assert(binary:match(Out, <<")">>) =/= nomatch,
+            "closing paren must survive leading comment on 2nd dist arg"),
+    assert_idempotent(Src),
+    assert_token_preservation(Src).

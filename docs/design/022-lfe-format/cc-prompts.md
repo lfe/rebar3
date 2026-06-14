@@ -5,8 +5,17 @@ Each arc lives in its own subdir: `arcN-<slug>/cc-prompt.md` (the spec) and
 `arcN-<slug>/cc-prompt-fixM-<slug>.md` (scoped fixes). A2 is ready now; A3–A6 are
 drafts to be tightened after the prior arc's report is graded.
 
-Status: **A1 ✅ · A2 ✅ · A3 ✅** · **A4 IN PROGRESS** (split S1→S2→S3;
-**S1 READY** = `arc4-indent/cc-prompt-s1-table.md`) · A5–A6 drafts.
+Status: **A1 ✅ · A2 ✅ · A3 ✅** · **A4 IN PROGRESS** (S1 + fix1 done;
+**fix2 in flight** = `arc4-indent/cc-prompt-s1-fix2-head-trailing.md` — completes
+the head-line comment matrix: head-trailing-comment swallow, the last vector) ·
+A5–A6 drafts.
+
+⚠️ **Audit lesson (recurring):** "oracles green over the corpus" ≠ invariant
+holds. The `_integration` corpus lacks adversarial comment placements, so two
+real bugs (A3 head-leading idempotency; A4·S1 comment-swallows-close) passed all
+oracles. Audits must *construct* comment-placement cases — trailing comment on the
+last child, comments between `(` and head, comments on distinguished args — not
+rely on the corpus. Each found bug gets added to the corpus fixture permanently.
 
 A4 decision (Duncan): plain calls **align continuation args under the first arg**
 (faithful to `lfe-indent.el`), not +2 hang. Shared ref `arc4-indent/cc-prompt.md`
