@@ -1,6 +1,9 @@
 # 022 · Arc A6 — hardening + release (shared reference)
 
 > ⚠️ **DO NOT hand CC this whole file.** A6 is the final arc, sub-sliced:
+> - `cc-prompt-s0-e2e-cli.md` — **do first.** Real `rebar3 lfe format` against a
+>   fixture that loads the plugin by local path (catches the registration/getopt/
+>   command-resolution layer that `do/1` unit tests can't). Highest-signal.
 > - `cc-prompt-s1-hardening.md` — property/fuzz tests, edge-case battery,
 >   robustness; fix anything they surface.
 > - `cc-prompt-s2-docs-release.md` — `docs/commands.md` entry, CHANGELOG,

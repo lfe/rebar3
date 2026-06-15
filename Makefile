@@ -4,7 +4,7 @@ SYS_TEST_DIR = /tmp/rebar3_lfe/_integration/_testing
 GLOBAL_INSTALL_DIR = ~/.config/rebar3/plugins
 GLOBAL_INSTALL = $(GLOBAL_INSTALL_DIR)/$(PROJECT)
 
-.PHONY: all compile clean check test coverage benchmarks smoke-tests ci
+.PHONY: all compile clean check test coverage benchmarks smoke-tests test-format-e2e ci
 
 all: compile
 
@@ -131,6 +131,9 @@ test-clean-cmd: clean setup
 	cd $(SYS_TEST_DIR) && \
 	rebar3 compile && \
 	rebar3 lfe clean
+
+test-format-e2e:
+	@bash test/e2e/format_e2e.sh
 
 smoke-tests: test-new test-new-lfe-lib test-new-lfe-main \
 			 test-new-lfe-app test-new-lfe-escript test-new-lfe-release \

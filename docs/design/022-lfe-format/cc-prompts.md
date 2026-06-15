@@ -5,13 +5,36 @@ Each arc lives in its own subdir: `arcN-<slug>/cc-prompt.md` (the spec) and
 `arcN-<slug>/cc-prompt-fixM-<slug>.md` (scoped fixes). A2 is ready now; A3–A6 are
 drafts to be tightened after the prior arc's report is graded.
 
-Status: **A1 ✅ · A2 ✅ · A3 ✅** · **A4 IN PROGRESS** (S1 ✅ incl. fix1+fix2;
+Status: **A1 ✅ · A2 ✅ · A3 ✅ · A4 ✅ · A5 ✅** · **A6 NEXT** (release;
+`arc6-release/`: **S0 e2e-CLI ✅** (real `rebar3 lfe format` via _checkouts; found+
+fixed a RELEASE-BLOCKING bug — `?DEPS=[]` ran the bare provider before app
+discovery → default format found 0 files; fix `{default, app_discovery}`; 22
+asserts), S1 hardening ✅ + **S1·fix1 (dangling-blank, test-first) pending**,
+S2 docs+release pending).
+
+⚠️ Observation (pre-existing, out of 022 scope): `r3lfe_prv_clean` has the same
+`?DEPS=[]` + app-iteration → `rebar3 lfe clean` standalone likely cleans nothing.
+One-line fix of the same class; Duncan's call whether to fold into 0.5.5.
+⚠️ Gap found: provider is only tested via `do/1` directly — NO test runs the real
+`rebar3 lfe format` through rebar3's plugin machinery (the `Command lfe not found`
+class). S0 closes that with a local-path-plugin fixture + shell-out asserts.
+Engine + provider complete;
+`vsn` already `0.5.5`. A6 = property/fuzz/edge hardening, docs/commands.md,
+CHANGELOG, release-readiness checklist (no publish). — older detail below —
+
+Status (history): **A4 IN PROGRESS** (S1 ✅ incl. fix1+fix2;
 comment-on-head-line matrix exhaustively handled & in the corpus) · S2 ✅
 (def-forms: constant-idiom flat, with-args break, dynamic N) · **S3 split into
 S3a ✅ + S3b ✅ (conformance) + S3c ✅ (always-break let/case/cond/map). 6
 divergences adjudicated → **S3d READY** = `arc4-indent/cc-prompt-s3d-export-guards.md`
-(export/import keyword-alone + clause guards; **closes A4**) · **A5 designed +
-sub-sliced** (`arc5-provider/`: S1 in-place READY, S2 dry-run/check) · A6 draft.
+(export/import keyword-alone + clause guards; **closes A4**) · **A5 ✅**
+(provider: in-place / --dry-run / --check / --path; dry-run+check provably never
+write — single write site reachable only from in-place; 601/601) · **A6 NEXT**
+(hardening, docs/commands.md, CHANGELOG, bump to 0.5.5).
+
+CL cross-check (yasi, Lisp dialect): formatter output is whitespace-identical to
+a CL indenter on the CL-shared forms; always-break rules are deliberate house
+style. Noted in README "📐 Consistent Formatting".
 
 A4 divergence rulings (Duncan): always-break let/let* (+ binding lists
 one-per-line), case/cond, maps [S3c ✅]; **export/import keyword-alone** with items
