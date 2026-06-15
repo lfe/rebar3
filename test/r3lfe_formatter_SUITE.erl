@@ -78,6 +78,24 @@
     fix1_dist_arg_leading_comment/1
 ]).
 
+%% defforms group (A4·S2)
+-export([
+    defforms_signature_simple/1,
+    defforms_tiny_with_args/1,
+    defforms_constant_fits/1,
+    defforms_constant_exceeds/1,
+    defforms_docstring/1,
+    defforms_multi_body/1,
+    defforms_match_clause/1,
+    defmacro_signature/1,
+    defmacro_match/1,
+    defmodule_always_breaks/1,
+    defrecord_always_breaks/1,
+    defforms_nested_propagates/1,
+    defforms_comment_head_leading/1,
+    defforms_comment_head_trailing/1
+]).
+
 %% fix2 group (A4·S1·fix2 — head trailing comment + matrix)
 -export([
     fix2_funcall_head_trail_args/1,
@@ -98,7 +116,7 @@
 all() ->
     [{group, flat}, {group, breaking},
      {group, comments}, {group, edge}, {group, oracles},
-     {group, indent}, {group, fix1}, {group, fix2}].
+     {group, indent}, {group, fix1}, {group, fix2}, {group, defforms}].
 
 groups() ->
     [
@@ -160,6 +178,22 @@ groups() ->
             fix1_dist_arg_trailing_comment,
             fix1_dist_arg_leading_comment
         ]},
+        {defforms, [], [
+            defforms_signature_simple,
+            defforms_tiny_with_args,
+            defforms_constant_fits,
+            defforms_constant_exceeds,
+            defforms_docstring,
+            defforms_multi_body,
+            defforms_match_clause,
+            defmacro_signature,
+            defmacro_match,
+            defmodule_always_breaks,
+            defrecord_always_breaks,
+            defforms_nested_propagates,
+            defforms_comment_head_leading,
+            defforms_comment_head_trailing
+        ]},
         {fix2, [], [
             fix2_funcall_head_trail_args,
             fix2_funcall_head_trail_no_args,
@@ -201,8 +235,10 @@ flat_ast_equivalence(_Config) ->
     lists:foreach(fun assert_ast_equiv/1, Inputs).
 
 flat_golden_defun(_Config) ->
+    %% A4·S2: defun with a non-empty arglist always breaks (even if it fits in 80).
+    %% Updated from A3 flat shape for S2 defform rule.
     assert_format(<<"(defun f (x) (+ x 1))">>,
-                  <<"(defun f (x) (+ x 1))\n">>).
+                  <<"(defun f (x)\n  (+ x 1))\n">>).
 
 flat_golden_nested(_Config) ->
     assert_format(<<"(a (b c) d)">>, <<"(a (b c) d)\n">>).
@@ -550,7 +586,15 @@ full_corpus() ->
         <<"(progn ; c\n  a\n  b)">>,
         <<"(call ; c\n  mod\n  fun\n  arg)">>,
         <<"(defun ; c\n  name\n  args\n  body)">>,
-        <<"(foo ; c\n  a\n  b ; note\n)">>
+        <<"(foo ; c\n  a\n  b ; note\n)">>,
+        %% A4·S2: defform representatives
+        <<"(defun factorial (n) (if (== n 0) 1 (* n (factorial (- n 1)))))">>,
+        <<"(defun id (x) x)">>,
+        <<"(defun +my-pi+ () 3.14)">>,
+        <<"(defun f (x) \"doc\" (+ x 1))">>,
+        <<"(defun f ((0) 1) ((n) (* n 2)))">>,
+        <<"(defmodule mymod (export (f 0)))">>,
+        <<"(defun g (x) (* x x))">>
     ],
     FileBins = lists:filtermap(
         fun(F) ->
@@ -645,13 +689,12 @@ indent_list_head(_Config) ->
     assert_idempotent(Input).
 
 indent_defform_provisional(_Config) ->
-    %% defform (provisional = specform 1): name (d1) on head line; rest at C+2.
-    %% S2 will refine this with proper signature-line + docstring layout.
+    %% A4·S2: defun with non-empty arglist → N=2 (signature form).
+    %% name + (args) on head line; body at C+2. Updated from provisional S1 shape.
     Args = <<"(a b c d e f g h i j k l m n o p q)">>,
     Body = <<"(+ a b c d e f g h i j k l m n o p q)">>,
-    Input = <<"(defun my-function ", Args/binary, " ", Body/binary, ")">>,
-    %% Provisional: my-function is d1 on head line; args and body at C+2.
-    Expected = <<"(defun my-function\n  ", Args/binary, "\n  ", Body/binary, ")\n">>,
+    Input    = <<"(defun my-function ", Args/binary, " ", Body/binary, ")">>,
+    Expected = <<"(defun my-function ", Args/binary, "\n  ", Body/binary, ")\n">>,
     assert_format(Input, Expected),
     assert_idempotent(Input).
 
@@ -772,3 +815,96 @@ fix2_combination_head_and_body_trail(_Config) ->
     %% Need \n before ) so ) is not swallowed by the trailing comment.
     assert_fix2(<<"(foo ; c\n  a\n  b ; note\n)">>,
                 <<"(foo ; c\n  a\n  b ; note\n)\n">>).
+
+%%====================================================================
+%% defforms group — A4·S2
+%%====================================================================
+
+defforms_signature_simple(_Config) ->
+    %% defun with args always breaks to signature form: (defun name (args)\n  body).
+    assert_format(<<"(defun factorial (n) (if (== n 0) 1 (* n (factorial (- n 1)))))">>,
+                  <<"(defun factorial (n)\n  (if (== n 0) 1 (* n (factorial (- n 1)))))\n">>),
+    assert_idempotent(<<"(defun factorial (n) (if (== n 0) 1 (* n (factorial (- n 1)))))">>).
+
+defforms_tiny_with_args(_Config) ->
+    %% A tiny defun with args still breaks even though it would fit on one line.
+    assert_format(<<"(defun id (x) x)">>, <<"(defun id (x)\n  x)\n">>),
+    assert_idempotent(<<"(defun id (x) x)">>).
+
+defforms_constant_fits(_Config) ->
+    %% defun with empty arglist = constant idiom → flat-if-fits.
+    assert_format(<<"(defun +my-pi+ () 3.14)">>, <<"(defun +my-pi+ () 3.14)\n">>),
+    assert_idempotent(<<"(defun +my-pi+ () 3.14)">>).
+
+defforms_constant_exceeds(_Config) ->
+    %% Empty arglist but form exceeds 80 cols → breaks with N=2.
+    %% flat_width = 1+5+1+4+n+1+1+2+1+4+1 = 21+n; need n>59 → use 60 x's.
+    Long = list_to_binary(lists:duplicate(60, $x)),
+    Input    = <<"(defun +my-", Long/binary, "+ () 3.14)">>,
+    Expected = <<"(defun +my-", Long/binary, "+ ()\n  3.14)\n">>,
+    assert_format(Input, Expected),
+    assert_idempotent(Input).
+
+defforms_docstring(_Config) ->
+    %% Docstring lands at C+2 naturally (no special case needed).
+    assert_format(<<"(defun f (x) \"doc\" (+ x 1))">>,
+                  <<"(defun f (x)\n  \"doc\"\n  (+ x 1))\n">>),
+    assert_idempotent(<<"(defun f (x) \"doc\" (+ x 1))">>).
+
+defforms_multi_body(_Config) ->
+    %% Multiple body forms each at C+2.
+    assert_format(<<"(defun f (x) (foo x) (bar x) (baz x))">>,
+                  <<"(defun f (x)\n  (foo x)\n  (bar x)\n  (baz x))\n">>),
+    assert_idempotent(<<"(defun f (x) (foo x) (bar x) (baz x))">>).
+
+defforms_match_clause(_Config) ->
+    %% Match-clause defun: N=1, each clause at C+2.
+    assert_format(<<"(defun f ((0) 1) ((n) (* n 2)))">>,
+                  <<"(defun f\n  ((0) 1)\n  ((n) (* n 2)))\n">>),
+    assert_idempotent(<<"(defun f ((0) 1) ((n) (* n 2)))">>).
+
+defmacro_signature(_Config) ->
+    %% defmacro with arglist → N=2 (same rules as defun).
+    assert_format(<<"(defmacro my-mac (x) `(foo ,x))">>,
+                  <<"(defmacro my-mac (x)\n  `(foo ,x))\n">>),
+    assert_idempotent(<<"(defmacro my-mac (x) `(foo ,x))">>).
+
+defmacro_match(_Config) ->
+    %% defmacro match form → N=1.
+    assert_format(<<"(defmacro my-mac ((a b) `(+ ,a ,b)))">>,
+                  <<"(defmacro my-mac\n  ((a b) `(+ ,a ,b)))\n">>),
+    assert_idempotent(<<"(defmacro my-mac ((a b) `(+ ,a ,b)))">>).
+
+defmodule_always_breaks(_Config) ->
+    %% defmodule always breaks even when it would fit on one line.
+    assert_format(<<"(defmodule mymod (export (f 0)))">>,
+                  <<"(defmodule mymod\n  (export (f 0)))\n">>),
+    assert_idempotent(<<"(defmodule mymod (export (f 0)))">>).
+
+defrecord_always_breaks(_Config) ->
+    %% defrecord always breaks.
+    assert_format(<<"(defrecord point (x 0) (y 0))">>,
+                  <<"(defrecord point\n  (x 0)\n  (y 0))\n">>),
+    assert_idempotent(<<"(defrecord point (x 0) (y 0))">>).
+
+defforms_nested_propagates(_Config) ->
+    %% A defform inside another form makes the parent also break (infinity propagates).
+    %% (list (defun f (x) x) ok) — the defun forces infinity, parent must break.
+    Input = <<"(list (defun f (x) x) ok)">>,
+    {ok, OutIO} = r3lfe_formatter:format(Input),
+    Out = iolist_to_binary(OutIO),
+    %% Output must be multi-line (not a single flat line)
+    ?assert(binary:match(Out, <<"\n">>) =/= nomatch,
+            "parent of a force-broken defform must itself break"),
+    assert_idempotent(Input),
+    assert_token_preservation(Input).
+
+defforms_comment_head_leading(_Config) ->
+    %% Leading comment on a defun: comment before the form at C=0.
+    assert_idempotent(<<";;; my function\n(defun f (x) x)">>),
+    assert_token_preservation(<<";;; my function\n(defun f (x) x)">>).
+
+defforms_comment_head_trailing(_Config) ->
+    %% Trailing comment on the defun head: all args fall to body (fix2).
+    Src = <<"(defun ; c\n  f\n  (x)\n  x)">>,
+    assert_fix2(Src, <<"(defun ; c\n  f\n  (x)\n  x)\n">>).

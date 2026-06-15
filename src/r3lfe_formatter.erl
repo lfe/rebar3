@@ -161,6 +161,70 @@ any_dist_has_comment([D | Rest]) ->
     orelse any_dist_has_comment(Rest).
 
 %%====================================================================
+%% Internal: defform helpers (A4·S2)
+%%====================================================================
+
+%% is_arglist: true for () and (x y z) but NOT for ((pat) body) match clauses.
+%% A list whose first child is itself a list is a match clause, not an arglist.
+-spec is_arglist(r3lfe_format_cst:cst_node()) -> boolean().
+is_arglist(Node) ->
+    r3lfe_format_cst:type(Node) =:= list
+    andalso case r3lfe_format_cst:children(Node) of
+                []          -> true;
+                [First | _] -> r3lfe_format_cst:type(First) =/= list
+            end.
+
+%% is_force_break_defform: true for defform-headed lists that must always break.
+%% Only defun/defmacro with an empty arglist (the constant idiom) are excluded
+%% and allowed to be flat-if-fits.
+-spec is_force_break_defform(r3lfe_format_cst:cst_node()) -> boolean().
+is_force_break_defform(Node) ->
+    case r3lfe_format_cst:children(Node) of
+        [Head | RestChildren] ->
+            case classify_head(Head) of
+                defform ->
+                    HeadText = r3lfe_format_lexer:text(r3lfe_format_cst:open(Head)),
+                    IsDefunMacro = HeadText =:= "defun" orelse HeadText =:= "defmacro",
+                    case IsDefunMacro of
+                        true  -> not has_empty_arglist(RestChildren);
+                        false -> true   %% defmodule, defrecord, etc. always break
+                    end;
+                _ -> false
+            end;
+        _ -> false
+    end.
+
+%% has_empty_arglist: true when RestChildren is [Name, Arg2 | _] and Arg2 is
+%% an arglist with no children (the empty-arglist / constant idiom).
+-spec has_empty_arglist([r3lfe_format_cst:cst_node()]) -> boolean().
+has_empty_arglist([_Name, Arg2 | _]) ->
+    is_arglist(Arg2) andalso r3lfe_format_cst:children(Arg2) =:= [];
+has_empty_arglist(_) ->
+    false.
+
+%% defform_n: compute the number of distinguished args for a breaking defform.
+%%   defun/defmacro + non-empty arglist as Arg2 → N=2 (signature form)
+%%   defun/defmacro + match-clause Arg2 (or missing Arg2) → N=1
+%%   any other defform → N=1 (name on head line, rest at C+2)
+-spec defform_n(r3lfe_format_cst:cst_node(), [r3lfe_format_cst:cst_node()]) ->
+          pos_integer().
+defform_n(Head, RestChildren) ->
+    HeadText = r3lfe_format_lexer:text(r3lfe_format_cst:open(Head)),
+    case HeadText =:= "defun" orelse HeadText =:= "defmacro" of
+        true ->
+            case RestChildren of
+                [_Name, Arg2 | _] ->
+                    case is_arglist(Arg2) of
+                        true  -> 2;   %% (defun name (args) body…)
+                        false -> 1    %% (defun name ((pat) body)…) match clauses
+                    end;
+                _ -> 1
+            end;
+        false ->
+            1   %% defmodule, defrecord, defstruct, …
+    end.
+
+%%====================================================================
 %% Internal: head classification (A4)
 %%====================================================================
 
@@ -319,12 +383,21 @@ print_classified({specform, N}, Head, RestChildren, Dangling,
             {[HeadLeadIO, Open, HeadIO, HeadTrailIO, DistIO, BodyIO, CloseIO], CloseCol}
     end;
 
-%% defform: provisional — treat as specform 1. S2 refines this with proper
-%% signature-line + docstring + clause layout.
+%% defform — dynamic N, delegating to specform (inherits full comment matrix).
+%%
+%%   defun/defmacro:
+%%     N=2 when RestChildren=[_Name, Arg2|_] and is_arglist(Arg2)
+%%            → signature form: (defun name (args)  body…)
+%%     N=1 otherwise
+%%            → match-clause form: (defun name  clauses…)
+%%   any other defform → N=1 (name on head line, rest at C+2).
+%%
+%% Docstrings need no special case: the first body form (a string) lands at C+2.
 print_classified(defform, Head, RestChildren, Dangling,
                  C, Open, OpenLen, Close, CloseLen,
                  Indent, IndentStr, CIndStr) ->
-    print_classified({specform, 1}, Head, RestChildren, Dangling,
+    N = defform_n(Head, RestChildren),
+    print_classified({specform, N}, Head, RestChildren, Dangling,
                      C, Open, OpenLen, Close, CloseLen,
                      Indent, IndentStr, CIndStr);
 
@@ -465,15 +538,21 @@ flat_width(Node) ->
                     length(r3lfe_format_lexer:text(Tok))
             end;
         T when T =:= list; T =:= tuple; T =:= map; T =:= binary; T =:= eval ->
-            OpenLen  = length(r3lfe_format_lexer:text(r3lfe_format_cst:open(Node))),
-            CloseLen = length(r3lfe_format_lexer:text(r3lfe_format_cst:close(Node))),
-            Children = r3lfe_format_cst:children(Node),
-            case Children of
-                [] -> OpenLen + CloseLen;
-                _  ->
-                    Widths = [flat_width(C) || C <- Children],
-                    Spaces = length(Children) - 1,
-                    add_widths(OpenLen + CloseLen + Spaces, sum_widths(Widths, 0))
+            %% defform-headed lists force infinity (must break) unless they are a
+            %% defun/defmacro with an empty arglist (the constant idiom, §1a).
+            case T =:= list andalso is_force_break_defform(Node) of
+                true -> infinity;
+                false ->
+                    OpenLen  = length(r3lfe_format_lexer:text(r3lfe_format_cst:open(Node))),
+                    CloseLen = length(r3lfe_format_lexer:text(r3lfe_format_cst:close(Node))),
+                    Children = r3lfe_format_cst:children(Node),
+                    case Children of
+                        [] -> OpenLen + CloseLen;
+                        _  ->
+                            Widths = [flat_width(C) || C <- Children],
+                            Spaces = length(Children) - 1,
+                            add_widths(OpenLen + CloseLen + Spaces, sum_widths(Widths, 0))
+                    end
             end;
         prefixed ->
             PfxLen  = length(r3lfe_format_lexer:text(r3lfe_format_cst:prefix(Node))),
