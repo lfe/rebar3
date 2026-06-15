@@ -137,6 +137,19 @@
     defforms_comment_head_trailing/1
 ]).
 
+%% export_guards group (A4·S3d)
+-export([
+    eg_export_wide/1,
+    eg_export_short/1,
+    eg_import_wide/1,
+    eg_guard_defun_match/1,
+    eg_guard_match_lambda/1,
+    eg_guard_comment_fallback_pat_trail/1,
+    eg_guard_comment_fallback_guard_lead/1,
+    eg_guard_non_guard_unchanged/1,
+    eg_guard_small_stays_flat/1
+]).
+
 %% fix2 group (A4·S1·fix2 — head trailing comment + matrix)
 -export([
     fix2_funcall_head_trail_args/1,
@@ -159,7 +172,8 @@ all() ->
      {group, comments}, {group, edge}, {group, oracles},
      {group, indent}, {group, fix1}, {group, fix2},
      {group, defforms}, {group, data_containers},
-     {group, conformance}, {group, always_break}].
+     {group, conformance}, {group, always_break},
+     {group, export_guards}].
 
 groups() ->
     [
@@ -271,6 +285,17 @@ groups() ->
             defforms_nested_propagates,
             defforms_comment_head_leading,
             defforms_comment_head_trailing
+        ]},
+        {export_guards, [], [
+            eg_export_wide,
+            eg_export_short,
+            eg_import_wide,
+            eg_guard_defun_match,
+            eg_guard_match_lambda,
+            eg_guard_comment_fallback_pat_trail,
+            eg_guard_comment_fallback_guard_lead,
+            eg_guard_non_guard_unchanged,
+            eg_guard_small_stays_flat
         ]},
         {fix2, [], [
             fix2_funcall_head_trail_args,
@@ -682,7 +707,11 @@ full_corpus() ->
         <<"(let* ((low 1) (high 2) (sum (+ low high))) (+ low sum))">>,
         <<"(case x (1 'a) (2 'b))">>,
         <<"(cond (a 1) (b 2))">>,
-        <<"#m(a 1 b 2)">>
+        <<"#m(a 1 b 2)">>,
+        %% A4·S3d: export/import N=0 + guard representatives
+        <<"(defmodule maths\n  (export\n    (ackermann 2)\n    (factorial 1)\n    (large-prime-number? 1)))">>,
+        <<"(defun long-factorial-function\n  ((0 accumulator) accumulator)\n  ((number accumulator) (when (> number 0))\n   (long-factorial-function (- number 1) (* number accumulator))))">>,
+        <<"(defun f\n  ((n acc) (when (> n 0)) (f (- n 1) (* n acc)))\n  ((0 acc) acc))">>
     ],
     FileBins = lists:filtermap(
         fun(F) ->
@@ -841,6 +870,102 @@ fix1_dist_arg_leading_comment(_Config) ->
             "closing paren must survive leading comment on 2nd dist arg"),
     assert_idempotent(Src),
     assert_token_preservation(Src).
+
+%%====================================================================
+%% export_guards group — A4·S3d: export/import N=0 + clause guard handling
+%%====================================================================
+
+eg_export_wide(_Config) ->
+    %% Wide (export …) → keyword alone on its line, items at C+2. ✅
+    assert_format(
+        <<"(defmodule maths\n"
+          "  (export (ackermann 2) (factorial 1) (factorial 2)\n"
+          "          (large-prime-number? 1) (small-prime-number? 1)))">>,
+        <<"(defmodule maths\n"
+          "  (export\n"
+          "    (ackermann 2)\n"
+          "    (factorial 1)\n"
+          "    (factorial 2)\n"
+          "    (large-prime-number? 1)\n"
+          "    (small-prime-number? 1)))\n">>),
+    assert_idempotent(
+        <<"(defmodule maths\n"
+          "  (export (ackermann 2) (factorial 1) (factorial 2)\n"
+          "          (large-prime-number? 1) (small-prime-number? 1)))">>).
+
+eg_export_short(_Config) ->
+    %% Short (export …) that fits flat — stays on one line.
+    assert_format(<<"(defmodule m (export (run 0)))">>,
+                  <<"(defmodule m\n  (export (run 0)))\n">>),
+    assert_idempotent(<<"(defmodule m (export (run 0)))">>).
+
+eg_import_wide(_Config) ->
+    %% Wide (import …) → keyword alone, (from …)/(rename …) at C+2. ✅
+    Input = <<"(defmodule m\n"
+              "  (import (from lists (map 2) (filter 2) (foldl 3) (foldr 3) (any 2) (all 2))\n"
+              "          (rename io ((format 2) fmt))))">>,
+    Expected = <<"(defmodule m\n"
+                 "  (import\n"
+                 "    (from lists (map 2) (filter 2) (foldl 3) (foldr 3) (any 2) (all 2))\n"
+                 "    (rename io ((format 2) fmt))))\n">>,
+    assert_format(Input, Expected),
+    assert_idempotent(Input).
+
+eg_guard_defun_match(_Config) ->
+    %% defun match-clause with wide guard: Pat + Guard on one line, Body below at AlignCol.
+    %% The clause `((number accumulator) (when …) (long-call …))` exceeds 80 cols at C=2.
+    Input = <<"(defun long-factorial-function\n"
+              "  ((0 accumulator) accumulator)\n"
+              "  ((number accumulator) (when (> number 0))\n"
+              "   (long-factorial-function (- number 1) (* number accumulator))))">>,
+    assert_format(Input, <<Input/binary, "\n">>),
+    assert_idempotent(Input),
+    assert_token_preservation(Input).
+
+eg_guard_match_lambda(_Config) ->
+    %% match-lambda clause with guard: same Pat+Guard layout.
+    Input = <<"(match-lambda\n"
+              "  ((n accumulator) (when (> n 0))\n"
+              "   (some-long-recursive-call (- n 1) (* n accumulator)))\n"
+              "  ((0 acc) acc))">>,
+    assert_format(Input, <<Input/binary, "\n">>),
+    assert_idempotent(Input),
+    assert_token_preservation(Input).
+
+eg_guard_comment_fallback_pat_trail(_Config) ->
+    %% Pat has trailing comment → HeadHasTrail=true → guard path suppressed;
+    %% falls back to element-per-line so no content follows the comment.
+    Input = <<"((very-long-pat-name accum) ; c\n"
+              " (when (> very-long-pat-name 0))\n"
+              " (long-body-call very-long-pat-name accum))">>,
+    assert_format(Input, <<Input/binary, "\n">>),
+    assert_idempotent(Input),
+    assert_token_preservation(Input).
+
+eg_guard_comment_fallback_guard_lead(_Config) ->
+    %% Guard has leading comment → UseGuard=false → element-per-line fallback.
+    Input = <<"((very-long-pat-name accum)\n"
+              " ;; guard\n"
+              " (when (> very-long-pat-name 0))\n"
+              " (long-body-call very-long-pat-name accum))">>,
+    assert_format(Input, <<Input/binary, "\n">>),
+    assert_idempotent(Input),
+    assert_token_preservation(Input).
+
+eg_guard_non_guard_unchanged(_Config) ->
+    %% Non-guard clause ((n) body): list_head element-per-line, unchanged.
+    assert_format(<<"(defun f ((0) 1) ((n) (* n 2)))">>,
+                  <<"(defun f\n  ((0) 1)\n  ((n) (* n 2)))\n">>),
+    assert_idempotent(<<"(defun f ((0) 1) ((n) (* n 2)))">>).
+
+eg_guard_small_stays_flat(_Config) ->
+    %% Small guard clause (fits ≤80 at its column): guard rule not needed; stays flat.
+    %% This is a fixed point — the guard rule only activates when the clause breaks.
+    Input = <<"(defun f\n"
+              "  ((n acc) (when (> n 0)) (f (- n 1) (* n acc)))\n"
+              "  ((0 acc) acc))">>,
+    assert_format(Input, <<Input/binary, "\n">>),
+    assert_idempotent(Input).
 
 %%====================================================================
 %% fix2 group — A4·S1·fix2: head trailing comment matrix
@@ -1099,21 +1224,22 @@ data_nested_list_in_map(_Config) ->
 %%  do-something multiline    ✅       funcall-align under first arg
 %%  defrecord                 ✅       always-break, N=1
 %%  defmodule (simple)        ✅       always-break, N=1
-%%  defmodule (wide exports)  ⚠  [1]  funcall-align at col 10 vs guide's col 3;
-%%                                     guide's format is NOT in lfe-indent.el
+%%  defmodule (wide exports)  ✅  [1]  A4·S3d: export/import → specform N=0;
+%%                                     now matches guide's (export\n  item…) layout
 %%  map pairs (wide)          ✅       pairs aligned at C+OpenLen
 %%  map pairs (small, ≤80)   ⚠  [2]  flat-if-fits: small maps stay flat;
 %%                                     guide shows pairs even for short maps
 %%  let/let* binding list     ⚠  [3]  binding list flat when it fits (≤80);
 %%                                     guide breaks each binding for readability
 %%  case small                ⚠  [4]  flat-if-fits; guide breaks even short cases
-%%  factorial with guard      ⚠  [5]  guard+body kept flat when ≤80;
-%%                                     guide breaks guard and body to separate lines
+%%  factorial with guard      ⚠  [5]  small guard (≤80) stays flat; wide guard
+%%                                     gets Pat+Guard on one line (A4·S3d Decision B)
 %%  inline comment spacing    ⚠  [6]  exactly 1 space before ; per spec §4;
 %%                                     guide sometimes shows 3 spaces for alignment
 %%
-%%  [1]–[6] are divergences: the formatter follows lfe-indent.el and the spec's
-%%  flat-if-fits rule; the guide's human choices go beyond mechanical formatting.
+%%  [1] resolved by A4·S3d (export/import → specform N=0).
+%%  [2]–[6] remain: the formatter follows lfe-indent.el and the spec's flat-if-fits
+%%  rule; the guide's human choices go beyond mechanical formatting.
 %%  These are recorded for planner adjudication, not silently fixed.
 %%====================================================================
 
@@ -1174,22 +1300,24 @@ conf_defmodule_simple(_Config) ->
         <<"(defmodule mymod\n  (export (f 0)))\n">>).
 
 conf_defmodule_exports_our_canonical(_Config) ->
-    %% ⚠ DIVERGENCE [1]: guide shows (export\n   item…) at col 3;
-    %% formatter uses funcall-align (items at col 10, matching lfe-indent.el default).
-    %% This IS a fixed point for our canonical form — just not the guide's.
+    %% A4·S3d Decision A: export is specform N=0 — keyword alone, items at C+2.
+    %% ✅ FIXED POINT — this now matches the style guide's (export\n  item…) layout.
+    %% (Replaces the old funcall-align divergence [1].)
     assert_format(
         <<"(defmodule maths\n"
-          "  (export (ackermann 2)\n"
-          "          (factorial 1)\n"
-          "          (factorial 2)\n"
-          "          (large-prime-number? 1)\n"
-          "          (small-prime-number? 1)))">>,
+          "  (export\n"
+          "    (ackermann 2)\n"
+          "    (factorial 1)\n"
+          "    (factorial 2)\n"
+          "    (large-prime-number? 1)\n"
+          "    (small-prime-number? 1)))">>,
         <<"(defmodule maths\n"
-          "  (export (ackermann 2)\n"
-          "          (factorial 1)\n"
-          "          (factorial 2)\n"
-          "          (large-prime-number? 1)\n"
-          "          (small-prime-number? 1)))\n">>).
+          "  (export\n"
+          "    (ackermann 2)\n"
+          "    (factorial 1)\n"
+          "    (factorial 2)\n"
+          "    (large-prime-number? 1)\n"
+          "    (small-prime-number? 1)))\n">>).
 
 conf_map_wide_pairs(_Config) ->
     %% Wide map (>80 chars): pair alignment, first pair on opener line.  ✅
@@ -1206,12 +1334,12 @@ conf_map_wide_pairs(_Config) ->
 
 conf_factorial(_Config) ->
     %% First defun (signature): N=2, name+(args) on head line.  ✅
-    %% ⚠ DIVERGENCE [5]: guard clause ((n acc) (when …) body) is kept flat when ≤80;
-    %% guide breaks guard and body to separate lines.
+    %% ⚠ DIVERGENCE [5] (partial): small guard (≤80 at its column) stays flat;
+    %% wide guard uses Pat+Guard on one line (A4·S3d Decision B).
     assert_format(
         <<"(defun factorial (n)\n  (factorial n 1))">>,
         <<"(defun factorial (n)\n  (factorial n 1))\n">>),
-    %% Match-clause form: N=1.
+    %% Match-clause form: N=1. Small guard fits flat — no guard rule activated.
     assert_idempotent(<<"(defun factorial\n"
                         "  ((0 acc) acc)\n"
                         "  ((n acc) (when (> n 0)) (factorial (- n 1) (* n acc))))">>).

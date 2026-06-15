@@ -322,12 +322,14 @@ Docstring on its own line at +2, before the body.
 ```
 
 ### 36. defun match-clause with guard
-Pattern and `(when ...)` guard share one line; body below.
+Pattern and `(when ...)` guard share one line; body below at align column.
+Wide clauses trigger the guard path; small clauses stay flat.
 
 ```lfe
-(defun safe-div
-  ((x y) (when (> y 0)) (/ x y))
-  ((_ _) 0))
+(defun factorial
+  ((0 accumulator) accumulator)
+  ((number accumulator) (when (> number 0))
+   (factorial (- number 1) (* number accumulator))))
 ```
 
 ### 37. defmacro
@@ -341,19 +343,27 @@ A macro definition (signature and/or match-clause).
 ```
 
 ### 38. defmodule with export
-`export` keyword alone on its line; exported funs indented below.
+Wide `export`: keyword alone on its line, items at `C+2` (specform N=0).
+Short `export` that fits within 80 cols stays flat.
 
 ```lfe
 (defmodule my-module
-  (export (foo 1) (bar 2)))
+  (export
+    (ackermann 2)
+    (factorial 1)
+    (factorial 2)
+    (large-prime-number? 1)
+    (small-prime-number? 1)))
 ```
 
 ### 39. defmodule with import
-`(import (from mod ...) (rename mod ...))`.
+Wide `import`: keyword alone, `(from …)`/`(rename …)` at `C+2`.
 
 ```lfe
 (defmodule my-module
-  (import (from lists (map 2) (filter 2)) (rename io ((format 2) fmt))))
+  (import
+    (from lists (map 2) (filter 2) (foldl 3) (foldr 3))
+    (rename io ((format 2) fmt))))
 ```
 
 ### 40. defrecord

@@ -1,4 +1,4 @@
-%%%% LFE source formatter — Arc A4·S1: head-classified indentation (A3 base + indent table).
+%%%% LFE source formatter — Arc A4·S3d: export/import keyword-alone + clause guards.
 %%%% Pipeline: r3lfe_format_lexer -> r3lfe_format_cst -> iolist.
 %%%%
 %%%% Output is LF-only (\n). CRLF input is normalised to LF because A1 lexes
@@ -244,6 +244,17 @@ print_map_pairs_rest([K], AlignCol, AlignStr) ->
     KTrail = r3lfe_format_cst:trailing(K) =/= [],
     {["\n", AlignStr, KIO], KCol, KTrail}.
 
+%% is_when_form: true if Node is a list whose first child is the symbol "when".
+-spec is_when_form(r3lfe_format_cst:cst_node()) -> boolean().
+is_when_form(Node) ->
+    r3lfe_format_cst:type(Node) =:= list
+    andalso case r3lfe_format_cst:children(Node) of
+                [WHead | _] ->
+                    r3lfe_format_cst:type(WHead) =:= symbol
+                    andalso r3lfe_format_lexer:text(r3lfe_format_cst:open(WHead)) =:= "when";
+                [] -> false
+            end.
+
 %% head_has_leading_comment: true iff the node's leading contains a comment.
 -spec head_has_leading_comment(r3lfe_format_cst:cst_node()) -> boolean().
 head_has_leading_comment(Node) ->
@@ -392,6 +403,9 @@ classify_head(Head) ->
     end.
 
 %% specform_table: verbatim from lfe-indent.el; maps symbol text → N distinguished args.
+%% Intentional extensions beyond lfe-indent.el (per Duncan's ruling):
+%%   "export" => 0, "import" => 0 — keyword-alone style, items at C+2, flat-if-fits.
+%%   Other module-clause forms (behaviour, doc, …) could be added similarly.
 %% Dialyzer infers a narrower key type ([1..255,...]) than string(); suppress.
 -dialyzer({no_underspecs, specform_table/0}).
 -spec specform_table() -> #{string() => non_neg_integer()}.
@@ -407,7 +421,9 @@ specform_table() ->
         "define-function"   => 1,
         "define-macro"      => 1,
         "define-module"     => 1,
+        "export"            => 0,
         "extend-module"     => 0,
+        "import"            => 0,
         "do"                => 2,
         "else"              => 0,
         "eval-when-compile" => 0,
@@ -454,6 +470,12 @@ specform_table() ->
           {iolist(), non_neg_integer()}.
 
 %% list_head: all elements aligned under the first at C+len(Open).
+%%
+%% Guard path (S3d): if RestChildren=[Guard|Body] where Guard is (when …)
+%% and neither Pat (Head) nor Guard carries a comment, keep Pat+Guard on one
+%% line and emit Body one per line at AlignCol.  Falls back to element-per-line
+%% when either has a comment (comment safety) or Head has a trailing comment.
+%% Atom-pattern clauses (Pat is a symbol → funcall class) never reach here.
 print_classified(list_head, Head, RestChildren, Dangling,
                  C, Open, OpenLen, Close, _CloseLen,
                  Indent, IndentStr, CIndStr) ->
@@ -463,12 +485,35 @@ print_classified(list_head, Head, RestChildren, Dangling,
     {HeadIO, HeadCol}  = print_node(Head, AlignCol),
     {HeadTrailIO, HTC} = emit_trailing(r3lfe_format_cst:trailing(Head), HeadCol),
     HeadHasTrail = r3lfe_format_cst:trailing(Head) =/= [],
-    case RestChildren of
-        [] ->
+    UseGuard = case RestChildren of
+        [G | _] ->
+            is_when_form(G)
+            andalso not HeadHasTrail
+            andalso r3lfe_format_cst:leading(G) =:= []
+            andalso r3lfe_format_cst:trailing(G) =:= [];
+        _ -> false
+    end,
+    case {UseGuard, RestChildren} of
+        {true, [Guard | Body]} ->
+            %% Pat already printed; Guard on same line, Body below at AlignCol.
+            {GuardIO, GuardCol} = print_node(Guard, HTC + 1),
+            case Body of
+                [] ->
+                    {CloseIO, CloseCol} = close_section(Dangling, false, GuardCol,
+                                                        Indent, IndentStr, C, CIndStr, Close),
+                    {[HeadLeadIO, Open, HeadIO, HeadTrailIO, " ", GuardIO, CloseIO], CloseCol};
+                _ ->
+                    {BodyIO, LastCol, HasTrail} = print_rest_loop(Body, AlignCol,
+                                                                   AlignStr, true),
+                    {CloseIO, CloseCol} = close_section(Dangling, HasTrail, LastCol,
+                                                        Indent, IndentStr, C, CIndStr, Close),
+                    {[HeadLeadIO, Open, HeadIO, HeadTrailIO, " ", GuardIO, BodyIO, CloseIO], CloseCol}
+            end;
+        {false, []} ->
             {CloseIO, CloseCol} = close_section(Dangling, HeadHasTrail, HTC,
                                                 Indent, IndentStr, C, CIndStr, Close),
             {[HeadLeadIO, Open, HeadIO, HeadTrailIO, CloseIO], CloseCol};
-        _ ->
+        {false, _} ->
             {RestIO, LastCol, HasTrail} = print_rest_loop(RestChildren, AlignCol,
                                                            AlignStr, true),
             {CloseIO, CloseCol} = close_section(Dangling, HasTrail, LastCol,
