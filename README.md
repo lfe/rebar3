@@ -42,6 +42,7 @@ rebar3 lfe compile    # Compile your code
 rebar3 lfe repl       # Start REPL
 rebar3 lfe eval '(+ 1 2 3)'  # Evaluate LFE expressions
 rebar3 lfe ltest      # Run tests
+rebar3 lfe format     # Format your source
 ```
 
 **[See Full Quick Start →](docs/quickstart.md)**
@@ -101,12 +102,48 @@ src/myapp.lfe:10: error: undefined function foo/1
   Did you mean: bar/1?
 ```
 
+### 📐 Consistent Formatting
+
+`rebar3 lfe format` reformats your LFE source to the LFE style conventions
+(80-column width, 2-space indentation, the standard special-form indentation, and
+key-value pairs in maps), **preserving every comment**. By default it edits files
+in place; `--dry-run` prints the result to stdout instead, and `--check` makes it
+a CI gate.
+
+**Format in place** (the default — files are rewritten):
+
+```bash
+rebar3 lfe format                     # every .lfe file in the configured source dirs
+rebar3 lfe format --path src/sub      # only this directory (recursively)
+rebar3 lfe format --path src/foo.lfe  # only this file
+```
+
+**Dry run** (no files changed — formatted output goes to stdout; over multiple
+files, each is preceded by a `;; ==> <path>` header):
+
+```bash
+rebar3 lfe format --dry-run                     # whole project, to stdout
+rebar3 lfe format --dry-run --path src/sub      # one directory, to stdout
+rebar3 lfe format --dry-run --path src/foo.lfe  # one file, to stdout
+```
+
+**Check** (no files changed — exits non-zero and lists any files that are not
+already formatted; ideal for CI):
+
+```bash
+rebar3 lfe format --check
+```
+
+Without `--path`, `format` operates on the source directories configured in
+`rebar.config` (`src_dirs`), defaulting to `src/`.
+
 ### ⚡ All the Commands
 
 **Core:**
 
 * `compile` - Smart, incremental compilation
 * `clean` - Remove build artifacts
+* `format` - Format LFE source (in place, `--dry-run`, or `--check`)
 * `repl` - Interactive LFE shell
 * `eval` - Evaluate LFE expressions
 * `ltest` - Run tests

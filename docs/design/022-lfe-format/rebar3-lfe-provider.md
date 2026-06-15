@@ -162,16 +162,24 @@ Plus **golden-file** tests: the style-guide examples must format to themselves
 
 ## 6. Provider surface
 
-Mirror `r3lfe_prv_clean` / `r3lfe_prv_eval`. Declared `opts`:
+Mirror `r3lfe_prv_clean` / `r3lfe_prv_eval`. Declared `opts` (final surface,
+adjudicated with Duncan; see README "📐 Consistent Formatting"):
 
 ```erlang
 Opts = [
-    {check, $c, "check", boolean,
+    {dry_run, $n, "dry-run", boolean,
+     "Do not write; print the formatted result to stdout"},
+    {check,   $c, "check",   boolean,
      "Do not write; exit non-zero if any file is not already formatted"},
-    {path,  $p, "path",  string,
+    {path,    $p, "path",    string,
      "Format only this file or directory, ignoring configured source dirs"}
 ].
 ```
+
+Three modes (mutually exclusive writes): **in-place** (default), **`--dry-run`**
+(stdout), **`--check`** (CI). `--path` composes with all three. (If both
+`--dry-run` and `--check` are given, prefer `--check` semantics or error — A5
+decides and documents.)
 
 `do/1` logic:
 
@@ -183,18 +191,21 @@ Opts = [
      to `src/` plus any configured `src_dirs`. `include/` and `test/` are reached
      via `--path` or by configuring `src_dirs`; we honor the user's spec of
      "configured source directories or the defaults".)
-3. For each file: read, `format/1`, then:
-   - normal mode: write back only if changed; report changed files;
-   - `--check`: never write; collect files that *would* change.
-4. Exit: normal mode returns `{ok, State}`; `--check` returns `{ok, State}` if
-   clean, `{error, …}` (non-zero) if any file would change, listing them.
+3. For each file: read, `format/1`, then dispatch by mode:
+   - **in-place** (default): write back only if changed; report changed files;
+   - **`--dry-run`**: never write; print the formatted result to stdout. Over
+     multiple files, precede each with a `;; ==> <path>` header line;
+   - **`--check`**: never write; collect files that *would* change.
+4. Exit: in-place and `--dry-run` return `{ok, State}`; `--check` returns
+   `{ok, State}` if clean, `{error, …}` (non-zero) if any file would change,
+   listing them.
 
 Register `r3lfe_prv_format` in `rebar3_lfe.erl`'s provider list.
 
 **CLI safety note (per project CLAUDE.md):** the formatter writes files the user
 can recover with `git checkout`; it must never touch anything outside the
-resolved file set, and `--check` must never write. No safety-gate flags are
-involved.
+resolved file set, and neither `--dry-run` nor `--check` may ever write. No
+safety-gate flags are involved.
 
 ## 7. Arc breakdown (handed to CC one arc at a time)
 

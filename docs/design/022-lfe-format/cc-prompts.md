@@ -8,15 +8,24 @@ drafts to be tightened after the prior arc's report is graded.
 Status: **A1 ✅ · A2 ✅ · A3 ✅** · **A4 IN PROGRESS** (S1 ✅ incl. fix1+fix2;
 comment-on-head-line matrix exhaustively handled & in the corpus) · S2 ✅
 (def-forms: constant-idiom flat, with-args break, dynamic N) · **S3 split into
-S3a ✅ + S3b ✅ (conformance: 11 fixed points, wide sweep over all vendored
-`_build/**/*.lfe` green). **6 divergences adjudicated by Duncan** → S3c + S3d
-implement the chosen changes (then A4 closes) · A5–A6 drafts.
+S3a ✅ + S3b ✅ (conformance) + S3c ✅ (always-break let/case/cond/map). 6
+divergences adjudicated → **S3d READY** = `arc4-indent/cc-prompt-s3d-export-guards.md`
+(export/import keyword-alone + clause guards; **closes A4**) · **A5 designed +
+sub-sliced** (`arc5-provider/`: S1 in-place READY, S2 dry-run/check) · A6 draft.
 
-A4 divergence rulings (Duncan): **always-break** let/let* (+ binding lists
-one-per-line), case/cond, and maps — even when they fit [S3c]; **export/import**
-keyword-alone with items indented [S3d]; match-clause **pattern+guard on one
-line** [S3d]; trailing-comment alignment → **accept divergence** (single space,
-no change).
+A4 divergence rulings (Duncan): always-break let/let* (+ binding lists
+one-per-line), case/cond, maps [S3c ✅]; **export/import keyword-alone** with items
+indented [S3d]; match-clause **pattern+guard on one line** [S3d]; trailing-comment
+alignment → accept divergence (single space, no change). **S3d = last A4 slice.**
+
+**A5 CLI surface (final, adjudicated with Duncan):** `rebar3 lfe format` edits in
+place by default; `--dry-run`/`-n` prints formatted output to stdout (multi-file:
+each under a `;; ==> <path>` header); `--check`/`-c` is the CI gate (no writes,
+exit non-zero + list unformatted files); `--path`/`-p` (file or dir) composes with
+all three. Documented in README "📐 Consistent Formatting" and design §6.
+
+**README** updated (Quick Start, "📐 Consistent Formatting" feature section, and
+the Core commands list) with the in-place / dry-run / check usage matrix.
 
 **Formatting gallery** (`formatting-gallery.md` + `cc-prompt-gallery.md`): a
 60-entry compile-verified showcase of the formatter's canonical output, filled by
@@ -222,7 +231,15 @@ them; AST-equivalence and comment preservation still hold.
 
 ---
 
-## Arc A5 — Provider + CLI wiring  *(DRAFT)*
+## Arc A5 — Provider + CLI wiring  *(DESIGNED — sub-sliced in `arc5-provider/`)*
+
+> Hand CC the sub-slices one at a time: `arc5-provider/cc-prompt-s1-inplace.md`
+> (provider skeleton + file resolution + in-place mode + registration) →
+> `arc5-provider/cc-prompt-s2-dryrun-check.md` (`--dry-run` stdout + `--check` CI).
+> Shared ref + concrete plumbing API in `arc5-provider/cc-prompt.md`. Final CLI:
+> in-place default; `--dry-run`/`-n`; `--check`/`-c`; `--path`/`-p`.
+
+Original outline (superseded by the arc5-provider prompts):
 
 **Task.** Create `src/r3lfe_prv_format.erl` modeled on `r3lfe_prv_clean` /
 `r3lfe_prv_eval` (design §6). Declare `--check`/`-c` (boolean) and `--path`/`-p`

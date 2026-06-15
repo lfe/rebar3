@@ -39,7 +39,8 @@ init(State) ->
         r3lfe_prv_escriptize,
         r3lfe_prv_run_escript,
         r3lfe_prv_run_release,
-        r3lfe_prv_confabulate
+        r3lfe_prv_confabulate,
+        r3lfe_prv_format
     ],
 
     State2 = lists:foldl(
