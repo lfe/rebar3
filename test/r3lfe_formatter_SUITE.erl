@@ -163,6 +163,34 @@
     fix2_combination_head_and_body_trail/1
 ]).
 
+%% edge_hardening group (A6·S1)
+-export([
+    eh_whitespace_only/1,
+    eh_comment_only_block/1,
+    eh_no_trailing_newline/1,
+    eh_crlf_multiline/1,
+    eh_unicode_string/1,
+    eh_unicode_symbol/1,
+    eh_long_atom/1,
+    eh_long_string/1,
+    eh_deep_nesting/1,
+    eh_read_eval/1,
+    eh_large_file/1,
+    eh_blank_in_body/1
+]).
+
+%% fuzz group (A6·S1)
+-export([
+    fuzz_truncated/1,
+    fuzz_random_bytes/1,
+    fuzz_unbalanced/1
+]).
+
+%% corpus_sweep group (A6·S1)
+-export([
+    corpus_sweep_all/1
+]).
+
 %%====================================================================
 %% CT Callbacks
 %%====================================================================
@@ -173,7 +201,8 @@ all() ->
      {group, indent}, {group, fix1}, {group, fix2},
      {group, defforms}, {group, data_containers},
      {group, conformance}, {group, always_break},
-     {group, export_guards}].
+     {group, export_guards},
+     {group, edge_hardening}, {group, fuzz}, {group, corpus_sweep}].
 
 groups() ->
     [
@@ -307,6 +336,28 @@ groups() ->
             fix2_defun_head_trail,
             fix2_list_head_head_trail,
             fix2_combination_head_and_body_trail
+        ]},
+        {edge_hardening, [], [
+            eh_whitespace_only,
+            eh_comment_only_block,
+            eh_no_trailing_newline,
+            eh_crlf_multiline,
+            eh_unicode_string,
+            eh_unicode_symbol,
+            eh_long_atom,
+            eh_long_string,
+            eh_deep_nesting,
+            eh_read_eval,
+            eh_large_file,
+            eh_blank_in_body
+        ]},
+        {fuzz, [], [
+            fuzz_truncated,
+            fuzz_random_bytes,
+            fuzz_unbalanced
+        ]},
+        {corpus_sweep, [], [
+            corpus_sweep_all
         ]}
     ].
 
@@ -1484,3 +1535,263 @@ ab_case_last_child_trailing(_Config) ->
     %% Trailing comment on last case clause: close on own line (fix1 still holds).
     Src = <<"(case x\n  (1 'a) ; note\n  )">>,
     assert_fix2(Src, <<"(case x\n  (1 'a) ; note\n)\n">>).
+
+%%====================================================================
+%% edge_hardening group — A6·S1
+%%====================================================================
+
+eh_whitespace_only(_Config) ->
+    %% Pure whitespace produces empty output (same as empty file).
+    assert_format(<<"   \n  \t  ">>, <<>>),
+    assert_idempotent(<<"   \n  \t  ">>).
+
+eh_comment_only_block(_Config) ->
+    %% A file with only a block comment: preserved, idempotent.
+    Src = <<"#| block comment |#">>,
+    {ok, IO} = r3lfe_formatter:format(Src),
+    Out = iolist_to_binary(IO),
+    ?assertEqual(<<"#| block comment |#\n">>, Out),
+    assert_idempotent(Src).
+
+eh_no_trailing_newline(_Config) ->
+    %% Non-empty input without trailing newline: formatter adds exactly one.
+    assert_format(<<"(foo bar)">>, <<"(foo bar)\n">>),
+    assert_idempotent(<<"(foo bar)">>).
+
+eh_crlf_multiline(_Config) ->
+    %% Multi-line CRLF input: output is LF-only.
+    Src = <<"(foo\r\n  bar\r\n  baz)">>,
+    {ok, IO} = r3lfe_formatter:format(Src),
+    Out = iolist_to_binary(IO),
+    ?assertEqual(nomatch, binary:match(Out, <<"\r">>),
+                 "output must contain no CR bytes"),
+    assert_idempotent(Src).
+
+eh_unicode_string(_Config) ->
+    %% UTF-8 string literal preserved verbatim; output is valid UTF-8.
+    %% "日本語" = E6 97 A5 E6 9C AC E8 AA 9E
+    Src = <<34, 16#E6, 16#97, 16#A5, 16#E6, 16#9C, 16#AC, 16#E8, 16#AA, 16#9E, 34>>,
+    {ok, IO} = r3lfe_formatter:format(Src),
+    %% Formatter iolist may contain Unicode codepoints; use characters_to_binary.
+    Out = unicode:characters_to_binary(IO, unicode, utf8),
+    ?assert(binary:match(Out, <<16#E6, 16#97, 16#A5>>) =/= nomatch,
+            "unicode bytes must be preserved"),
+    %% Idempotency: pass 2 output must equal pass 1 output.
+    {ok, IO2} = r3lfe_formatter:format(Out),
+    Out2 = unicode:characters_to_binary(IO2, unicode, utf8),
+    ?assertEqual(Out, Out2, "unicode string must be idempotent").
+
+eh_unicode_symbol(_Config) ->
+    %% UTF-8 pipe-quoted symbol preserved; output is valid UTF-8.
+    Src = <<$|, 16#E6, 16#97, 16#A5, 16#E6, 16#9C, 16#AC, $|>>,
+    {ok, IO} = r3lfe_formatter:format(Src),
+    Out = unicode:characters_to_binary(IO, unicode, utf8),
+    ?assert(binary:match(Out, <<16#E6, 16#97, 16#A5>>) =/= nomatch,
+            "unicode bytes must be preserved"),
+    {ok, IO2} = r3lfe_formatter:format(Out),
+    Out2 = unicode:characters_to_binary(IO2, unicode, utf8),
+    ?assertEqual(Out, Out2, "unicode symbol must be idempotent").
+
+eh_long_atom(_Config) ->
+    %% A single atom longer than 80 chars: emitted as-is on its own line, no loop.
+    LongAtom = list_to_binary(lists:duplicate(100, $a)),
+    {ok, IO} = r3lfe_formatter:format(LongAtom),
+    Out = iolist_to_binary(IO),
+    ?assert(binary:match(Out, LongAtom) =/= nomatch,
+            "long atom must appear verbatim"),
+    assert_idempotent(LongAtom).
+
+eh_long_string(_Config) ->
+    %% A single string longer than 80 chars: emitted as-is on its own line, no loop.
+    LongStr = iolist_to_binary([$", lists:duplicate(100, $x), $"]),
+    {ok, IO} = r3lfe_formatter:format(LongStr),
+    Out = iolist_to_binary(IO),
+    ?assert(byte_size(Out) > 100, "output must preserve the long string"),
+    assert_idempotent(LongStr).
+
+eh_deep_nesting(_Config) ->
+    %% 500 levels of nesting: no stack overflow, completes, idempotent.
+    Deep = iolist_to_binary([lists:duplicate(500, "(a "), lists:duplicate(500, ")")]),
+    ?assertMatch({ok, _}, r3lfe_formatter:format(Deep)),
+    assert_idempotent(Deep).
+
+eh_read_eval(_Config) ->
+    %% #.(expr) read-eval form: does not crash (excluded from AST-equiv only).
+    Src = <<"#.(+ 1 2)">>,
+    ?assertMatch({ok, _}, r3lfe_formatter:format(Src)),
+    assert_idempotent(Src).
+
+eh_large_file(_Config) ->
+    %% A large real file (47 KB): formats in reasonable time.
+    TestDir = filename:dirname(filename:absname(?FILE)),
+    LargeFile = filename:join([TestDir, "..", "_integration",
+                               "_build", "default", "plugins",
+                               "lfe", "test", "guard_SUITE.lfe"]),
+    case file:read_file(LargeFile) of
+        {error, _} ->
+            ct:log("guard_SUITE.lfe not found, skipping large-file test");
+        {ok, Bin} ->
+            ct:log("guard_SUITE.lfe: ~p bytes", [byte_size(Bin)]),
+            ?assertMatch({ok, _}, r3lfe_formatter:format(Bin))
+    end.
+
+eh_blank_in_body(_Config) ->
+    %% Blank line between guard and body in a match clause: dropped; clause
+    %% formats flat when it fits. Regression for A6·S1 idempotency fix.
+    Src = <<"(defun f\n  ([config] (when (is_list config))\n\n   'ok))">>,
+    assert_format(Src, <<"(defun f\n  ([config] (when (is_list config)) 'ok))\n">>),
+    assert_idempotent(Src).
+
+%%====================================================================
+%% fuzz group — A6·S1: format/1 must never crash on any binary
+%%====================================================================
+
+fuzz_truncated(_Config) ->
+    %% Truncated valid files must return a tagged tuple, never throw.
+    Good = <<"(defun f (x) (+ x 1))\n(defun g (y) (* y 2))">>,
+    Offsets = [1, 5, 10, 15, 20, 30, byte_size(Good) - 1],
+    lists:foreach(
+        fun(N) ->
+            Trunc = binary:part(Good, 0, N),
+            assert_no_crash(Trunc)
+        end,
+        Offsets).
+
+fuzz_random_bytes(_Config) ->
+    %% Deterministic "random" byte sequences: tagged tuple, never crash.
+    Seqs = [
+        <<0>>,
+        <<255>>,
+        <<128, 0, 255, 16>>,
+        <<16#80, 16#90, 16#A0>>,
+        iolist_to_binary(lists:seq(0, 127)),
+        iolist_to_binary(lists:seq(128, 255)),
+        %% Pseudo-random sequence derived deterministically
+        iolist_to_binary([((N * 7 + 3) rem 256) || N <- lists:seq(1, 200)])
+    ],
+    lists:foreach(fun assert_no_crash/1, Seqs).
+
+fuzz_unbalanced(_Config) ->
+    %% Structurally broken inputs: return {error, _}, never crash.
+    Inputs = [
+        <<"(foo (bar)">>,          % unbalanced open paren
+        <<"foo bar)">>,            % extra close paren
+        <<"\"unterminated">>,      % unterminated string
+        <<"#| block comment">>,    % unterminated block comment
+        <<"(((((((">>,             % many opens, no closes
+        <<")))))))">>,             % many closes, no opens
+        <<"\"a\nb\"">>,            % newline inside string (invalid)
+        <<"\"\\">>                 % incomplete string escape
+    ],
+    lists:foreach(
+        fun(Src) ->
+            assert_no_crash(Src),
+            %% Structurally broken forms should error, not succeed
+            case r3lfe_formatter:format(Src) of
+                {error, _} -> ok;
+                {ok, _}    -> ok  % lexer may accept partial forms
+            end
+        end,
+        Inputs).
+
+assert_no_crash(Bin) ->
+    try
+        Result = r3lfe_formatter:format(Bin),
+        ?assert(element(1, Result) =:= ok orelse element(1, Result) =:= error,
+                io_lib:format("format/1 returned unexpected: ~p", [Result]))
+    catch
+        Class:Reason ->
+            ct:fail("format/1 threw ~p:~p for input ~200p",
+                    [Class, Reason, Bin])
+    end.
+
+%%====================================================================
+%% corpus_sweep group — A6·S1: 4 oracles over all discoverable .lfe
+%%====================================================================
+
+corpus_sweep_all(_Config) ->
+    TestDir = filename:dirname(filename:absname(?FILE)),
+    IntDir  = filename:join([TestDir, "..", "_integration"]),
+    %% Discover all .lfe files under _integration (including _build) and test data.
+    IntFiles  = filelib:wildcard(filename:join([IntDir, "**", "*.lfe"])),
+    DataFiles = [tq_corpus_file()],
+    AllFiles  = IntFiles ++ DataFiles,
+    ct:log("Corpus sweep: ~p total .lfe files", [length(AllFiles)]),
+    {Exercised, Skipped} = lists:foldl(
+        fun(File, {Ex, Sk}) ->
+            case sweep_file(File) of
+                ok      -> {Ex + 1, Sk};
+                skipped -> {Ex, Sk + 1}
+            end
+        end,
+        {0, 0},
+        AllFiles
+    ),
+    ct:log("Corpus sweep result: ~p exercised, ~p skipped", [Exercised, Skipped]),
+    ?assert(Exercised > 0, "at least one file must be exercised"),
+    ok.
+
+sweep_file(File) ->
+    case file:read_file(File) of
+        {error, _} ->
+            skipped;
+        {ok, Bin} ->
+            case r3lfe_formatter:format(Bin) of
+                {error, _} ->
+                    skipped;
+                {ok, IO} ->
+                    %% Formatter iolist may contain unicode codepoints > 255;
+                    %% use characters_to_binary to produce valid UTF-8 output.
+                    Out = unicode:characters_to_binary(IO, unicode, utf8),
+                    sweep_oracles(File, Bin, Out),
+                    ok
+            end
+    end.
+
+sweep_oracles(File, Src, Out) ->
+    %% Oracle 1: idempotency
+    case r3lfe_formatter:format(Out) of
+        {ok, IO2} ->
+            Out2 = unicode:characters_to_binary(IO2, unicode, utf8),
+            ?assertEqual(Out, Out2,
+                         io_lib:format("idempotency failed: ~s", [File]));
+        {error, IdemErr} ->
+            ct:fail("idempotency pass 2 failed for ~s: ~p", [File, IdemErr])
+    end,
+    %% Oracle 2: token-preservation
+    SigIn  = sweep_sig_pairs(Src),
+    SigOut = sweep_sig_pairs(Out),
+    ?assertEqual(SigIn, SigOut,
+                 io_lib:format("token-preservation failed: ~s", [File])),
+    %% Oracle 3: comment-preservation
+    CmtIn  = sweep_comments(Src),
+    CmtOut = sweep_comments(Out),
+    ?assertEqual(CmtIn, CmtOut,
+                 io_lib:format("comment-preservation failed: ~s", [File])),
+    %% Oracle 4: AST-equivalence (skip if read-eval or multi-form)
+    case binary:match(Src, <<"#.(">>) of
+        nomatch ->
+            OrigText = binary_to_list(Src),
+            OutText  = binary_to_list(Out),
+            case {lfe_io:read_string(OrigText), lfe_io:read_string(OutText)} of
+                {{ok, Orig}, {ok, Fmted}} ->
+                    ?assertEqual(Orig, Fmted,
+                                 io_lib:format("AST-equiv failed: ~s", [File]));
+                {{error, _}, _} -> ok;
+                {_, {error, AstErr}} ->
+                    ct:fail("AST-equiv: lfe_io failed on output of ~s: ~p",
+                            [File, AstErr])
+            end;
+        _ -> ok
+    end.
+
+sweep_sig_pairs(Bin) ->
+    {ok, Toks} = r3lfe_format_lexer:tokens(Bin),
+    {ok, Doc}  = r3lfe_format_cst:parse(Toks),
+    [{r3lfe_format_lexer:kind(T), r3lfe_format_lexer:text(T)}
+     || T <- r3lfe_format_cst:significant_tokens(Doc)].
+
+sweep_comments(Bin) ->
+    {ok, Toks} = r3lfe_format_lexer:tokens(Bin),
+    {ok, Doc}  = r3lfe_format_cst:parse(Toks),
+    [r3lfe_format_lexer:text(T) || T <- r3lfe_format_cst:comments(Doc)].

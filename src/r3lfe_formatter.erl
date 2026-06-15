@@ -845,10 +845,18 @@ has_internal_trivia(Node) ->
 
 -spec has_descendant_trivia(r3lfe_format_cst:cst_node()) -> boolean().
 has_descendant_trivia(Node) ->
-    r3lfe_format_cst:leading(Node) =/= []
+    has_comment_leading(r3lfe_format_cst:leading(Node))
     orelse r3lfe_format_cst:trailing(Node) =/= []
     orelse r3lfe_format_cst:dangling(Node) =/= []
     orelse lists:any(fun has_descendant_trivia/1, r3lfe_format_cst:children(Node)).
+
+%% Blank-only leading does not prevent flat rendering: blanks are always dropped
+%% or collapsed in broken mode, so they never carry observable information.
+%% Only a leading comment forces broken layout (otherwise it would be silently lost).
+-spec has_comment_leading([r3lfe_format_cst:trivia()]) -> boolean().
+has_comment_leading([])               -> false;
+has_comment_leading([blank | Rest])   -> has_comment_leading(Rest);
+has_comment_leading([{comment,_}|_])  -> true.
 
 %%====================================================================
 %% Internal: column helpers
