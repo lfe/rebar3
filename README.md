@@ -137,6 +137,14 @@ rebar3 lfe format --check
 Without `--path`, `format` operates on the source directories configured in
 `rebar.config` (`src_dirs`), defaulting to `src/`.
 
+> **Common Lisp alignment.** LFE's indentation conventions descend from Emacs
+> `lisp-mode`, so `format`'s output for standard Lisp forms is intentionally
+> CL-idiomatic. The implementation was cross-checked against a Common Lisp
+> indenter ([yasi](https://github.com/nkmathew/yasi-sexp-indenter), Lisp dialect):
+> for the forms LFE shares with Common Lisp the formatted output is **whitespace-
+> identical**. LFE-specific choices (always breaking `defun` bodies, `let`,
+> `case`/`cond`, and maps) are deliberate house style on top of that shared base.
+
 ### ⚡ All the Commands
 
 **Core:**
