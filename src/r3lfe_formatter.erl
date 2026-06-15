@@ -99,13 +99,15 @@ print_broken(Node, Col) ->
             {Text, col_after_text(Text, Col)}
     end.
 
-%% print_broken_container: head-classified indentation (A4·S1).
+%% print_broken_container: head-classified indentation (A4·S1) + data alignment (S3a).
 %%
 %% HEAD-COMMENT path (fix1): opener alone; all children at Indent.
-%% CLASSIFIED path: dispatch to specform/funcall/list_head/defform rules.
+%% TYPE DISPATCH (S3a): code containers (list, eval) use head classification;
+%%   tuple/binary → element-per-line under first element (list_head rendering);
+%%   map → key-value pair alignment.
 %%
 %% Dangling trivia always goes at C+2; close on its own line at C when dangling
-%% is present, otherwise hugs the last child.  All A3 trivia rules unchanged.
+%% is present or last child has trailing comment. All A3 trivia rules unchanged.
 -spec print_broken_container(r3lfe_format_cst:cst_node(), non_neg_integer()) ->
           {iolist(), non_neg_integer()}.
 print_broken_container(Node, C) ->
@@ -137,13 +139,110 @@ print_broken_container(Node, C) ->
                                                         Indent, IndentStr, C, CIndStr, Close),
                     {[Open, AllIO, CloseIO], CloseCol};
                 false ->
-                    %% Classify the head and render accordingly.
-                    Class = classify_head(Head),
-                    print_classified(Class, Head, RestChildren, Dangling,
-                                     C, Open, OpenLen, Close, CloseLen,
-                                     Indent, IndentStr, CIndStr)
+                    %% Dispatch on container type: code → head classification;
+                    %% data → own alignment rules (§S3a).
+                    case r3lfe_format_cst:type(Node) of
+                        T when T =:= list; T =:= eval ->
+                            Class = classify_head(Head),
+                            print_classified(Class, Head, RestChildren, Dangling,
+                                             C, Open, OpenLen, Close, CloseLen,
+                                             Indent, IndentStr, CIndStr);
+                        T when T =:= tuple; T =:= binary ->
+                            %% Element-per-line: aligned under first (list_head rule).
+                            print_classified(list_head, Head, RestChildren, Dangling,
+                                             C, Open, OpenLen, Close, CloseLen,
+                                             Indent, IndentStr, CIndStr);
+                        map ->
+                            print_map_pairs(Head, RestChildren, Dangling,
+                                            C, Open, OpenLen, Close, CloseLen,
+                                            Indent, IndentStr, CIndStr)
+                    end
             end
     end.
+
+%%====================================================================
+%% Internal: map key-value pair rendering (A4·S3a)
+%%====================================================================
+
+%% print_map_pairs: render map children as key-value pairs (style guide §6).
+%%   First pair on the opener line: #m(k1 v1
+%%   Subsequent pairs aligned at C+OpenLen:
+%%      k2 v2
+%%      k3 v3)
+%% If any direct map child carries a leading or trailing comment, fall back
+%% to element-per-line (identical to list_head rendering) so no comment
+%% swallows a paired value.
+-spec print_map_pairs(r3lfe_format_cst:cst_node(), [r3lfe_format_cst:cst_node()],
+                      [r3lfe_format_cst:trivia()],
+                      non_neg_integer(), string(), non_neg_integer(),
+                      string(), non_neg_integer(),
+                      non_neg_integer(), string(), string()) ->
+          {iolist(), non_neg_integer()}.
+print_map_pairs(Head, RestChildren, Dangling,
+                C, Open, OpenLen, Close, CloseLen,
+                Indent, IndentStr, CIndStr) ->
+    AllChildren = [Head | RestChildren],
+    AnyTrivia = lists:any(
+        fun(Child) ->
+            r3lfe_format_cst:leading(Child) =/= []
+            orelse r3lfe_format_cst:trailing(Child) =/= []
+        end, AllChildren),
+    case AnyTrivia of
+        true ->
+            %% Fall back: element-per-line (reuse list_head; safe with trivia).
+            print_classified(list_head, Head, RestChildren, Dangling,
+                             C, Open, OpenLen, Close, CloseLen,
+                             Indent, IndentStr, CIndStr);
+        false ->
+            AlignCol = C + OpenLen,
+            AlignStr = lists:duplicate(AlignCol, $\s),
+            {PairsIO, LastCol, HasTrail} =
+                print_map_pairs_list(AllChildren, AlignCol, AlignStr),
+            {CloseIO, CloseCol} = close_section(Dangling, HasTrail, LastCol,
+                                                Indent, IndentStr, C, CIndStr, Close),
+            {[Open, PairsIO, CloseIO], CloseCol}
+    end.
+
+%% print_map_pairs_list: render the full list of map children starting at
+%% AlignCol (first pair on the opener line, no leading newline).
+-spec print_map_pairs_list([r3lfe_format_cst:cst_node()],
+                            non_neg_integer(), string()) ->
+          {iolist(), non_neg_integer(), boolean()}.
+print_map_pairs_list([K, V], AlignCol, _AlignStr) ->
+    {KIO, KCol} = print_node(K, AlignCol),
+    {VIO, VCol} = print_node(V, KCol + 1),
+    VTrail = r3lfe_format_cst:trailing(V) =/= [],
+    {[KIO, " ", VIO], VCol, VTrail};
+print_map_pairs_list([K, V | Rest], AlignCol, AlignStr) ->
+    {KIO, KCol} = print_node(K, AlignCol),
+    {VIO, _VCol} = print_node(V, KCol + 1),
+    {RestIO, LastCol, HasTrail} = print_map_pairs_rest(Rest, AlignCol, AlignStr),
+    {[KIO, " ", VIO | RestIO], LastCol, HasTrail};
+print_map_pairs_list([K], AlignCol, _AlignStr) ->
+    %% Odd last element (malformed map): emit alone.
+    {KIO, KCol} = print_node(K, AlignCol),
+    KTrail = r3lfe_format_cst:trailing(K) =/= [],
+    {[KIO], KCol, KTrail}.
+
+%% print_map_pairs_rest: emit remaining k-v pairs each preceded by \n+AlignStr.
+-spec print_map_pairs_rest([r3lfe_format_cst:cst_node()],
+                            non_neg_integer(), string()) ->
+          {iolist(), non_neg_integer(), boolean()}.
+print_map_pairs_rest([K, V], AlignCol, AlignStr) ->
+    {KIO, KCol} = print_node(K, AlignCol),
+    {VIO, VCol} = print_node(V, KCol + 1),
+    VTrail = r3lfe_format_cst:trailing(V) =/= [],
+    {["\n", AlignStr, KIO, " ", VIO], VCol, VTrail};
+print_map_pairs_rest([K, V | Rest], AlignCol, AlignStr) ->
+    {KIO, KCol} = print_node(K, AlignCol),
+    {VIO, _VCol} = print_node(V, KCol + 1),
+    {RestIO, LastCol, HasTrail} = print_map_pairs_rest(Rest, AlignCol, AlignStr),
+    {["\n", AlignStr, KIO, " ", VIO | RestIO], LastCol, HasTrail};
+print_map_pairs_rest([K], AlignCol, AlignStr) ->
+    %% Odd last element.
+    {KIO, KCol} = print_node(K, AlignCol),
+    KTrail = r3lfe_format_cst:trailing(K) =/= [],
+    {["\n", AlignStr, KIO], KCol, KTrail}.
 
 %% head_has_leading_comment: true iff the node's leading contains a comment.
 -spec head_has_leading_comment(r3lfe_format_cst:cst_node()) -> boolean().

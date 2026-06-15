@@ -8,7 +8,9 @@ drafts to be tightened after the prior arc's report is graded.
 Status: **A1 ✅ · A2 ✅ · A3 ✅** · **A4 IN PROGRESS** (S1 ✅ incl. fix1+fix2;
 comment-on-head-line matrix exhaustively handled & in the corpus) · S2 ✅
 (def-forms: constant-idiom flat, with-args break, dynamic N) · **S3 split into
-S3a (data-container alignment) + S3b (conformance); S3a READY** · A5–A6 drafts.
+S3a ✅ (data containers: list/eval→classify, tuple/binary→element align,
+map→key-value pairs w/ comment fallback) + **S3b READY** (conformance — closes
+A4) · A5–A6 drafts.
 
 ⚠️ Found in S2 audit (latent since S1, NOT a closed-arc escape — data-container
 alignment was never in scope before S3): `print_broken_container` runs

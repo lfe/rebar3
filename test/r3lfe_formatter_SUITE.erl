@@ -78,6 +78,17 @@
     fix1_dist_arg_leading_comment/1
 ]).
 
+%% data_containers group (A4·S3a)
+-export([
+    data_map_pairs_wide/1,
+    data_map_comment_fallback/1,
+    data_tuple_wide/1,
+    data_binary_wide/1,
+    data_tuple_case_regression/1,
+    data_nested_map_in_list/1,
+    data_nested_list_in_map/1
+]).
+
 %% defforms group (A4·S2)
 -export([
     defforms_signature_simple/1,
@@ -116,7 +127,8 @@
 all() ->
     [{group, flat}, {group, breaking},
      {group, comments}, {group, edge}, {group, oracles},
-     {group, indent}, {group, fix1}, {group, fix2}, {group, defforms}].
+     {group, indent}, {group, fix1}, {group, fix2},
+     {group, defforms}, {group, data_containers}].
 
 groups() ->
     [
@@ -177,6 +189,15 @@ groups() ->
             fix1_close_after_trailing_list_head,
             fix1_dist_arg_trailing_comment,
             fix1_dist_arg_leading_comment
+        ]},
+        {data_containers, [], [
+            data_map_pairs_wide,
+            data_map_comment_fallback,
+            data_tuple_wide,
+            data_binary_wide,
+            data_tuple_case_regression,
+            data_nested_map_in_list,
+            data_nested_list_in_map
         ]},
         {defforms, [], [
             defforms_signature_simple,
@@ -594,7 +615,11 @@ full_corpus() ->
         <<"(defun f (x) \"doc\" (+ x 1))">>,
         <<"(defun f ((0) 1) ((n) (* n 2)))">>,
         <<"(defmodule mymod (export (f 0)))">>,
-        <<"(defun g (x) (* x x))">>
+        <<"(defun g (x) (* x x))">>,
+        %% A4·S3a: data-container representatives
+        <<"#m(alpha-key alpha-value beta-key beta-value gamma-key gamma-value delta-key delta-value)">>,
+        <<"#(case aaaaaaaaaa bbbbbbbbbb cccccccccc dddddddddd eeeeeeeeee ffffffffff gggggggggg)">>,
+        <<"#b(aaaaaaa bbbbbbb ccccccc ddddddd eeeeeee fffffff ggggggg hhhhhhh iiiiiii jjjjjjj)">>
     ],
     FileBins = lists:filtermap(
         fun(F) ->
@@ -908,3 +933,89 @@ defforms_comment_head_trailing(_Config) ->
     %% Trailing comment on the defun head: all args fall to body (fix2).
     Src = <<"(defun ; c\n  f\n  (x)\n  x)">>,
     assert_fix2(Src, <<"(defun ; c\n  f\n  (x)\n  x)\n">>).
+
+%%====================================================================
+%% data_containers group — A4·S3a
+%%====================================================================
+
+data_map_pairs_wide(_Config) ->
+    %% Wide map: first pair on opener line, subsequent pairs aligned at C+3.
+    %% flat_width = 3+78+7+1=89 > 80.
+    Input = <<"#m(alpha-key alpha-value beta-key beta-value gamma-key gamma-value delta-key delta-value)">>,
+    Expected = <<"#m(alpha-key alpha-value\n"
+                 "   beta-key beta-value\n"
+                 "   gamma-key gamma-value\n"
+                 "   delta-key delta-value)\n">>,
+    assert_format(Input, Expected),
+    assert_idempotent(Input),
+    assert_token_preservation(Input).
+
+data_map_comment_fallback(_Config) ->
+    %% Map child with a trailing comment → falls back to element-per-line.
+    %% Need \n before ) to prevent ) being consumed by the line comment.
+    Input = <<"#m(key1 ; c\n   val1\n   key2\n   val2)">>,
+    {ok, OutIO} = r3lfe_formatter:format(Input),
+    Out = iolist_to_binary(OutIO),
+    %% Must be multi-line, all tokens intact
+    ?assert(binary:match(Out, <<"key1">>) =/= nomatch),
+    ?assert(binary:match(Out, <<"val2">>) =/= nomatch),
+    ?assert(binary:match(Out, <<")">>) =/= nomatch),
+    assert_idempotent(Input),
+    assert_token_preservation(Input).
+
+data_tuple_wide(_Config) ->
+    %% Wide tuple: elements aligned under the first at C+2.
+    %% flat_width = 2+10*7+9+1=82 > 80.
+    Xs = list_to_binary(lists:duplicate(7, $a)),
+    All = list_to_binary(lists:join(" ", [lists:duplicate(7, C) || C <- "abcdefghij"])),
+    Input    = <<"#(", All/binary, ")">>,
+    Pad      = <<"  ">>,
+    Expected = iolist_to_binary(["#(", Xs, "\n",
+                                  lists:join("\n", [binary_to_list(<<Pad/binary,
+                                      (list_to_binary(lists:duplicate(7, C)))/binary>>)
+                                      || C <- "bcdefghij"]),
+                                  ")\n"]),
+    assert_format(Input, Expected),
+    assert_idempotent(Input).
+
+data_binary_wide(_Config) ->
+    %% Wide binary: segments aligned under the first at C+3.
+    %% flat_width = 3+10*7+9+1=83 > 80.
+    All = list_to_binary(lists:join(" ", [lists:duplicate(7, C) || C <- "abcdefghij"])),
+    Input = <<"#b(", All/binary, ")">>,
+    assert_idempotent(Input),
+    assert_token_preservation(Input),
+    %% Verify it breaks (contains \n)
+    {ok, OutIO} = r3lfe_formatter:format(Input),
+    Out = iolist_to_binary(OutIO),
+    ?assert(binary:match(Out, <<"\n">>) =/= nomatch).
+
+data_tuple_case_regression(_Config) ->
+    %% #(case …) must use element alignment, NOT case-specform indentation.
+    %% flat_width = 2+4+1+7*10+6+1=84 > 80 (regression: was wrongly a specform).
+    All = list_to_binary(lists:join(" ", ["case" |
+              [lists:duplicate(10, C) || C <- "abcdefg"]])),
+    Input = <<"#(", All/binary, ")">>,
+    {ok, OutIO} = r3lfe_formatter:format(Input),
+    Out = iolist_to_binary(OutIO),
+    %% 'case' must be the FIRST element (at C+2), not the head of a specform
+    ?assert(binary:match(Out, <<"#(case\n">>) =/= nomatch,
+            "#(case …) must emit case at C+2, not as specform head"),
+    assert_idempotent(Input),
+    assert_token_preservation(Input).
+
+data_nested_map_in_list(_Config) ->
+    %% A map nested in a list: outer list uses funcall/specform; map uses pair align.
+    Input = <<"(result #m(alpha-key alpha-value beta-key beta-value gamma-key gamma-value))">>,
+    assert_idempotent(Input),
+    assert_token_preservation(Input),
+    %% Verify the map pairs appear in output
+    {ok, OutIO} = r3lfe_formatter:format(Input),
+    Out = iolist_to_binary(OutIO),
+    ?assert(binary:match(Out, <<"alpha-key alpha-value">>) =/= nomatch).
+
+data_nested_list_in_map(_Config) ->
+    %% A list as a map value: the list uses its own rendering.
+    Input = <<"#m(key (some-function arg1 arg2) other-key other-value)">>,
+    assert_idempotent(Input),
+    assert_token_preservation(Input).
