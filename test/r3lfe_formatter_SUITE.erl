@@ -163,7 +163,7 @@
     fix2_combination_head_and_body_trail/1
 ]).
 
-%% edge_hardening group (A6·S1)
+%% edge_hardening group (A6·S1 + fix1)
 -export([
     eh_whitespace_only/1,
     eh_comment_only_block/1,
@@ -176,7 +176,10 @@
     eh_deep_nesting/1,
     eh_read_eval/1,
     eh_large_file/1,
-    eh_blank_in_body/1
+    eh_blank_in_body/1,
+    eh_blank_dangling_own/1,
+    eh_blank_dangling_nested/1,
+    eh_blank_dangling_guard/1
 ]).
 
 %% fuzz group (A6·S1)
@@ -349,7 +352,10 @@ groups() ->
             eh_deep_nesting,
             eh_read_eval,
             eh_large_file,
-            eh_blank_in_body
+            eh_blank_in_body,
+            eh_blank_dangling_own,
+            eh_blank_dangling_nested,
+            eh_blank_dangling_guard
         ]},
         {fuzz, [], [
             fuzz_truncated,
@@ -1641,6 +1647,27 @@ eh_blank_in_body(_Config) ->
     Src = <<"(defun f\n  ([config] (when (is_list config))\n\n   'ok))">>,
     assert_format(Src, <<"(defun f\n  ([config] (when (is_list config)) 'ok))\n">>),
     assert_idempotent(Src).
+
+eh_blank_dangling_own(_Config) ->
+    %% Blank line before closing paren (own dangling) must be idempotent.
+    %% A blank-only dangling should not force broken layout on pass 2 if
+    %% the blank is dropped in broken output (same class as blank-only leading).
+    Src = <<"(foo\n  a\n  b\n\n  )">>,
+    assert_idempotent(Src),
+    %% Also verify token preservation.
+    assert_token_preservation(Src).
+
+eh_blank_dangling_nested(_Config) ->
+    %% Blank line before close inside a let body.
+    Src = <<"(let ((x 1))\n  (+ x 2)\n\n  )">>,
+    assert_idempotent(Src),
+    assert_token_preservation(Src).
+
+eh_blank_dangling_guard(_Config) ->
+    %% Blank line before close inside a clause with guard.
+    Src = <<"(defun f\n  ([x] (when (> x 0))\n   (* x 2)\n\n   ))">>,
+    assert_idempotent(Src),
+    assert_token_preservation(Src).
 
 %%====================================================================
 %% fuzz group — A6·S1: format/1 must never crash on any binary
