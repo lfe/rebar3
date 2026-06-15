@@ -22,8 +22,11 @@
     format_default_src_dirs/1,
     format_syntax_error_skips/1,
     format_nonexistent_path/1,
-    format_dry_run_stub/1,
-    format_check_stub/1,
+    format_dry_run_single_file/1,
+    format_dry_run_multi_file/1,
+    format_check_clean/1,
+    format_check_dirty/1,
+    format_check_syntax_error/1,
     format_mutually_exclusive/1
 ]).
 
@@ -41,8 +44,11 @@ all() ->
         format_default_src_dirs,
         format_syntax_error_skips,
         format_nonexistent_path,
-        format_dry_run_stub,
-        format_check_stub,
+        format_dry_run_single_file,
+        format_dry_run_multi_file,
+        format_check_clean,
+        format_check_dirty,
+        format_check_syntax_error,
         format_mutually_exclusive
     ].
 
@@ -190,13 +196,81 @@ format_nonexistent_path(_Config) ->
     ?assertMatch({error, _}, r3lfe_prv_format:do(State)),
     ok.
 
-format_dry_run_stub(_Config) ->
-    State = make_state([{dry_run, true}]),
-    ?assertMatch({error, _}, r3lfe_prv_format:do(State)),
+format_dry_run_single_file(Config) ->
+    TestDir = ?config(test_dir, Config),
+    File = filename:join(TestDir, "a.lfe"),
+    test_utils:write_file(File, unformatted()),
+
+    ct:capture_start(),
+    State = make_state([{dry_run, true}, {path, File}]),
+    ?assertMatch({ok, _}, r3lfe_prv_format:do(State)),
+    Output = lists:flatten(ct:capture_get()),
+    ct:capture_stop(),
+
+    %% File on disk must be unchanged.
+    {ok, OnDisk} = file:read_file(File),
+    ?assertEqual(unformatted(), OnDisk),
+
+    %% Stdout must equal the formatted content with no header.
+    ?assertEqual(binary_to_list(formatted()), Output),
     ok.
 
-format_check_stub(_Config) ->
-    State = make_state([{check, true}]),
+format_dry_run_multi_file(Config) ->
+    TestDir = ?config(test_dir, Config),
+    FileA = filename:join(TestDir, "a.lfe"),
+    FileB = filename:join(TestDir, "b.lfe"),
+    test_utils:write_file(FileA, unformatted()),
+    test_utils:write_file(FileB, unformatted()),
+
+    ct:capture_start(),
+    State = make_state([{dry_run, true}, {path, TestDir}]),
+    ?assertMatch({ok, _}, r3lfe_prv_format:do(State)),
+    Output = lists:flatten(ct:capture_get()),
+    ct:capture_stop(),
+
+    %% Neither file may be written.
+    {ok, CA} = file:read_file(FileA),
+    {ok, CB} = file:read_file(FileB),
+    ?assertEqual(unformatted(), CA),
+    ?assertEqual(unformatted(), CB),
+
+    %% Stdout must contain ';; ==>' headers for both files.
+    ?assert(string:find(Output, ";; ==>") =/= nomatch),
+    ?assert(string:find(Output, "a.lfe") =/= nomatch),
+    ?assert(string:find(Output, "b.lfe") =/= nomatch),
+    ok.
+
+format_check_clean(Config) ->
+    TestDir = ?config(test_dir, Config),
+    File = filename:join(TestDir, "a.lfe"),
+    test_utils:write_file(File, formatted()),
+
+    State = make_state([{check, true}, {path, TestDir}]),
+    ?assertMatch({ok, _}, r3lfe_prv_format:do(State)),
+
+    {ok, Content} = file:read_file(File),
+    ?assertEqual(formatted(), Content),
+    ok.
+
+format_check_dirty(Config) ->
+    TestDir = ?config(test_dir, Config),
+    File = filename:join(TestDir, "a.lfe"),
+    test_utils:write_file(File, unformatted()),
+
+    State = make_state([{check, true}, {path, TestDir}]),
+    ?assertMatch({error, _}, r3lfe_prv_format:do(State)),
+
+    %% File must be unchanged — check mode never writes.
+    {ok, Content} = file:read_file(File),
+    ?assertEqual(unformatted(), Content),
+    ok.
+
+format_check_syntax_error(Config) ->
+    TestDir = ?config(test_dir, Config),
+    File = filename:join(TestDir, "bad.lfe"),
+    test_utils:write_file(File, <<"(unclosed">>),
+
+    State = make_state([{check, true}, {path, TestDir}]),
     ?assertMatch({error, _}, r3lfe_prv_format:do(State)),
     ok.
 

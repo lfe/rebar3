@@ -56,15 +56,15 @@ do(State) ->
     case {DryRun, Check} of
         {true, true} ->
             {error, "--dry-run and --check are mutually exclusive"};
-        {true, _} ->
-            {error, "not yet implemented (S2)"};
-        {_, true} ->
-            {error, "not yet implemented (S2)"};
         _ ->
             case resolve_files(Path, State) of
                 {error, _} = Err -> Err;
                 {ok, Files} ->
-                    run_inplace(Files, State)
+                    if
+                        DryRun -> run_dry_run(Files, State);
+                        Check  -> run_check(Files, State);
+                        true   -> run_inplace(Files, State)
+                    end
             end
     end.
 
@@ -129,8 +129,82 @@ run_inplace(Files, State) ->
                 io_lib:format("~p file(s) failed to format", [NFailed]))}
     end.
 
--spec format_file(file:filename()) -> formatted | unchanged | {error, term()}.
-format_file(File) ->
+-spec run_dry_run([file:filename()], rebar_state:t()) ->
+    {ok, rebar_state:t()} | {error, string()}.
+run_dry_run(Files, State) ->
+    Single = length(Files) =:= 1,
+    {NFailed, _} = lists:foldl(
+        fun(File, {Fail, IsFirst}) ->
+            case read_and_format(File) of
+                {error, _} ->
+                    {Fail + 1, false};
+                {ok, _Original, Out} ->
+                    case Single of
+                        true ->
+                            io:format("~ts", [Out]);
+                        false ->
+                            case IsFirst of
+                                true  -> ok;
+                                false -> io:format("~n")
+                            end,
+                            io:format(";; ==> ~s~n~ts", [File, Out])
+                    end,
+                    {Fail, false}
+            end
+        end,
+        {0, true},
+        Files
+    ),
+    case NFailed of
+        0 ->
+            {ok, State};
+        _ ->
+            {error, lists:flatten(
+                io_lib:format("~p file(s) failed to format", [NFailed]))}
+    end.
+
+-spec run_check([file:filename()], rebar_state:t()) ->
+    {ok, rebar_state:t()} | {error, string()}.
+run_check(Files, State) ->
+    NFiles = length(Files),
+    {Unformatted, NFailed} = lists:foldl(
+        fun(File, {Changes, Fail}) ->
+            case read_and_format(File) of
+                {error, _} ->
+                    {Changes, Fail + 1};
+                {ok, Original, Out} ->
+                    case Out =:= Original of
+                        true  -> {Changes, Fail};
+                        false -> {[File | Changes], Fail}
+                    end
+            end
+        end,
+        {[], 0},
+        Files
+    ),
+    NUnformatted = length(Unformatted),
+    case {NUnformatted, NFailed} of
+        {0, 0} ->
+            ?INFO("All ~p file(s) are formatted", [NFiles]),
+            {ok, State};
+        _ ->
+            lists:foreach(
+                fun(F) -> ?ERROR("Unformatted: ~s", [F]) end,
+                lists:reverse(Unformatted)
+            ),
+            Msg = case {NUnformatted, NFailed} of
+                {N, 0} -> io_lib:format("~p file(s) need formatting", [N]);
+                {0, F} -> io_lib:format("~p file(s) failed to parse", [F]);
+                {N, F} ->
+                    io_lib:format("~p file(s) need formatting; ~p failed to parse",
+                                  [N, F])
+            end,
+            {error, lists:flatten(Msg)}
+    end.
+
+-spec read_and_format(file:filename()) ->
+    {ok, binary(), binary()} | {error, term()}.
+read_and_format(File) ->
     case file:read_file(File) of
         {error, ReadReason} ->
             ?ERROR("Failed to read ~s: ~p", [File, ReadReason]),
@@ -142,19 +216,27 @@ format_file(File) ->
                     {error, FmtReason};
                 {ok, IO} ->
                     Out = unicode:characters_to_binary(IO),
-                    case Out =:= Original of
-                        true ->
-                            unchanged;
-                        false ->
-                            case file:write_file(File, Out) of
-                                ok ->
-                                    ?INFO("Formatted ~s", [File]),
-                                    formatted;
-                                {error, WReason} ->
-                                    ?ERROR("Failed to write ~s: ~p",
-                                           [File, WReason]),
-                                    {error, WReason}
-                            end
+                    {ok, Original, Out}
+            end
+    end.
+
+-spec format_file(file:filename()) -> formatted | unchanged | {error, term()}.
+format_file(File) ->
+    case read_and_format(File) of
+        {error, _} = Err ->
+            Err;
+        {ok, Original, Out} ->
+            case Out =:= Original of
+                true ->
+                    unchanged;
+                false ->
+                    case file:write_file(File, Out) of
+                        ok ->
+                            ?INFO("Formatted ~s", [File]),
+                            formatted;
+                        {error, WReason} ->
+                            ?ERROR("Failed to write ~s: ~p", [File, WReason]),
+                            {error, WReason}
                     end
             end
     end.
