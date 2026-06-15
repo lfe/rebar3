@@ -259,6 +259,45 @@ any_dist_has_comment([D | Rest]) ->
     orelse r3lfe_format_cst:trailing(D) =/= []
     orelse any_dist_has_comment(Rest).
 
+%% must_break: true when flat rendering must be suppressed regardless of width.
+%%   • defform-headed lists (defun/defmacro with args, defmodule, defrecord, …)
+%%   • maps: key-value pairs always on separate lines
+%%   • list headed by let/let*/case/cond
+%% Scope note: flet/fletrec/letrec-function and other let-family forms are NOT
+%% forced — they retain flat-if-fits.  Extend this list when adjudicated.
+-spec must_break(r3lfe_format_cst:cst_node()) -> boolean().
+must_break(Node) ->
+    case r3lfe_format_cst:type(Node) of
+        map  -> true;
+        list -> is_force_break_defform(Node) orelse is_always_break_head(Node);
+        _    -> false
+    end.
+
+%% is_always_break_head: true for list nodes headed by let/let*/case/cond.
+-spec is_always_break_head(r3lfe_format_cst:cst_node()) -> boolean().
+is_always_break_head(Node) ->
+    case r3lfe_format_cst:children(Node) of
+        [Head | _] ->
+            case r3lfe_format_cst:type(Head) of
+                symbol ->
+                    Text = r3lfe_format_lexer:text(r3lfe_format_cst:open(Head)),
+                    Text =:= "let" orelse Text =:= "let*"
+                    orelse Text =:= "case" orelse Text =:= "cond";
+                _ -> false
+            end;
+        [] -> false
+    end.
+
+%% is_let_head: true when the head symbol is let or let*.
+-spec is_let_head(r3lfe_format_cst:cst_node()) -> boolean().
+is_let_head(Head) ->
+    case r3lfe_format_cst:type(Head) of
+        symbol ->
+            Text = r3lfe_format_lexer:text(r3lfe_format_cst:open(Head)),
+            Text =:= "let" orelse Text =:= "let*";
+        _ -> false
+    end.
+
 %%====================================================================
 %% Internal: defform helpers (A4·S2)
 %%====================================================================
@@ -464,7 +503,17 @@ print_classified({specform, N}, Head, RestChildren, Dangling,
                 case any_dist_has_comment(DistPotential) of
                     true  -> {[], HTC, RestChildren};  %% fall back: all to body
                     false ->
-                        {DIO, DCol} = print_distinguished(DistPotential, HTC),
+                        %% For let/let*, force-break the binding list so each
+                        %% binding lands on its own line (one per line rule).
+                        {DIO, DCol} =
+                            case is_let_head(Head) andalso DistPotential =/= [] of
+                                true ->
+                                    [BindList] = DistPotential,
+                                    {BIO, BCol} = print_broken(BindList, HTC + 1),
+                                    {[" ", BIO], BCol};
+                                false ->
+                                    print_distinguished(DistPotential, HTC)
+                            end,
                         {DIO, DCol, BodyPotential}
                 end
         end,
@@ -637,9 +686,8 @@ flat_width(Node) ->
                     length(r3lfe_format_lexer:text(Tok))
             end;
         T when T =:= list; T =:= tuple; T =:= map; T =:= binary; T =:= eval ->
-            %% defform-headed lists force infinity (must break) unless they are a
-            %% defun/defmacro with an empty arglist (the constant idiom, §1a).
-            case T =:= list andalso is_force_break_defform(Node) of
+            %% must_break: defforms, maps, and let/let*/case/cond lists always break.
+            case must_break(Node) of
                 true -> infinity;
                 false ->
                     OpenLen  = length(r3lfe_format_lexer:text(r3lfe_format_cst:open(Node))),

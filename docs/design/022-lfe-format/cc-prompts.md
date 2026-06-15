@@ -8,9 +8,21 @@ drafts to be tightened after the prior arc's report is graded.
 Status: **A1 ✅ · A2 ✅ · A3 ✅** · **A4 IN PROGRESS** (S1 ✅ incl. fix1+fix2;
 comment-on-head-line matrix exhaustively handled & in the corpus) · S2 ✅
 (def-forms: constant-idiom flat, with-args break, dynamic N) · **S3 split into
-S3a ✅ (data containers: list/eval→classify, tuple/binary→element align,
-map→key-value pairs w/ comment fallback) + **S3b READY** (conformance — closes
-A4) · A5–A6 drafts.
+S3a ✅ + S3b ✅ (conformance: 11 fixed points, wide sweep over all vendored
+`_build/**/*.lfe` green). **6 divergences adjudicated by Duncan** → S3c + S3d
+implement the chosen changes (then A4 closes) · A5–A6 drafts.
+
+A4 divergence rulings (Duncan): **always-break** let/let* (+ binding lists
+one-per-line), case/cond, and maps — even when they fit [S3c]; **export/import**
+keyword-alone with items indented [S3d]; match-clause **pattern+guard on one
+line** [S3d]; trailing-comment alignment → **accept divergence** (single space,
+no change).
+
+**Formatting gallery** (`formatting-gallery.md` + `cc-prompt-gallery.md`): a
+60-entry compile-verified showcase of the formatter's canonical output, filled by
+CC (verify-compile → format → write fence), one § per turn. ⚠️ Best filled
+**after A4 fully closes** (S3c+S3d), so the let/case/cond/map/export/guard entries
+capture the final rules rather than needing a refill.
 
 ⚠️ Found in S2 audit (latent since S1, NOT a closed-arc escape — data-container
 alignment was never in scope before S3): `print_broken_container` runs

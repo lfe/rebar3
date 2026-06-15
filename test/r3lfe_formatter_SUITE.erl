@@ -78,6 +78,21 @@
     fix1_dist_arg_leading_comment/1
 ]).
 
+%% always_break group (A4·S3c)
+-export([
+    ab_let_single_binding/1,
+    ab_let_multi_bindings/1,
+    ab_let_star_bindings/1,
+    ab_case_small/1,
+    ab_cond_small/1,
+    ab_map_small/1,
+    ab_flet_not_forced/1,
+    ab_nested_let_in_defun/1,
+    ab_nested_case_in_let/1,
+    ab_let_head_trailing_comment/1,
+    ab_case_last_child_trailing/1
+]).
+
 %% conformance group (A4·S3b — style-guide fixed-point + divergence report)
 -export([
     conf_cond/1,
@@ -144,7 +159,7 @@ all() ->
      {group, comments}, {group, edge}, {group, oracles},
      {group, indent}, {group, fix1}, {group, fix2},
      {group, defforms}, {group, data_containers},
-     {group, conformance}].
+     {group, conformance}, {group, always_break}].
 
 groups() ->
     [
@@ -205,6 +220,19 @@ groups() ->
             fix1_close_after_trailing_list_head,
             fix1_dist_arg_trailing_comment,
             fix1_dist_arg_leading_comment
+        ]},
+        {always_break, [], [
+            ab_let_single_binding,
+            ab_let_multi_bindings,
+            ab_let_star_bindings,
+            ab_case_small,
+            ab_cond_small,
+            ab_map_small,
+            ab_flet_not_forced,
+            ab_nested_let_in_defun,
+            ab_nested_case_in_let,
+            ab_let_head_trailing_comment,
+            ab_case_last_child_trailing
         ]},
         {conformance, [], [
             conf_cond,
@@ -648,7 +676,13 @@ full_corpus() ->
         %% A4·S3a: data-container representatives
         <<"#m(alpha-key alpha-value beta-key beta-value gamma-key gamma-value delta-key delta-value)">>,
         <<"#(case aaaaaaaaaa bbbbbbbbbb cccccccccc dddddddddd eeeeeeeeee ffffffffff gggggggggg)">>,
-        <<"#b(aaaaaaa bbbbbbb ccccccc ddddddd eeeeeee fffffff ggggggg hhhhhhh iiiiiii jjjjjjj)">>
+        <<"#b(aaaaaaa bbbbbbb ccccccc ddddddd eeeeeee fffffff ggggggg hhhhhhh iiiiiii jjjjjjj)">>,
+        %% A4·S3c: always-break representatives
+        <<"(let ((x 1)) (+ x 1))">>,
+        <<"(let* ((low 1) (high 2) (sum (+ low high))) (+ low sum))">>,
+        <<"(case x (1 'a) (2 'b))">>,
+        <<"(cond (a 1) (b 2))">>,
+        <<"#m(a 1 b 2)">>
     ],
     FileBins = lists:filtermap(
         fun(F) ->
@@ -1243,3 +1277,82 @@ conf_wide_sweep(_Config) ->
     ct:log("Wide sweep complete: ~p checked, ~p skipped (encoding/parse errors)",
            [Checked, Skipped]),
     ?assert(Checked > 0, "expected at least one file to pass the sweep").
+
+%%====================================================================
+%% always_break group — A4·S3c
+%% All inputs below fit within 80 cols but must still break.
+%%====================================================================
+
+ab_let_single_binding(_Config) ->
+    %% Single binding: let breaks, binding list stays compact (one element).
+    assert_format(<<"(let ((x 1)) (+ x 1))">>,
+                  <<"(let ((x 1))\n  (+ x 1))\n">>),
+    assert_idempotent(<<"(let ((x 1)) (+ x 1))">>).
+
+ab_let_multi_bindings(_Config) ->
+    %% Multiple bindings: one binding per line aligned under the first.
+    assert_format(<<"(let ((x 1) (y 2)) (+ x y))">>,
+                  <<"(let ((x 1)\n      (y 2))\n  (+ x y))\n">>),
+    assert_idempotent(<<"(let ((x 1) (y 2)) (+ x y))">>).
+
+ab_let_star_bindings(_Config) ->
+    %% let* with 3 bindings; each on its own line at AlignCol=7.
+    Input = <<"(let* ((low 1) (high 2) (sum (+ low high))) (do-something))">>,
+    assert_format(Input,
+                  <<"(let* ((low 1)\n"
+                    "       (high 2)\n"
+                    "       (sum (+ low high)))\n"
+                    "  (do-something))\n">>),
+    assert_idempotent(Input).
+
+ab_case_small(_Config) ->
+    %% case always breaks even when it fits in 80 cols.
+    assert_format(<<"(case x (1 'a) (2 'b))">>,
+                  <<"(case x\n  (1 'a)\n  (2 'b))\n">>),
+    assert_idempotent(<<"(case x (1 'a) (2 'b))">>).
+
+ab_cond_small(_Config) ->
+    %% cond always breaks; funcall-align puts clauses under the first.
+    assert_format(<<"(cond (a 1) (b 2))">>,
+                  <<"(cond (a 1)\n      (b 2))\n">>),
+    assert_idempotent(<<"(cond (a 1) (b 2))">>).
+
+ab_map_small(_Config) ->
+    %% Maps always break to pair-per-line even when they fit in 80.
+    assert_format(<<"#m(a 1 b 2)">>,
+                  <<"#m(a 1\n   b 2)\n">>),
+    assert_idempotent(<<"#m(a 1 b 2)">>).
+
+ab_flet_not_forced(_Config) ->
+    %% flet is NOT in the always-break list — stays flat-if-fits.
+    %% Scope note: only let/let*/case/cond are forced; flet/fletrec etc. retain
+    %% flat-if-fits for now.  Extend when adjudicated.
+    Input = <<"(flet ((double (x) (* 2 x))) (double 3))">>,
+    assert_format(Input, <<"(flet ((double (x) (* 2 x))) (double 3))\n">>),
+    assert_idempotent(Input).
+
+ab_nested_let_in_defun(_Config) ->
+    %% let inside a defun body: both always break; idempotent.
+    Input = <<"(defun f (x) (let ((y (* x 2))) (+ y 1)))">>,
+    assert_idempotent(Input),
+    assert_token_preservation(Input),
+    {ok, IO} = r3lfe_formatter:format(Input),
+    Out = iolist_to_binary(IO),
+    ?assert(binary:match(Out, <<"\n">>) =/= nomatch,
+            "nested let/defun must produce multi-line output").
+
+ab_nested_case_in_let(_Config) ->
+    %% case inside let body: both always break; close-paren placement correct.
+    Input = <<"(let ((x 1)) (case x (0 'zero) (_ 'other)))">>,
+    assert_idempotent(Input),
+    assert_token_preservation(Input).
+
+ab_let_head_trailing_comment(_Config) ->
+    %% Trailing comment on let head: all args fall to body (fix2 still holds).
+    Src = <<"(let ; c\n  ((x 1))\n  body)">>,
+    assert_fix2(Src, <<"(let ; c\n  ((x 1))\n  body)\n">>).
+
+ab_case_last_child_trailing(_Config) ->
+    %% Trailing comment on last case clause: close on own line (fix1 still holds).
+    Src = <<"(case x\n  (1 'a) ; note\n  )">>,
+    assert_fix2(Src, <<"(case x\n  (1 'a) ; note\n)\n">>).
