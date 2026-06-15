@@ -226,6 +226,45 @@ assert_nonzero "[7a] format with broken.lfe exits non-zero"  \
 assert_diff    "[7b] other1.lfe was still formatted despite broken.lfe"  \
     "$E2E_TMP/src/other1.lfe" "$E2E_TMP/other1_before.lfe"
 
+# ---- [8] rebar3 lfe clean: standalone app-discovery fix ---------------------
+echo ""
+echo "--- [8] rebar3 lfe clean (standalone app-discovery) ---"
+
+# Remove broken.lfe and relocate remaining .lfe files out of src/.
+# rebar3_lfe hooks into `rebar3 compile` and calls lfe_comp on any .lfe files
+# it finds — but the fixture has no `lfe` dep, so lfe_comp is undefined.
+# We only need the Erlang compiler to produce a .beam, so clear .lfe files
+# from src/ first.  All format assertions are already done by this point.
+rm -f "$E2E_TMP/src/broken.lfe"
+mv "$E2E_TMP/src/"*.lfe "$E2E_TMP/" 2>/dev/null || true
+
+# Add an Erlang stub so rebar3 compile produces a .beam via the standard
+# Erlang compiler.
+cat > "$E2E_TMP/src/e2efmtapp_stub.erl" <<'ERL'
+-module(e2efmtapp_stub).
+-export([hello/0]).
+hello() -> world.
+ERL
+
+assert_zero "[8a] rebar3 compile exits 0"  "$REBAR3" compile
+
+EBIN="$E2E_TMP/_build/default/lib/e2efmtapp/ebin"
+if [ -z "$(ls "$EBIN"/*.beam 2>/dev/null)" ]; then
+    fail "[8b] rebar3 compile produced no .beam files"
+fi
+pass "[8b] rebar3 compile produced .beam files"
+
+# rebar3 lfe clean with no args must discover the project app and remove beams.
+# Pre-fix: project_apps=[] (bare provider ran before app_discovery) → nothing removed.
+# Post-fix: app_discovery dep ensures project_apps is populated → beams removed.
+assert_zero    "[8c] rebar3 lfe clean exits 0"  "$REBAR3" lfe clean
+assert_out_not_has "[8d] lfe clean command resolved"  "Command lfe not found"
+
+if [ -n "$(ls "$EBIN"/*.beam 2>/dev/null)" ]; then
+    fail "[8e] rebar3 lfe clean left .beam files behind (app-discovery not working)"
+fi
+pass "[8e] rebar3 lfe clean removed all .beam files"
+
 # ---- Done -------------------------------------------------------------------
 echo ""
 echo "==> All e2e assertions passed."

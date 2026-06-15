@@ -18,7 +18,7 @@
 -include("r3lfe.hrl").
 
 -define(PROVIDER, clean).
--define(DEPS, []).
+-define(DEPS, [{default, app_discovery}]).
 
 %%====================================================================
 %% Provider API
