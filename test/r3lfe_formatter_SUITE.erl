@@ -479,11 +479,16 @@ assert_ast_equiv(Input) ->
             ct:fail("lfe_io failed on formatted output: ~p~nInput: ~200p", [E, Input])
     end.
 
+%% Compare raw lexer tokens, NOT CST-derived significant_tokens. If parse()
+%% silently dropped a token, both CST lists would be missing it equally, making
+%% the comparison pass despite real token loss. Bypassing parse makes any drop
+%% in the formatter output immediately visible.
 sig_pairs(Bin) ->
     {ok, Toks} = r3lfe_format_lexer:tokens(Bin),
-    {ok, Doc}  = r3lfe_format_cst:parse(Toks),
+    Trivia = [whitespace, newline, line_comment, block_comment],
     [{r3lfe_format_lexer:kind(T), r3lfe_format_lexer:text(T)}
-     || T <- r3lfe_format_cst:significant_tokens(Doc)].
+     || T <- Toks,
+        not lists:member(r3lfe_format_lexer:kind(T), Trivia)].
 
 %%====================================================================
 %% breaking group
@@ -1444,12 +1449,13 @@ conf_wide_sweep(_Config) ->
                     io_lib:format("idempotency failed: ~s", [File])),
                 {ok, Toks1} = r3lfe_format_lexer:tokens(Bin),
                 {ok, Toks2} = r3lfe_format_lexer:tokens(Out1),
-                {ok, Doc1}  = r3lfe_format_cst:parse(Toks1),
-                {ok, Doc2}  = r3lfe_format_cst:parse(Toks2),
+                Trivia = [whitespace, newline, line_comment, block_comment],
                 Sig1 = [{r3lfe_format_lexer:kind(T), r3lfe_format_lexer:text(T)}
-                        || T <- r3lfe_format_cst:significant_tokens(Doc1)],
+                        || T <- Toks1,
+                           not lists:member(r3lfe_format_lexer:kind(T), Trivia)],
                 Sig2 = [{r3lfe_format_lexer:kind(T), r3lfe_format_lexer:text(T)}
-                        || T <- r3lfe_format_cst:significant_tokens(Doc2)],
+                        || T <- Toks2,
+                           not lists:member(r3lfe_format_lexer:kind(T), Trivia)],
                 ?assertEqual(Sig1, Sig2,
                     io_lib:format("token-preservation failed: ~s", [File])),
                 {S, C + 1}
@@ -1814,9 +1820,10 @@ sweep_oracles(File, Src, Out) ->
 
 sweep_sig_pairs(Bin) ->
     {ok, Toks} = r3lfe_format_lexer:tokens(Bin),
-    {ok, Doc}  = r3lfe_format_cst:parse(Toks),
+    Trivia = [whitespace, newline, line_comment, block_comment],
     [{r3lfe_format_lexer:kind(T), r3lfe_format_lexer:text(T)}
-     || T <- r3lfe_format_cst:significant_tokens(Doc)].
+     || T <- Toks,
+        not lists:member(r3lfe_format_lexer:kind(T), Trivia)].
 
 sweep_comments(Bin) ->
     {ok, Toks} = r3lfe_format_lexer:tokens(Bin),
