@@ -9,6 +9,7 @@
          significant_tokens/1, comments/1,
          type/1, open/1, close/1, prefix/1, children/1,
          leading/1, trailing/1, dangling/1,
+         nl_before/1, multiline/1,
          document_children/1, document_dangling/1]).
 
 -export_type([cst_node/0, cst_document/0, node_type/0, trivia/0]).
@@ -22,14 +23,15 @@
                    | prefixed.
 
 -record(node, {
-    type     :: node_type(),
-    open     :: token() | undefined,
-    close    :: token() | undefined,
-    prefix   :: token() | undefined,
-    children :: [#node{}],
-    leading  :: [trivia()],
-    trailing :: [trivia()],
-    dangling :: [trivia()]
+    type      :: node_type(),
+    open      :: token() | undefined,
+    close     :: token() | undefined,
+    prefix    :: token() | undefined,
+    children  :: [#node{}],
+    leading   :: [trivia()],
+    trailing  :: [trivia()],
+    dangling  :: [trivia()],
+    nl_before = false :: boolean()
 }).
 
 -record(document, {
@@ -46,7 +48,7 @@
 
 -spec parse([token()]) -> {ok, cst_document()} | {error, term()}.
 parse(Tokens) ->
-    case parse_seq_loop(Tokens, eof, [], []) of
+    case parse_seq_loop(Tokens, eof, [], false, []) of
         {ok, Nodes, Dangling, []} ->
             {ok, #document{children = Nodes, dangling = Dangling}};
         {ok, _Nodes, _Dangling, [Tok | _]} ->
@@ -87,6 +89,18 @@ trailing(#node{trailing = T}) -> T.
 -spec dangling(cst_node()) -> [trivia()].
 dangling(#node{dangling = D}) -> D.
 
+%% nl_before/1: true if a newline preceded this node among its siblings in the
+%% source (i.e. the author started a new line here). Single \n is sufficient.
+-spec nl_before(cst_node()) -> boolean().
+nl_before(#node{nl_before = NL}) -> NL.
+
+%% multiline/1: true if any direct child of the node/document has nl_before=true.
+-spec multiline(cst_node() | cst_document()) -> boolean().
+multiline(#document{children = Children}) ->
+    lists:any(fun(N) -> nl_before(N) end, Children);
+multiline(#node{children = Children}) ->
+    lists:any(fun(N) -> nl_before(N) end, Children).
+
 -spec document_children(cst_document()) -> [cst_node()].
 document_children(#document{children = Ch}) -> Ch.
 
@@ -100,24 +114,26 @@ document_dangling(#document{dangling = D}) -> D.
 %% parse_seq_loop: parse tokens until matching CloserKind (rparen|rbracket|eof)
 %% or EOF. Returns {ok, Nodes, Dangling, Rest} where Rest starts with the
 %% (unconsumed) closer token, or [] at EOF. Pending holds leading trivia
-%% accumulated for the next node, in source order.
+%% accumulated for the next node, in source order. NlBefore tracks whether at
+%% least one newline has been seen since the last node (or start of container),
+%% and is stamped onto the next node then reset to false.
 %%
 %% Pending uses ++ for append: it is bounded by file-level trivia density
 %% (never accumulates proportionally to input size) so O(n) per append is fine.
-parse_seq_loop([], _CloserKind, Pending, Nodes) ->
+parse_seq_loop([], _CloserKind, Pending, _NlBefore, Nodes) ->
     {ok, lists:reverse(Nodes), Pending, []};
-parse_seq_loop([Tok | Rest], CloserKind, Pending, Nodes) ->
+parse_seq_loop([Tok | Rest], CloserKind, Pending, NlBefore, Nodes) ->
     Kind = r3lfe_format_lexer:kind(Tok),
     case Kind of
         whitespace ->
-            parse_seq_loop(Rest, CloserKind, Pending, Nodes);
+            parse_seq_loop(Rest, CloserKind, Pending, NlBefore, Nodes);
         newline ->
             {Pending2, Rest2} = consume_newlines_inner(Rest, Pending, 1),
-            parse_seq_loop(Rest2, CloserKind, Pending2, Nodes);
+            parse_seq_loop(Rest2, CloserKind, Pending2, true, Nodes);
         line_comment ->
-            parse_seq_loop(Rest, CloserKind, Pending ++ [{comment, Tok}], Nodes);
+            parse_seq_loop(Rest, CloserKind, Pending ++ [{comment, Tok}], NlBefore, Nodes);
         block_comment ->
-            parse_seq_loop(Rest, CloserKind, Pending ++ [{comment, Tok}], Nodes);
+            parse_seq_loop(Rest, CloserKind, Pending ++ [{comment, Tok}], NlBefore, Nodes);
         rparen ->
             case CloserKind of
                 rparen -> {ok, lists:reverse(Nodes), Pending, [Tok | Rest]};
@@ -130,22 +146,23 @@ parse_seq_loop([Tok | Rest], CloserKind, Pending, Nodes) ->
             end;
         K when K =:= lparen; K =:= lbracket; K =:= tuple_open;
                K =:= map_open; K =:= binary_open; K =:= eval_open ->
-            case parse_container(Tok, K, Rest, Pending) of
+            case parse_container(Tok, K, Rest, Pending, NlBefore) of
                 {ok, CNode, Rest2} ->
                     {CNode2, Rest3} = try_attach_trailing(CNode, Rest2),
-                    parse_seq_loop(Rest3, CloserKind, [], [CNode2 | Nodes]);
+                    parse_seq_loop(Rest3, CloserKind, [], false, [CNode2 | Nodes]);
                 {error, _} = Err -> Err
             end;
         K when K =:= quote; K =:= quasiquote; K =:= unquote;
                K =:= unquote_splicing; K =:= fun_ref ->
-            case parse_one_node(Rest, []) of
+            case parse_one_node(Rest, [], false) of
                 {ok, Inner, Rest2} ->
                     PNode = #node{type = prefixed, prefix = Tok,
                                   open = undefined, close = undefined,
                                   children = [Inner], leading = Pending,
-                                  trailing = [], dangling = []},
+                                  trailing = [], dangling = [],
+                                  nl_before = NlBefore},
                     {PNode2, Rest3} = try_attach_trailing(PNode, Rest2),
-                    parse_seq_loop(Rest3, CloserKind, [], [PNode2 | Nodes]);
+                    parse_seq_loop(Rest3, CloserKind, [], false, [PNode2 | Nodes]);
                 {error, _} = Err -> Err
             end;
         _ ->
@@ -153,9 +170,10 @@ parse_seq_loop([Tok | Rest], CloserKind, Pending, Nodes) ->
             LNode = #node{type = leaf_type(Kind), open = Tok,
                           close = undefined, prefix = undefined,
                           children = [], leading = Pending,
-                          trailing = [], dangling = []},
+                          trailing = [], dangling = [],
+                          nl_before = NlBefore},
             {LNode2, Rest2} = try_attach_trailing(LNode, Rest),
-            parse_seq_loop(Rest2, CloserKind, [], [LNode2 | Nodes])
+            parse_seq_loop(Rest2, CloserKind, [], false, [LNode2 | Nodes])
     end.
 
 %%====================================================================
@@ -164,21 +182,23 @@ parse_seq_loop([Tok | Rest], CloserKind, Pending, Nodes) ->
 
 %% parse_one_node: skip trivia (accumulating into Pending), then parse one node.
 %% Trivia between a prefix and its target attaches to the inner node's leading.
-parse_one_node([], _Pending) ->
+%% NlBefore tracks whether a newline occurred between the prefix token and the
+%% inner form (e.g. '\n(foo) has NlBefore=true on the inner list node).
+parse_one_node([], _Pending, _NlBefore) ->
     {error, {missing_inner_node, 0}};
-parse_one_node([Tok | Rest], Pending) ->
+parse_one_node([Tok | Rest], Pending, NlBefore) ->
     Kind = r3lfe_format_lexer:kind(Tok),
     case Kind of
         whitespace ->
-            parse_one_node(Rest, Pending);
+            parse_one_node(Rest, Pending, NlBefore);
         newline ->
             {Pending2, Rest2} = consume_newlines_inner(Rest, Pending, 1),
-            parse_one_node(Rest2, Pending2);
+            parse_one_node(Rest2, Pending2, true);
         K when K =:= line_comment; K =:= block_comment ->
-            parse_one_node(Rest, Pending ++ [{comment, Tok}]);
+            parse_one_node(Rest, Pending ++ [{comment, Tok}], NlBefore);
         K when K =:= lparen; K =:= lbracket; K =:= tuple_open;
                K =:= map_open; K =:= binary_open; K =:= eval_open ->
-            case parse_container(Tok, K, Rest, Pending) of
+            case parse_container(Tok, K, Rest, Pending, NlBefore) of
                 {ok, CNode, Rest2} ->
                     {CNode2, Rest3} = try_attach_trailing(CNode, Rest2),
                     {ok, CNode2, Rest3};
@@ -186,12 +206,13 @@ parse_one_node([Tok | Rest], Pending) ->
             end;
         K when K =:= quote; K =:= quasiquote; K =:= unquote;
                K =:= unquote_splicing; K =:= fun_ref ->
-            case parse_one_node(Rest, []) of
+            case parse_one_node(Rest, [], false) of
                 {ok, Inner, Rest2} ->
                     PNode = #node{type = prefixed, prefix = Tok,
                                   open = undefined, close = undefined,
                                   children = [Inner], leading = Pending,
-                                  trailing = [], dangling = []},
+                                  trailing = [], dangling = [],
+                                  nl_before = NlBefore},
                     {PNode2, Rest3} = try_attach_trailing(PNode, Rest2),
                     {ok, PNode2, Rest3};
                 {error, _} = Err -> Err
@@ -202,7 +223,8 @@ parse_one_node([Tok | Rest], Pending) ->
             LNode = #node{type = leaf_type(Kind), open = Tok,
                           close = undefined, prefix = undefined,
                           children = [], leading = Pending,
-                          trailing = [], dangling = []},
+                          trailing = [], dangling = [],
+                          nl_before = NlBefore},
             {LNode2, Rest2} = try_attach_trailing(LNode, Rest),
             {ok, LNode2, Rest2}
     end.
@@ -211,15 +233,15 @@ parse_one_node([Tok | Rest], Pending) ->
 %% Internal: container parsing
 %%====================================================================
 
-parse_container(OpenerTok, OpenerKind, Rest, Leading) ->
+parse_container(OpenerTok, OpenerKind, Rest, Leading, NlBefore) ->
     {ContainerType, CloserKind} = container_type(OpenerKind),
-    case parse_seq_loop(Rest, CloserKind, [], []) of
+    case parse_seq_loop(Rest, CloserKind, [], false, []) of
         {ok, Children, Dangling, [CloserTok | Rest2]} ->
             CNode = #node{type = ContainerType,
                           open = OpenerTok, close = CloserTok,
                           prefix = undefined, children = Children,
                           dangling = Dangling, leading = Leading,
-                          trailing = []},
+                          trailing = [], nl_before = NlBefore},
             {ok, CNode, Rest2};
         {ok, _Children, _Dangling, []} ->
             {error, {unbalanced, CloserKind, r3lfe_format_lexer:line(OpenerTok)}};
