@@ -194,6 +194,17 @@
     corpus_sweep_all/1
 ]).
 
+%% regimes group (A7·S2b-1)
+-export([
+    regime_case_canonical/1,
+    regime_defun_canonical/1,
+    regime_map_canonical/1,
+    regime_plain_call_break_preserving/1,
+    regime_tuple_break_preserving/1,
+    regime_indata_true_forces_break_preserving/1,
+    regime_unquote_inside_quasiquote_code/1
+]).
+
 %%====================================================================
 %% CT Callbacks
 %%====================================================================
@@ -205,7 +216,8 @@ all() ->
      {group, defforms}, {group, data_containers},
      {group, conformance}, {group, always_break},
      {group, export_guards},
-     {group, edge_hardening}, {group, fuzz}, {group, corpus_sweep}].
+     {group, edge_hardening}, {group, fuzz}, {group, corpus_sweep},
+     {group, regimes}].
 
 groups() ->
     [
@@ -364,6 +376,15 @@ groups() ->
         ]},
         {corpus_sweep, [], [
             corpus_sweep_all
+        ]},
+        {regimes, [], [
+            regime_case_canonical,
+            regime_defun_canonical,
+            regime_map_canonical,
+            regime_plain_call_break_preserving,
+            regime_tuple_break_preserving,
+            regime_indata_true_forces_break_preserving,
+            regime_unquote_inside_quasiquote_code
         ]}
     ].
 
@@ -1829,3 +1850,46 @@ sweep_comments(Bin) ->
     {ok, Toks} = r3lfe_format_lexer:tokens(Bin),
     {ok, Doc}  = r3lfe_format_cst:parse(Toks),
     [r3lfe_format_lexer:text(T) || T <- r3lfe_format_cst:comments(Doc)].
+
+%%====================================================================
+%% Regimes group (A7·S2b-1) — unit tests for regime/2
+%%====================================================================
+
+%% Parse a binary source and return the first top-level CST node.
+parse_first(Src) ->
+    {ok, Toks} = r3lfe_format_lexer:tokens(Src),
+    {ok, Doc}  = r3lfe_format_cst:parse(Toks),
+    [Node | _] = r3lfe_format_cst:document_children(Doc),
+    Node.
+
+regime_case_canonical(_Config) ->
+    Node = parse_first(<<"(case x (a 1))">>),
+    ?assertEqual(canonical, r3lfe_formatter:regime(Node, false)).
+
+regime_defun_canonical(_Config) ->
+    Node = parse_first(<<"(defun f (x) x)">>),
+    ?assertEqual(canonical, r3lfe_formatter:regime(Node, false)).
+
+regime_map_canonical(_Config) ->
+    Node = parse_first(<<"#m(a 1)">>),
+    ?assertEqual(canonical, r3lfe_formatter:regime(Node, false)).
+
+regime_plain_call_break_preserving(_Config) ->
+    Node = parse_first(<<"(foo a b)">>),
+    ?assertEqual(break_preserving, r3lfe_formatter:regime(Node, false)).
+
+regime_tuple_break_preserving(_Config) ->
+    Node = parse_first(<<"#(a b)">>),
+    ?assertEqual(break_preserving, r3lfe_formatter:regime(Node, false)).
+
+%% InData=true forces break_preserving even for a known specform head.
+regime_indata_true_forces_break_preserving(_Config) ->
+    Node = parse_first(<<"(if x y z)">>),
+    ?assertEqual(break_preserving, r3lfe_formatter:regime(Node, true)).
+
+%% Inside a quasiquote, the unquoted sub-form sees InData=false (code context).
+%% Test: the `(if x y)` under unquote → InData=false → canonical.
+regime_unquote_inside_quasiquote_code(_Config) ->
+    %% Parse `(if x y z)` in isolation with InData=false (as unquote would deliver).
+    Node = parse_first(<<"(if x y z)">>),
+    ?assertEqual(canonical, r3lfe_formatter:regime(Node, false)).

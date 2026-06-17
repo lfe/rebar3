@@ -1,4 +1,4 @@
-%%%% LFE source formatter — Arc A4·S3d: export/import keyword-alone + clause guards.
+%%%% LFE source formatter — Arc A7·S2b-1: regime classification + InData threading.
 %%%% Pipeline: r3lfe_format_lexer -> r3lfe_format_cst -> iolist.
 %%%%
 %%%% Output is LF-only (\n). CRLF input is normalised to LF because A1 lexes
@@ -8,6 +8,11 @@
 -module(r3lfe_formatter).
 
 -export([format/1]).
+
+%% regime/2 exported for unit testing only.
+-ifdef(TEST).
+-export([regime/2]).
+-endif.
 
 -define(WIDTH, 80).  %% column limit (§2.1)
 
@@ -31,27 +36,68 @@ format(Input) ->
     end.
 
 %%====================================================================
+%% Internal: regime classification (A7·S2b)
+%%====================================================================
+
+-type regime() :: canonical | break_preserving.
+
+%% regime/2: decide per container node whether the formatter owns layout
+%% (canonical) or preserves the author's break positions (break_preserving).
+%%
+%% Rules (in priority order):
+%%   InData=true         → break_preserving  (inside a quote — data context)
+%%   tuple / binary      → break_preserving  (data containers)
+%%   map                 → canonical          (k/v pair alignment owned by formatter)
+%%   list/eval with specform or defform head → canonical
+%%   any other list/eval (plain call, unknown head, non-symbol head) → break_preserving
+%%
+%% Note: leaves and prefixed nodes do not take a regime; only containers do.
+%% A7·S1 (cons-dot) not yet merged; dot tokens currently render as symbols.
+-spec regime(r3lfe_format_cst:cst_node(), boolean()) -> regime().
+regime(_Node, true) ->
+    break_preserving;
+regime(Node, false) ->
+    case r3lfe_format_cst:type(Node) of
+        tuple  -> break_preserving;
+        binary -> break_preserving;
+        map    -> canonical;
+        T when T =:= list; T =:= eval ->
+            case r3lfe_format_cst:children(Node) of
+                [Head | _] ->
+                    case classify_head(Head) of
+                        {specform, _} -> canonical;
+                        defform       -> canonical;
+                        _             -> break_preserving
+                    end;
+                [] -> break_preserving
+            end;
+        _ ->
+            break_preserving
+    end.
+
+%%====================================================================
 %% Internal: document-level layout
 %%====================================================================
 
 -spec render_document(r3lfe_format_cst:cst_document()) -> iolist().
 render_document(Doc) ->
-    Nodes    = r3lfe_format_cst:document_children(Doc),
+    Nodes     = r3lfe_format_cst:document_children(Doc),
     DangItems = r3lfe_format_cst:document_dangling(Doc),
-    Parts    = render_toplevel(Nodes, true, []),
-    DangIO   = emit_toplevel_dangling(DangItems),
+    Parts     = render_toplevel(Nodes, true, [], false),
+    DangIO    = emit_toplevel_dangling(DangItems),
     lists:reverse([DangIO | Parts]).
 
 %% render_toplevel: emit each top-level node with its leading trivia and final \n.
--spec render_toplevel([r3lfe_format_cst:cst_node()], boolean(), iolist()) -> iolist().
-render_toplevel([], _IsFirst, Acc) ->
+-spec render_toplevel([r3lfe_format_cst:cst_node()], boolean(), iolist(),
+                      boolean()) -> iolist().
+render_toplevel([], _IsFirst, Acc, _InData) ->
     Acc;
-render_toplevel([Node | Rest], IsFirst, Acc) ->
+render_toplevel([Node | Rest], IsFirst, Acc, InData) ->
     LeadIO = emit_leading_trivia(r3lfe_format_cst:leading(Node), "", IsFirst),
-    {NodeIO, NodeCol} = print_node(Node, 0),
+    {NodeIO, NodeCol} = print_node(Node, 0, InData),
     {TrailIO, _Col}   = emit_trailing(r3lfe_format_cst:trailing(Node), NodeCol),
     Part = [LeadIO, NodeIO, TrailIO, "\n"],
-    render_toplevel(Rest, false, [Part | Acc]).
+    render_toplevel(Rest, false, [Part | Acc], InData).
 
 %%====================================================================
 %% Internal: main printer — flat vs broken decision
@@ -65,16 +111,17 @@ render_toplevel([Node | Rest], IsFirst, Acc) ->
 %% lost in flat mode (dangling on this node, or any trivia on any descendant).
 %% The node's own leading/trailing are always emitted by the parent context and
 %% do NOT prevent flat rendering.
--spec print_node(r3lfe_format_cst:cst_node(), non_neg_integer()) ->
+%% InData: true when inside a quote/quasiquote context (data, not code).
+-spec print_node(r3lfe_format_cst:cst_node(), non_neg_integer(), boolean()) ->
           {iolist(), non_neg_integer()}.
-print_node(Node, Col) ->
+print_node(Node, Col, InData) ->
     W = flat_width(Node),
     Fits = W =/= infinity
            andalso Col + W =< ?WIDTH
            andalso not has_internal_trivia(Node),
     case Fits of
         true  -> {flat_render(Node), Col + W};
-        false -> print_broken(Node, Col)
+        false -> print_broken(Node, Col, InData)
     end.
 
 %%====================================================================
@@ -82,16 +129,25 @@ print_node(Node, Col) ->
 %%====================================================================
 
 %% print_broken: broken form for containers, prefixed, and multi-line leaves.
--spec print_broken(r3lfe_format_cst:cst_node(), non_neg_integer()) ->
+%% Transitions InData at quote/quasiquote (→ true) and unquote/-splicing (→ false).
+-spec print_broken(r3lfe_format_cst:cst_node(), non_neg_integer(), boolean()) ->
           {iolist(), non_neg_integer()}.
-print_broken(Node, Col) ->
+print_broken(Node, Col, InData) ->
     case r3lfe_format_cst:type(Node) of
         T when T =:= list; T =:= tuple; T =:= map; T =:= binary; T =:= eval ->
-            print_broken_container(Node, Col);
+            print_broken_container(Node, Col, InData);
         prefixed ->
             PfxText = r3lfe_format_lexer:text(r3lfe_format_cst:prefix(Node)),
+            PfxKind = r3lfe_format_lexer:kind(r3lfe_format_cst:prefix(Node)),
             [Inner]  = r3lfe_format_cst:children(Node),
-            {InnerIO, InnerCol} = print_node(Inner, Col + length(PfxText)),
+            InnerInData = case PfxKind of
+                quote            -> true;
+                quasiquote       -> true;
+                unquote          -> false;
+                unquote_splicing -> false;
+                _                -> InData
+            end,
+            {InnerIO, InnerCol} = print_node(Inner, Col + length(PfxText), InnerInData),
             {[PfxText, InnerIO], InnerCol};
         _ ->
             %% Leaf with multi-line token (tqstring/tqbstring): emit verbatim.
@@ -108,9 +164,13 @@ print_broken(Node, Col) ->
 %%
 %% Dangling trivia always goes at C+2; close on its own line at C when dangling
 %% is present or last child has trailing comment. All A3 trivia rules unchanged.
--spec print_broken_container(r3lfe_format_cst:cst_node(), non_neg_integer()) ->
+%%
+%% NOTE (A7·S2b-1): regime/2 is computed here but not yet used to route to a
+%% different renderer — that is S2b-2. Currently all nodes use the canonical path.
+-spec print_broken_container(r3lfe_format_cst:cst_node(), non_neg_integer(),
+                             boolean()) ->
           {iolist(), non_neg_integer()}.
-print_broken_container(Node, C) ->
+print_broken_container(Node, C, InData) ->
     Open      = r3lfe_format_lexer:text(r3lfe_format_cst:open(Node)),
     Close     = r3lfe_format_lexer:text(r3lfe_format_cst:close(Node)),
     Children  = r3lfe_format_cst:children(Node),
@@ -134,7 +194,8 @@ print_broken_container(Node, C) ->
                 true ->
                     %% Opener alone; all children at Indent (fix1 idempotency).
                     {AllIO, LastCol, HasTrail} = print_rest_loop([Head | RestChildren],
-                                                                  Indent, IndentStr, true),
+                                                                  Indent, IndentStr,
+                                                                  true, InData),
                     {CloseIO, CloseCol} = close_section(Dangling, HasTrail, LastCol,
                                                         Indent, IndentStr, C, CIndStr, Close),
                     {[Open, AllIO, CloseIO], CloseCol};
@@ -146,16 +207,16 @@ print_broken_container(Node, C) ->
                             Class = classify_head(Head),
                             print_classified(Class, Head, RestChildren, Dangling,
                                              C, Open, OpenLen, Close, CloseLen,
-                                             Indent, IndentStr, CIndStr);
+                                             Indent, IndentStr, CIndStr, InData);
                         T when T =:= tuple; T =:= binary ->
                             %% Element-per-line: aligned under first (list_head rule).
                             print_classified(list_head, Head, RestChildren, Dangling,
                                              C, Open, OpenLen, Close, CloseLen,
-                                             Indent, IndentStr, CIndStr);
+                                             Indent, IndentStr, CIndStr, InData);
                         map ->
                             print_map_pairs(Head, RestChildren, Dangling,
                                             C, Open, OpenLen, Close, CloseLen,
-                                            Indent, IndentStr, CIndStr)
+                                            Indent, IndentStr, CIndStr, InData)
                     end
             end
     end.
@@ -176,11 +237,11 @@ print_broken_container(Node, C) ->
                       [r3lfe_format_cst:trivia()],
                       non_neg_integer(), string(), non_neg_integer(),
                       string(), non_neg_integer(),
-                      non_neg_integer(), string(), string()) ->
+                      non_neg_integer(), string(), string(), boolean()) ->
           {iolist(), non_neg_integer()}.
 print_map_pairs(Head, RestChildren, Dangling,
                 C, Open, OpenLen, Close, CloseLen,
-                Indent, IndentStr, CIndStr) ->
+                Indent, IndentStr, CIndStr, InData) ->
     AllChildren = [Head | RestChildren],
     AnyTrivia = lists:any(
         fun(Child) ->
@@ -192,12 +253,12 @@ print_map_pairs(Head, RestChildren, Dangling,
             %% Fall back: element-per-line (reuse list_head; safe with trivia).
             print_classified(list_head, Head, RestChildren, Dangling,
                              C, Open, OpenLen, Close, CloseLen,
-                             Indent, IndentStr, CIndStr);
+                             Indent, IndentStr, CIndStr, InData);
         false ->
             AlignCol = C + OpenLen,
             AlignStr = lists:duplicate(AlignCol, $\s),
             {PairsIO, LastCol, HasTrail} =
-                print_map_pairs_list(AllChildren, AlignCol, AlignStr),
+                print_map_pairs_list(AllChildren, AlignCol, AlignStr, InData),
             {CloseIO, CloseCol} = close_section(Dangling, HasTrail, LastCol,
                                                 Indent, IndentStr, C, CIndStr, Close),
             {[Open, PairsIO, CloseIO], CloseCol}
@@ -206,41 +267,41 @@ print_map_pairs(Head, RestChildren, Dangling,
 %% print_map_pairs_list: render the full list of map children starting at
 %% AlignCol (first pair on the opener line, no leading newline).
 -spec print_map_pairs_list([r3lfe_format_cst:cst_node()],
-                            non_neg_integer(), string()) ->
+                            non_neg_integer(), string(), boolean()) ->
           {iolist(), non_neg_integer(), boolean()}.
-print_map_pairs_list([K, V], AlignCol, _AlignStr) ->
-    {KIO, KCol} = print_node(K, AlignCol),
-    {VIO, VCol} = print_node(V, KCol + 1),
+print_map_pairs_list([K, V], AlignCol, _AlignStr, InData) ->
+    {KIO, KCol} = print_node(K, AlignCol, InData),
+    {VIO, VCol} = print_node(V, KCol + 1, InData),
     VTrail = r3lfe_format_cst:trailing(V) =/= [],
     {[KIO, " ", VIO], VCol, VTrail};
-print_map_pairs_list([K, V | Rest], AlignCol, AlignStr) ->
-    {KIO, KCol} = print_node(K, AlignCol),
-    {VIO, _VCol} = print_node(V, KCol + 1),
-    {RestIO, LastCol, HasTrail} = print_map_pairs_rest(Rest, AlignCol, AlignStr),
+print_map_pairs_list([K, V | Rest], AlignCol, AlignStr, InData) ->
+    {KIO, KCol} = print_node(K, AlignCol, InData),
+    {VIO, _VCol} = print_node(V, KCol + 1, InData),
+    {RestIO, LastCol, HasTrail} = print_map_pairs_rest(Rest, AlignCol, AlignStr, InData),
     {[KIO, " ", VIO | RestIO], LastCol, HasTrail};
-print_map_pairs_list([K], AlignCol, _AlignStr) ->
+print_map_pairs_list([K], AlignCol, _AlignStr, InData) ->
     %% Odd last element (malformed map): emit alone.
-    {KIO, KCol} = print_node(K, AlignCol),
+    {KIO, KCol} = print_node(K, AlignCol, InData),
     KTrail = r3lfe_format_cst:trailing(K) =/= [],
     {[KIO], KCol, KTrail}.
 
 %% print_map_pairs_rest: emit remaining k-v pairs each preceded by \n+AlignStr.
 -spec print_map_pairs_rest([r3lfe_format_cst:cst_node()],
-                            non_neg_integer(), string()) ->
+                            non_neg_integer(), string(), boolean()) ->
           {iolist(), non_neg_integer(), boolean()}.
-print_map_pairs_rest([K, V], AlignCol, AlignStr) ->
-    {KIO, KCol} = print_node(K, AlignCol),
-    {VIO, VCol} = print_node(V, KCol + 1),
+print_map_pairs_rest([K, V], AlignCol, AlignStr, InData) ->
+    {KIO, KCol} = print_node(K, AlignCol, InData),
+    {VIO, VCol} = print_node(V, KCol + 1, InData),
     VTrail = r3lfe_format_cst:trailing(V) =/= [],
     {["\n", AlignStr, KIO, " ", VIO], VCol, VTrail};
-print_map_pairs_rest([K, V | Rest], AlignCol, AlignStr) ->
-    {KIO, KCol} = print_node(K, AlignCol),
-    {VIO, _VCol} = print_node(V, KCol + 1),
-    {RestIO, LastCol, HasTrail} = print_map_pairs_rest(Rest, AlignCol, AlignStr),
+print_map_pairs_rest([K, V | Rest], AlignCol, AlignStr, InData) ->
+    {KIO, KCol} = print_node(K, AlignCol, InData),
+    {VIO, _VCol} = print_node(V, KCol + 1, InData),
+    {RestIO, LastCol, HasTrail} = print_map_pairs_rest(Rest, AlignCol, AlignStr, InData),
     {["\n", AlignStr, KIO, " ", VIO | RestIO], LastCol, HasTrail};
-print_map_pairs_rest([K], AlignCol, AlignStr) ->
+print_map_pairs_rest([K], AlignCol, AlignStr, InData) ->
     %% Odd last element.
-    {KIO, KCol} = print_node(K, AlignCol),
+    {KIO, KCol} = print_node(K, AlignCol, InData),
     KTrail = r3lfe_format_cst:trailing(K) =/= [],
     {["\n", AlignStr, KIO], KCol, KTrail}.
 
@@ -466,7 +527,7 @@ specform_table() ->
                        [r3lfe_format_cst:trivia()],
                        non_neg_integer(), string(), non_neg_integer(),
                        string(), non_neg_integer(),
-                       non_neg_integer(), string(), string()) ->
+                       non_neg_integer(), string(), string(), boolean()) ->
           {iolist(), non_neg_integer()}.
 
 %% list_head: all elements aligned under the first at C+len(Open).
@@ -478,11 +539,11 @@ specform_table() ->
 %% Atom-pattern clauses (Pat is a symbol → funcall class) never reach here.
 print_classified(list_head, Head, RestChildren, Dangling,
                  C, Open, OpenLen, Close, _CloseLen,
-                 Indent, IndentStr, CIndStr) ->
+                 Indent, IndentStr, CIndStr, InData) ->
     AlignCol = C + OpenLen,
     AlignStr = lists:duplicate(AlignCol, $\s),
     HeadLeadIO = emit_head_leading(r3lfe_format_cst:leading(Head), CIndStr),
-    {HeadIO, HeadCol}  = print_node(Head, AlignCol),
+    {HeadIO, HeadCol}  = print_node(Head, AlignCol, InData),
     {HeadTrailIO, HTC} = emit_trailing(r3lfe_format_cst:trailing(Head), HeadCol),
     HeadHasTrail = r3lfe_format_cst:trailing(Head) =/= [],
     UseGuard = case RestChildren of
@@ -496,7 +557,7 @@ print_classified(list_head, Head, RestChildren, Dangling,
     case {UseGuard, RestChildren} of
         {true, [Guard | Body]} ->
             %% Pat already printed; Guard on same line, Body below at AlignCol.
-            {GuardIO, GuardCol} = print_node(Guard, HTC + 1),
+            {GuardIO, GuardCol} = print_node(Guard, HTC + 1, InData),
             case Body of
                 [] ->
                     {CloseIO, CloseCol} = close_section(Dangling, false, GuardCol,
@@ -504,7 +565,7 @@ print_classified(list_head, Head, RestChildren, Dangling,
                     {[HeadLeadIO, Open, HeadIO, HeadTrailIO, " ", GuardIO, CloseIO], CloseCol};
                 _ ->
                     {BodyIO, LastCol, HasTrail} = print_rest_loop(Body, AlignCol,
-                                                                   AlignStr, true),
+                                                                   AlignStr, true, InData),
                     {CloseIO, CloseCol} = close_section(Dangling, HasTrail, LastCol,
                                                         Indent, IndentStr, C, CIndStr, Close),
                     {[HeadLeadIO, Open, HeadIO, HeadTrailIO, " ", GuardIO, BodyIO, CloseIO], CloseCol}
@@ -515,7 +576,7 @@ print_classified(list_head, Head, RestChildren, Dangling,
             {[HeadLeadIO, Open, HeadIO, HeadTrailIO, CloseIO], CloseCol};
         {false, _} ->
             {RestIO, LastCol, HasTrail} = print_rest_loop(RestChildren, AlignCol,
-                                                           AlignStr, true),
+                                                           AlignStr, true, InData),
             {CloseIO, CloseCol} = close_section(Dangling, HasTrail, LastCol,
                                                 Indent, IndentStr, C, CIndStr, Close),
             {[HeadLeadIO, Open, HeadIO, HeadTrailIO, RestIO, CloseIO], CloseCol}
@@ -533,9 +594,9 @@ print_classified(list_head, Head, RestChildren, Dangling,
 %% similar still break the close onto its own line (fix2).
 print_classified({specform, N}, Head, RestChildren, Dangling,
                  C, Open, OpenLen, Close, _CloseLen,
-                 Indent, IndentStr, CIndStr) ->
+                 Indent, IndentStr, CIndStr, InData) ->
     HeadLeadIO = emit_head_leading(r3lfe_format_cst:leading(Head), CIndStr),
-    {HeadIO, HeadCol}  = print_node(Head, C + OpenLen),
+    {HeadIO, HeadCol}  = print_node(Head, C + OpenLen, InData),
     {HeadTrailIO, HTC} = emit_trailing(r3lfe_format_cst:trailing(Head), HeadCol),
     HeadHasTrail = r3lfe_format_cst:trailing(Head) =/= [],
     {DistIO, DistEndCol, Body} =
@@ -554,10 +615,10 @@ print_classified({specform, N}, Head, RestChildren, Dangling,
                             case is_let_head(Head) andalso DistPotential =/= [] of
                                 true ->
                                     [BindList] = DistPotential,
-                                    {BIO, BCol} = print_broken(BindList, HTC + 1),
+                                    {BIO, BCol} = print_broken(BindList, HTC + 1, InData),
                                     {[" ", BIO], BCol};
                                 false ->
-                                    print_distinguished(DistPotential, HTC)
+                                    print_distinguished(DistPotential, HTC, InData)
                             end,
                         {DIO, DCol, BodyPotential}
                 end
@@ -570,7 +631,8 @@ print_classified({specform, N}, Head, RestChildren, Dangling,
                                                 Indent, IndentStr, C, CIndStr, Close),
             {[HeadLeadIO, Open, HeadIO, HeadTrailIO, DistIO, CloseIO], CloseCol};
         _ ->
-            {BodyIO, LastCol, HasTrail} = print_rest_loop(Body, Indent, IndentStr, true),
+            {BodyIO, LastCol, HasTrail} = print_rest_loop(Body, Indent, IndentStr,
+                                                          true, InData),
             {CloseIO, CloseCol} = close_section(Dangling, HasTrail, LastCol,
                                                 Indent, IndentStr, C, CIndStr, Close),
             {[HeadLeadIO, Open, HeadIO, HeadTrailIO, DistIO, BodyIO, CloseIO], CloseCol}
@@ -588,11 +650,11 @@ print_classified({specform, N}, Head, RestChildren, Dangling,
 %% Docstrings need no special case: the first body form (a string) lands at C+2.
 print_classified(defform, Head, RestChildren, Dangling,
                  C, Open, OpenLen, Close, CloseLen,
-                 Indent, IndentStr, CIndStr) ->
+                 Indent, IndentStr, CIndStr, InData) ->
     N = defform_n(Head, RestChildren),
     print_classified({specform, N}, Head, RestChildren, Dangling,
                      C, Open, OpenLen, Close, CloseLen,
-                     Indent, IndentStr, CIndStr);
+                     Indent, IndentStr, CIndStr, InData);
 
 %% funcall: a1 on head line; a2..aN aligned under a1's column.
 %% Align column = C + len(Open) + len(flat(head)) + 1.
@@ -600,9 +662,9 @@ print_classified(defform, Head, RestChildren, Dangling,
 %% follow it on the head line) or when a1 has a leading comment (fix1).
 print_classified(funcall, Head, RestChildren, Dangling,
                  C, Open, OpenLen, Close, _CloseLen,
-                 Indent, IndentStr, CIndStr) ->
+                 Indent, IndentStr, CIndStr, InData) ->
     HeadLeadIO = emit_head_leading(r3lfe_format_cst:leading(Head), CIndStr),
-    {HeadIO, HeadCol}  = print_node(Head, C + OpenLen),
+    {HeadIO, HeadCol}  = print_node(Head, C + OpenLen, InData),
     {HeadTrailIO, HTC} = emit_trailing(r3lfe_format_cst:trailing(Head), HeadCol),
     %% Head is always a symbol for funcall; use its text length for alignment.
     HeadTextLen = length(r3lfe_format_lexer:text(r3lfe_format_cst:open(Head))),
@@ -619,12 +681,12 @@ print_classified(funcall, Head, RestChildren, Dangling,
                 true ->
                     %% Head trailing or a1 leading comment: all rest as body at C+2.
                     {AllIO, LastCol, HasTrail} = print_rest_loop(RestChildren, Indent,
-                                                                  IndentStr, true),
+                                                                  IndentStr, true, InData),
                     {CloseIO, CloseCol} = close_section(Dangling, HasTrail, LastCol,
                                                         Indent, IndentStr, C, CIndStr, Close),
                     {[HeadLeadIO, Open, HeadIO, HeadTrailIO, AllIO, CloseIO], CloseCol};
                 false ->
-                    {A1IO, A1Col}     = print_node(A1, HTC + 1),
+                    {A1IO, A1Col}     = print_node(A1, HTC + 1, InData),
                     {A1TrailIO, A1TC} = emit_trailing(r3lfe_format_cst:trailing(A1), A1Col),
                     A1HasTrail = r3lfe_format_cst:trailing(A1) =/= [],
                     case RestArgs of
@@ -636,7 +698,7 @@ print_classified(funcall, Head, RestChildren, Dangling,
                               " ", A1IO, A1TrailIO, CloseIO], CloseCol};
                         _ ->
                             {RestIO, LastCol, HasTrail} = print_rest_loop(RestArgs, AlignCol,
-                                                                           AlignStr, true),
+                                                                           AlignStr, true, InData),
                             {CloseIO, CloseCol} = close_section(Dangling, HasTrail, LastCol,
                                                                  Indent, IndentStr, C, CIndStr,
                                                                  Close),
@@ -648,15 +710,16 @@ print_classified(funcall, Head, RestChildren, Dangling,
 
 %% print_distinguished: print distinguished args space-separated on the head line.
 %% Each arg's leading is emitted via emit_head_leading (blanks dropped).
--spec print_distinguished([r3lfe_format_cst:cst_node()], non_neg_integer()) ->
+-spec print_distinguished([r3lfe_format_cst:cst_node()], non_neg_integer(),
+                          boolean()) ->
           {iolist(), non_neg_integer()}.
-print_distinguished([], Col) ->
+print_distinguished([], Col, _InData) ->
     {[], Col};
-print_distinguished([D | Rest], Col) ->
+print_distinguished([D | Rest], Col, InData) ->
     DLeadIO = emit_head_leading(r3lfe_format_cst:leading(D), ""),
-    {DIO, DCol}      = print_node(D, Col + 1),
+    {DIO, DCol}      = print_node(D, Col + 1, InData),
     {DTrailIO, DTC}  = emit_trailing(r3lfe_format_cst:trailing(D), DCol),
-    {RestIO, LastCol} = print_distinguished(Rest, DTC),
+    {RestIO, LastCol} = print_distinguished(Rest, DTC, InData),
     {[" ", DLeadIO, DIO, DTrailIO | RestIO], LastCol}.
 
 %% close_section: emit dangling then close, or close hugging last child.
@@ -678,18 +741,19 @@ close_section(Dangling, _HasTrail, _LastCol, _Indent, IndStr, C, CIndStr, Close)
 %% the final child carried a trailing comment (used by close_section fix1).
 %% IsFirst=true suppresses the leading blank of the first rest child.
 -spec print_rest_loop([r3lfe_format_cst:cst_node()], non_neg_integer(),
-                      string(), boolean()) ->
+                      string(), boolean(), boolean()) ->
           {iolist(), non_neg_integer(), boolean()}.
-print_rest_loop([Child | Rest], Indent, IndentStr, IsFirst) ->
+print_rest_loop([Child | Rest], Indent, IndentStr, IsFirst, InData) ->
     LeadIO = emit_child_leading(r3lfe_format_cst:leading(Child), IndentStr, IsFirst),
-    {ChildIO, ChildCol}  = print_node(Child, Indent),
+    {ChildIO, ChildCol}  = print_node(Child, Indent, InData),
     {TrailIO, TrailCol}  = emit_trailing(r3lfe_format_cst:trailing(Child), ChildCol),
     case Rest of
         [] ->
             HasTrail = r3lfe_format_cst:trailing(Child) =/= [],
             {["\n", LeadIO, IndentStr, ChildIO, TrailIO], TrailCol, HasTrail};
         _ ->
-            {RestIO, LastCol, HasTrail} = print_rest_loop(Rest, Indent, IndentStr, false),
+            {RestIO, LastCol, HasTrail} = print_rest_loop(Rest, Indent, IndentStr,
+                                                          false, InData),
             {["\n", LeadIO, IndentStr, ChildIO, TrailIO | RestIO], LastCol, HasTrail}
     end.
 
