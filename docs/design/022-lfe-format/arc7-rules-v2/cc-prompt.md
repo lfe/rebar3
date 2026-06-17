@@ -28,10 +28,12 @@ and gets regenerated at the end (S6).
 - **S2a — CST records author breaks**: instrument the CST to record, per child,
   whether a newline preceded it in source (the author's break positions). No
   printer/behavior change yet. → `cc-prompt-s2a-cst-breaks.md`
-- **S2b — printer regimes**: known-vs-unknown regime split (incl. quote/data
-  context = always break-preserving); break-preserving renderer for unknown/data
-  forms (preserve author break positions, align-under-first-arg, wrap > 80). Known
-  forms keep current behavior (S3 refines). → `cc-prompt-s2b-regimes.md`
+- **S2b — printer regimes** (SPLIT — blew the 32k cap as one piece;
+  `cc-prompt-s2b-regimes.md` is now the shared ref):
+  - **S2b-1** — regime classification + `InData` threading, **behavior-neutral**
+    (break-preserving nodes still use the current renderer). → `cc-prompt-s2b-1-classify.md`
+  - **S2b-2** — the break-preserving renderer (preserve author break positions,
+    align-under-first-arg, wrap > 80) + regime tests. → `cc-prompt-s2b-2-renderer.md`
 - **S3 — known-form break rules**: always-break additions (`if`, `progn`,
   `receive`, `try`, `maybe`); clause body rule (break unless single trivial atom);
   lambda structure rule (flat only if single non-structural body).

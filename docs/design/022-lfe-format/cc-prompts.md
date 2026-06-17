@@ -5,16 +5,28 @@ Each arc lives in its own subdir: `arcN-<slug>/cc-prompt.md` (the spec) and
 `arcN-<slug>/cc-prompt-fixM-<slug>.md` (scoped fixes). A2 is ready now; A3–A6 are
 drafts to be tightened after the prior arc's report is graded.
 
-Status: **A1 ✅ · A2 ✅ · A3 ✅ · A4 ✅ · A5 ✅** · **A6 NEXT** (release;
+Status: **A1–A5 ✅** · **A7 ACTIVE** (formatting model v2 — knowledge-gated;
+revises A3/A4 over-collapsing per real-world feedback; authoritative spec =
+`formatting-rules.md`; arc map = `arc7-rules-v2/cc-prompt.md`. #7 dropped-code =
+FALSE ALARM (compaction, not loss). Oracle gap REAL: 2/3 sites re-anchored to raw
+lexer; **3rd site (PropEr `fmt_sig_pairs`) still CST-derived → `cc-prompt-oracle-
+fix-proper.md` READY**. **S1 = cons-dot only** (`cc-prompt-s1-cons-dot.md` READY),
+S2a ✅, **S2b SPLIT** (blew 32k cap as one piece) → **S2b-1 classify+InData
+(behavior-neutral) READY**, S2b-2 renderer; S3/S4/S5/S6 to come; gallery PAUSED).
+**A6 (release) deferred until A7 lands** — don't ship docs/
+CHANGELOG/0.5.5 for behavior that's changing. — older A6 detail below —
+
+Status (history): **A6 NEXT** (release;
 `arc6-release/`: **S0 e2e-CLI ✅** (real `rebar3 lfe format` via _checkouts; found+
 fixed a RELEASE-BLOCKING bug — `?DEPS=[]` ran the bare provider before app
 discovery → default format found 0 files; fix `{default, app_discovery}`; 22
 asserts), S1 hardening ✅ + **S1·fix1 (dangling-blank, test-first) pending**,
 S2 docs+release pending).
 
-⚠️ Observation (pre-existing, out of 022 scope): `r3lfe_prv_clean` has the same
-`?DEPS=[]` + app-iteration → `rebar3 lfe clean` standalone likely cleans nothing.
-One-line fix of the same class; Duncan's call whether to fold into 0.5.5.
+Sidecar fix (Duncan: do it now, bundle into 0.5.5): `r3lfe_prv_clean` had the same
+`?DEPS=[]` app-discovery bug → fix prompt `arc6-release/cc-prompt-clean-app-discovery-fix.md`
+(one-line DEPS fix + e2e assertion: compile→.beam, standalone clean removes them).
+CHANGELOG note for it lands in A6·S2.
 ⚠️ Gap found: provider is only tested via `do/1` directly — NO test runs the real
 `rebar3 lfe format` through rebar3's plugin machinery (the `Command lfe not found`
 class). S0 closes that with a local-path-plugin fixture + shell-out asserts.

@@ -1,4 +1,14 @@
-# 022 · Arc A7 · S2b — printer regimes: canonical vs break-preserving (CC spec)
+# 022 · Arc A7 · S2b — printer regimes: canonical vs break-preserving (SHARED REF)
+
+> ⚠️ **DO NOT hand CC this whole file.** Doing all of S2b in one turn blew the 32k
+> output cap. It's split into two bounded sub-slices — hand one at a time:
+> - `cc-prompt-s2b-1-classify.md` — regime classification + `InData` threading,
+>   **behavior-neutral** (break-preserving nodes still use the current renderer).
+> - `cc-prompt-s2b-2-renderer.md` — the break-preserving renderer + regime tests
+>   (this is where output changes).
+>
+> This file is the **shared reference** (the model, §1–§4) the two sub-slices point
+> back to. Read it, then work the sub-slice you were handed.
 
 > Target: Sonnet 4.6 + `erlang-guidelines`. The architectural heart of A7.
 > **Implementation spec.** **Stop and report** if blocked.
