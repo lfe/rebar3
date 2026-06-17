@@ -62,14 +62,19 @@ regime(Node, false) ->
         binary -> break_preserving;
         map    -> canonical;
         T when T =:= list; T =:= eval ->
-            case r3lfe_format_cst:children(Node) of
-                [Head | _] ->
-                    case classify_head(Head) of
-                        {specform, _} -> canonical;
-                        defform       -> canonical;
-                        _             -> break_preserving
+            case r3lfe_format_cst:dot_token(Node) of
+                undefined ->
+                    case r3lfe_format_cst:children(Node) of
+                        [Head | _] ->
+                            case classify_head(Head) of
+                                {specform, _} -> canonical;
+                                defform       -> canonical;
+                                _             -> break_preserving
+                            end;
+                        [] -> break_preserving
                     end;
-                [] -> break_preserving
+                _ ->
+                    break_preserving  %% dotted lists are never canonical specforms
             end;
         _ ->
             break_preserving
@@ -245,18 +250,22 @@ print_broken_container(Node, C, InData) ->
                          [r3lfe_format_cst:trivia()],
                          non_neg_integer(), string(), string(), boolean()) ->
           {iolist(), non_neg_integer()}.
-print_bp_container(_Node, C, Open, _OpenLen, Close, _CloseLen,
+print_bp_container(Node, C, Open, _OpenLen, Close, _CloseLen,
                    Head, RestChildren, Dangling,
                    Indent, IndentStr, CIndStr, InData) ->
+    DotTok = r3lfe_format_cst:dot_token(Node),
+    {RestBody, MaybeTail} = split_dot_tail(DotTok, RestChildren),
     case head_has_leading_comment(Head) of
         true ->
             %% Comment before head: opener alone, all children one-per-line at Indent.
             {AllIO, LastCol, HasTrail} =
-                print_rest_loop([Head | RestChildren], Indent, IndentStr, true, InData),
+                print_rest_loop([Head | RestBody], Indent, IndentStr, true, InData),
+            {DotIO, DotCol, DotHasTrail} =
+                apply_dot_suffix(MaybeTail, LastCol, HasTrail),
             {CloseIO, CloseCol} =
-                close_section(Dangling, HasTrail, LastCol,
+                close_section(Dangling, DotHasTrail, DotCol,
                               Indent, IndentStr, C, CIndStr, Close),
-            {[Open, AllIO, CloseIO], CloseCol};
+            {[Open, AllIO, DotIO, CloseIO], CloseCol};
         false ->
             HeadLeadIO = emit_head_leading(r3lfe_format_cst:leading(Head), CIndStr),
             HeadCol    = C + length(Open),
@@ -267,24 +276,28 @@ print_bp_container(_Node, C, Open, _OpenLen, Close, _CloseLen,
                     {HeadIO, HCol}       = print_node(Head, Indent, InData),
                     {HeadTrailIO, HTC}   = emit_trailing(
                                              r3lfe_format_cst:trailing(Head), HCol),
-                    {RestIO, LastCol, HasTrail} =
-                        bp_rest_loop(RestChildren, Indent, HangStr, HTC, InData),
+                    {RestIO, BodyLastCol, BodyHasTrail} =
+                        bp_rest_loop(RestBody, Indent, HangStr, HTC, InData),
+                    {DotIO, DotCol, DotHasTrail} =
+                        apply_dot_suffix(MaybeTail, BodyLastCol, BodyHasTrail),
                     {CloseIO, CloseCol}  =
-                        close_section(Dangling, HasTrail, LastCol,
+                        close_section(Dangling, DotHasTrail, DotCol,
                                       Indent, HangStr, C, CIndStr, Close),
                     {[HeadLeadIO, Open, "\n", HangStr, HeadIO, HeadTrailIO,
-                      RestIO, CloseIO], CloseCol};
+                      RestIO, DotIO, CloseIO], CloseCol};
                 false ->
                     {HeadIO, HCol}       = print_node(Head, HeadCol, InData),
                     {HeadTrailIO, HTC}   = emit_trailing(
                                              r3lfe_format_cst:trailing(Head), HCol),
                     HeadHasTrail = r3lfe_format_cst:trailing(Head) =/= [],
-                    case RestChildren of
+                    case RestBody of
                         [] ->
+                            {DotIO, DotCol, DotHasTrail} =
+                                apply_dot_suffix(MaybeTail, HTC, HeadHasTrail),
                             {CloseIO, CloseCol} =
-                                close_section(Dangling, HeadHasTrail, HTC,
+                                close_section(Dangling, DotHasTrail, DotCol,
                                               Indent, IndentStr, C, CIndStr, Close),
-                            {[HeadLeadIO, Open, HeadIO, HeadTrailIO, CloseIO], CloseCol};
+                            {[HeadLeadIO, Open, HeadIO, HeadTrailIO, DotIO, CloseIO], CloseCol};
                         [FirstArg | _] ->
                             %% AlignCol = column where first arg lands.
                             %% Hanging (C+2) when: head has trailing comment, first arg
@@ -301,13 +314,14 @@ print_bp_container(_Node, C, Open, _OpenLen, Close, _CloseLen,
                                     true  -> {Indent, IndentStr};
                                     false -> {HTC + 1, lists:duplicate(HTC + 1, $\s)}
                                 end,
-                            {RestIO, LastCol, HasTrail} =
-                                bp_rest_loop(RestChildren, AlignCol, AlignStr,
-                                             HTC, InData),
+                            {RestIO, BodyLastCol, BodyHasTrail} =
+                                bp_rest_loop(RestBody, AlignCol, AlignStr, HTC, InData),
+                            {DotIO, DotCol, DotHasTrail} =
+                                apply_dot_suffix(MaybeTail, BodyLastCol, BodyHasTrail),
                             {CloseIO, CloseCol} =
-                                close_section(Dangling, HasTrail, LastCol,
+                                close_section(Dangling, DotHasTrail, DotCol,
                                               AlignCol, AlignStr, C, CIndStr, Close),
-                            {[HeadLeadIO, Open, HeadIO, HeadTrailIO, RestIO, CloseIO],
+                            {[HeadLeadIO, Open, HeadIO, HeadTrailIO, RestIO, DotIO, CloseIO],
                              CloseCol}
                     end
             end
@@ -349,6 +363,27 @@ bp_rest_loop([Child | Rest], AlignCol, AlignStr, CurCol, InData) ->
                 bp_rest_loop(Rest, AlignCol, AlignStr, TrailCol, InData),
             {[Prefix, ChildIO, TrailIO | RestIO], LastCol, HasTrail}
     end.
+
+%%====================================================================
+%% Internal: cons-dot helpers (A7·S1)
+%%====================================================================
+
+%% split_dot_tail/2: for a dotted list, separate body children from the tail.
+split_dot_tail(undefined, Children)  -> {Children, none};
+split_dot_tail(_, [])                -> {[], none};
+split_dot_tail(DotTok, Children) ->
+    {lists:droplast(Children), {DotTok, lists:last(Children)}}.
+
+%% apply_dot_suffix/3: append " . tail" IO after the body, returning updated col.
+apply_dot_suffix(none, Col, HasTrail) ->
+    {[], Col, HasTrail};
+apply_dot_suffix({DotTok, TailNode}, Col, _HasTrail) ->
+    DotText = r3lfe_format_lexer:text(DotTok),
+    TailIO  = flat_render(TailNode),
+    TailW   = case flat_width(TailNode) of infinity -> 0; W -> W end,
+    TailCol = Col + 3 + TailW,
+    TailHasTrail = r3lfe_format_cst:trailing(TailNode) =/= [],
+    {[" ", DotText, " ", TailIO], TailCol, TailHasTrail}.
 
 %%====================================================================
 %% Internal: map key-value pair rendering (A4·S3a)
@@ -470,7 +505,9 @@ any_dist_has_comment([D | Rest]) ->
 must_break(Node) ->
     case r3lfe_format_cst:type(Node) of
         map  -> true;
-        list -> is_force_break_defform(Node) orelse is_always_break_head(Node);
+        list ->
+            r3lfe_format_cst:dot_token(Node) =:= undefined
+            andalso (is_force_break_defform(Node) orelse is_always_break_head(Node));
         _    -> false
     end.
 
@@ -899,9 +936,18 @@ flat_render(Node) ->
             Open  = r3lfe_format_lexer:text(r3lfe_format_cst:open(Node)),
             Close = r3lfe_format_lexer:text(r3lfe_format_cst:close(Node)),
             case r3lfe_format_cst:children(Node) of
-                []       -> [Open, Close];
+                [] -> [Open, Close];
                 Children ->
-                    [Open, lists:join(" ", [flat_render(C) || C <- Children]), Close]
+                    case r3lfe_format_cst:dot_token(Node) of
+                        undefined ->
+                            [Open, lists:join(" ", [flat_render(C) || C <- Children]), Close];
+                        DotTok ->
+                            AllButLast = lists:droplast(Children),
+                            Tail = lists:last(Children),
+                            DotText = r3lfe_format_lexer:text(DotTok),
+                            PreRendered = lists:join(" ", [flat_render(C) || C <- AllButLast]),
+                            [Open, PreRendered, " ", DotText, " ", flat_render(Tail), Close]
+                    end
             end;
         prefixed ->
             PfxText = r3lfe_format_lexer:text(r3lfe_format_cst:prefix(Node)),
@@ -931,11 +977,16 @@ flat_width(Node) ->
                     OpenLen  = length(r3lfe_format_lexer:text(r3lfe_format_cst:open(Node))),
                     CloseLen = length(r3lfe_format_lexer:text(r3lfe_format_cst:close(Node))),
                     Children = r3lfe_format_cst:children(Node),
+                    DotTok   = r3lfe_format_cst:dot_token(Node),
                     case Children of
                         [] -> OpenLen + CloseLen;
                         _  ->
                             Widths = [flat_width(C) || C <- Children],
-                            Spaces = length(Children) - 1,
+                            %% Dotted: " . " before tail adds 2 extra chars vs plain " ".
+                            Spaces = case DotTok of
+                                undefined -> length(Children) - 1;
+                                _         -> length(Children) + 1
+                            end,
                             add_widths(OpenLen + CloseLen + Spaces, sum_widths(Widths, 0))
                     end
             end;

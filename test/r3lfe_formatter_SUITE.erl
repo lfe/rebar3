@@ -205,6 +205,17 @@
     regime_unquote_inside_quasiquote_code/1
 ]).
 
+%% cons_dot group (A7·S1)
+-export([
+    cons_dot_simple/1,
+    cons_dot_quasi/1,
+    cons_dot_three_elem/1,
+    cons_dot_inner/1,
+    cons_dot_pseudo_package/1,
+    cons_dot_token_preservation/1,
+    cons_dot_idempotency/1
+]).
+
 %%====================================================================
 %% CT Callbacks
 %%====================================================================
@@ -217,7 +228,7 @@ all() ->
      {group, conformance}, {group, always_break},
      {group, export_guards},
      {group, edge_hardening}, {group, fuzz}, {group, corpus_sweep},
-     {group, regimes}].
+     {group, regimes}, {group, cons_dot}].
 
 groups() ->
     [
@@ -385,6 +396,15 @@ groups() ->
             regime_tuple_break_preserving,
             regime_indata_true_forces_break_preserving,
             regime_unquote_inside_quasiquote_code
+        ]},
+        {cons_dot, [], [
+            cons_dot_simple,
+            cons_dot_quasi,
+            cons_dot_three_elem,
+            cons_dot_inner,
+            cons_dot_pseudo_package,
+            cons_dot_token_preservation,
+            cons_dot_idempotency
         ]}
     ].
 
@@ -1901,3 +1921,40 @@ regime_unquote_inside_quasiquote_code(_Config) ->
     %% Parse `(if x y z)` in isolation with InData=false (as unquote would deliver).
     Node = parse_first(<<"(if x y z)">>),
     ?assertEqual(canonical, r3lfe_formatter:regime(Node, false)).
+
+%%====================================================================
+%% cons_dot group (A7·S1) — improper lists / cons-dot
+%%====================================================================
+
+cons_dot_simple(_Config) ->
+    %% (a . b) — simplest dotted pair; renders flat.
+    assert_format(<<"(a . b)">>, <<"(a . b)\n">>).
+
+cons_dot_quasi(_Config) ->
+    %% (cond . ,cond) — cond used as data (not the special form), comma-unquote tail.
+    assert_format(<<"(cond . ,cond)">>, <<"(cond . ,cond)\n">>).
+
+cons_dot_three_elem(_Config) ->
+    %% (a b . rest) — two elements before the dot; fits flat.
+    assert_format(<<"(a b . rest)">>, <<"(a b . rest)\n">>).
+
+cons_dot_inner(_Config) ->
+    %% (_ (cond . ,cond)) — improper list nested inside outer funcall; both flat.
+    assert_format(<<"(_ (cond . ,cond))">>, <<"(_ (cond . ,cond))\n">>).
+
+cons_dot_pseudo_package(_Config) ->
+    %% project.subdir:foo — dot inside a symbol run; not split into a dotted list.
+    assert_format(<<"(project.subdir:foo arg)">>, <<"(project.subdir:foo arg)\n">>).
+
+cons_dot_token_preservation(_Config) ->
+    %% Token-preservation: dot token survives round-trip.
+    assert_token_preservation(<<"(a . b)">>),
+    assert_token_preservation(<<"(a b . rest)">>),
+    assert_token_preservation(<<"(cond . ,cond)">>).
+
+cons_dot_idempotency(_Config) ->
+    %% Idempotency: formatting a dotted list twice produces the same output.
+    assert_idempotent(<<"(a . b)">>),
+    assert_idempotent(<<"(a b . rest)">>),
+    assert_idempotent(<<"(cond . ,cond)">>),
+    assert_idempotent(<<"(_ (cond . ,cond))">>).

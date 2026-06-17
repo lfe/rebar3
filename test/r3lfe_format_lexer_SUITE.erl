@@ -43,7 +43,11 @@
     classify_line_comment_newline/1,
     classify_unquote_splicing/1,
     classify_unquote/1,
-    classify_fun_ref/1
+    classify_fun_ref/1,
+    classify_dot_standalone/1,
+    classify_dot_in_symbol_run/1,
+    classify_dot_ellipsis/1,
+    classify_dot_in_list/1
 ]).
 
 %% Error cases
@@ -96,7 +100,11 @@ groups() ->
             classify_line_comment_newline,
             classify_unquote_splicing,
             classify_unquote,
-            classify_fun_ref
+            classify_fun_ref,
+            classify_dot_standalone,
+            classify_dot_in_symbol_run,
+            classify_dot_ellipsis,
+            classify_dot_in_list
         ]},
         {errors, [], [
             error_unterminated_block_comment,
@@ -331,6 +339,32 @@ classify_fun_ref(_Config) ->
     ?assertEqual("#'", r3lfe_format_lexer:text(Ref)),
     ?assertEqual(symbol, r3lfe_format_lexer:kind(Sym)),
     ?assertEqual("foo/2", r3lfe_format_lexer:text(Sym)).
+
+classify_dot_standalone(_Config) ->
+    %% A run of exactly "." is the cons-dot operator; emits distinct kind `dot`.
+    {ok, [T]} = r3lfe_format_lexer:tokens(<<".">>),
+    ?assertEqual(dot, r3lfe_format_lexer:kind(T)),
+    ?assertEqual(".", r3lfe_format_lexer:text(T)),
+    assert_round_trip(<<".">>).
+
+classify_dot_in_symbol_run(_Config) ->
+    %% a.b.c — dot is a valid symbol char inside a longer run; one symbol token.
+    {ok, [T]} = r3lfe_format_lexer:tokens(<<"a.b.c">>),
+    ?assertEqual(symbol, r3lfe_format_lexer:kind(T)),
+    ?assertEqual("a.b.c", r3lfe_format_lexer:text(T)).
+
+classify_dot_ellipsis(_Config) ->
+    %% ... is three dots in a row — still one symbol token.
+    {ok, [T]} = r3lfe_format_lexer:tokens(<<"...">>),
+    ?assertEqual(symbol, r3lfe_format_lexer:kind(T)),
+    ?assertEqual("...", r3lfe_format_lexer:text(T)).
+
+classify_dot_in_list(_Config) ->
+    %% (a . b) => lparen, symbol, ws, dot, ws, symbol, rparen
+    {ok, Tokens} = r3lfe_format_lexer:tokens(<<"(a . b)">>),
+    Kinds = [r3lfe_format_lexer:kind(T) || T <- Tokens],
+    ?assertEqual([lparen, symbol, whitespace, dot, whitespace, symbol, rparen], Kinds),
+    assert_round_trip(<<"(a . b)">>).
 
 %%====================================================================
 %% Error cases (§7 group 3)

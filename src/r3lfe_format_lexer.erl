@@ -20,7 +20,8 @@
               | symbol | qsymbol | number | char
               | string | bstring | tqstring | tqbstring
               | line_comment | block_comment
-              | whitespace | newline.
+              | whitespace | newline
+              | dot.
 
 %%====================================================================
 %% Exported API
@@ -371,7 +372,8 @@ collect_run([C | Rest], Acc, N) ->
 collect_run([], Acc, N) ->
     {lists:reverse(Acc), [], N}.
 
-%% classify_run: decide number or symbol for a maximal run of symbol chars.
+%% classify_run: decide number, dot, or symbol for a maximal run of symbol chars.
+classify_run(".") -> dot;
 classify_run([$# | _] = Text) ->
     case is_radix_number(Text) of
         true  -> number;

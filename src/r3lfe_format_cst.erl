@@ -9,7 +9,7 @@
          significant_tokens/1, comments/1,
          type/1, open/1, close/1, prefix/1, children/1,
          leading/1, trailing/1, dangling/1,
-         nl_before/1, multiline/1,
+         nl_before/1, multiline/1, dot_token/1,
          document_children/1, document_dangling/1]).
 
 -export_type([cst_node/0, cst_document/0, node_type/0, trivia/0]).
@@ -31,7 +31,8 @@
     leading   :: [trivia()],
     trailing  :: [trivia()],
     dangling  :: [trivia()],
-    nl_before = false :: boolean()
+    nl_before = false :: boolean(),
+    dot_token = undefined :: token() | undefined
 }).
 
 -record(document, {
@@ -49,9 +50,11 @@
 -spec parse([token()]) -> {ok, cst_document()} | {error, term()}.
 parse(Tokens) ->
     case parse_seq_loop(Tokens, eof, [], false, []) of
-        {ok, Nodes, Dangling, []} ->
+        {ok, Nodes, none, Dangling, []} ->
             {ok, #document{children = Nodes, dangling = Dangling}};
-        {ok, _Nodes, _Dangling, [Tok | _]} ->
+        {ok, _Nodes, {_, _}, _Dangling, _} ->
+            {error, {unexpected_dot, 0}};
+        {ok, _Nodes, _DotInfo, _Dangling, [Tok | _]} ->
             {error, {unbalanced, eof, r3lfe_format_lexer:line(Tok)}};
         {error, _} = Err ->
             Err
@@ -94,6 +97,11 @@ dangling(#node{dangling = D}) -> D.
 -spec nl_before(cst_node()) -> boolean().
 nl_before(#node{nl_before = NL}) -> NL.
 
+%% dot_token/1: the cons-dot token for an improper list, or undefined.
+%% When present, the last child of the node is the cons-tail.
+-spec dot_token(cst_node()) -> token() | undefined.
+dot_token(#node{dot_token = D}) -> D.
+
 %% multiline/1: true if any direct child of the node/document has nl_before=true.
 -spec multiline(cst_node() | cst_document()) -> boolean().
 multiline(#document{children = Children}) ->
@@ -121,7 +129,7 @@ document_dangling(#document{dangling = D}) -> D.
 %% Pending uses ++ for append: it is bounded by file-level trivia density
 %% (never accumulates proportionally to input size) so O(n) per append is fine.
 parse_seq_loop([], _CloserKind, Pending, _NlBefore, Nodes) ->
-    {ok, lists:reverse(Nodes), Pending, []};
+    {ok, lists:reverse(Nodes), none, Pending, []};
 parse_seq_loop([Tok | Rest], CloserKind, Pending, NlBefore, Nodes) ->
     Kind = r3lfe_format_lexer:kind(Tok),
     case Kind of
@@ -136,14 +144,23 @@ parse_seq_loop([Tok | Rest], CloserKind, Pending, NlBefore, Nodes) ->
             parse_seq_loop(Rest, CloserKind, Pending ++ [{comment, Tok}], NlBefore, Nodes);
         rparen ->
             case CloserKind of
-                rparen -> {ok, lists:reverse(Nodes), Pending, [Tok | Rest]};
+                rparen -> {ok, lists:reverse(Nodes), none, Pending, [Tok | Rest]};
                 _      -> {error, {unbalanced, CloserKind, r3lfe_format_lexer:line(Tok)}}
             end;
         rbracket ->
             case CloserKind of
-                rbracket -> {ok, lists:reverse(Nodes), Pending, [Tok | Rest]};
+                rbracket -> {ok, lists:reverse(Nodes), none, Pending, [Tok | Rest]};
                 _        -> {error, {unbalanced, CloserKind, r3lfe_format_lexer:line(Tok)}}
             end;
+        dot when CloserKind =/= eof ->
+            %% Cons-dot inside a container: the next node is the improper tail.
+            case parse_one_node(Rest, [], false) of
+                {ok, TailNode, Rest2} ->
+                    {ok, lists:reverse([TailNode | Nodes]), {Tok, TailNode}, Pending, Rest2};
+                {error, _} = Err -> Err
+            end;
+        dot ->
+            {error, {unexpected_dot, r3lfe_format_lexer:line(Tok)}};
         K when K =:= lparen; K =:= lbracket; K =:= tuple_open;
                K =:= map_open; K =:= binary_open; K =:= eval_open ->
             case parse_container(Tok, K, Rest, Pending, NlBefore) of
@@ -236,14 +253,19 @@ parse_one_node([Tok | Rest], Pending, NlBefore) ->
 parse_container(OpenerTok, OpenerKind, Rest, Leading, NlBefore) ->
     {ContainerType, CloserKind} = container_type(OpenerKind),
     case parse_seq_loop(Rest, CloserKind, [], false, []) of
-        {ok, Children, Dangling, [CloserTok | Rest2]} ->
+        {ok, Children, DotInfo, Dangling, [CloserTok | Rest2]} ->
+            DotTok = case DotInfo of
+                none          -> undefined;
+                {DotTok1, _}  -> DotTok1
+            end,
             CNode = #node{type = ContainerType,
                           open = OpenerTok, close = CloserTok,
                           prefix = undefined, children = Children,
                           dangling = Dangling, leading = Leading,
-                          trailing = [], nl_before = NlBefore},
+                          trailing = [], nl_before = NlBefore,
+                          dot_token = DotTok},
             {ok, CNode, Rest2};
-        {ok, _Children, _Dangling, []} ->
+        {ok, _Children, _DotInfo, _Dangling, []} ->
             {error, {unbalanced, CloserKind, r3lfe_format_lexer:line(OpenerTok)}};
         {error, _} = Err ->
             Err
@@ -315,9 +337,20 @@ node_significant_tokens(#node{type = prefixed, prefix = Pfx,
                                children = Children}) ->
     [Pfx | lists:flatmap(fun node_significant_tokens/1, Children)];
 node_significant_tokens(#node{type = T, open = Open, close = Close,
-                               children = Children})
+                               dot_token = DotTok, children = Children})
   when T =:= list; T =:= tuple; T =:= map; T =:= binary; T =:= eval ->
-    [Open | lists:flatmap(fun node_significant_tokens/1, Children)] ++ [Close];
+    case DotTok of
+        undefined ->
+            [Open | lists:flatmap(fun node_significant_tokens/1, Children)] ++ [Close];
+        _ when Children =/= [] ->
+            AllButLast = lists:droplast(Children),
+            Tail = lists:last(Children),
+            [Open]
+            ++ lists:flatmap(fun node_significant_tokens/1, AllButLast)
+            ++ [DotTok]
+            ++ node_significant_tokens(Tail)
+            ++ [Close]
+    end;
 node_significant_tokens(#node{open = Open}) ->
     [Open].
 

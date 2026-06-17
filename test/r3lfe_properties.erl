@@ -255,9 +255,10 @@ fmt_oracle_ast(Src, Out) ->
 
 fmt_sig_pairs(Bin) ->
     {ok, Toks} = r3lfe_format_lexer:tokens(Bin),
-    {ok, Doc}  = r3lfe_format_cst:parse(Toks),
+    Trivia = [whitespace, newline, line_comment, block_comment],
     [{r3lfe_format_lexer:kind(T), r3lfe_format_lexer:text(T)}
-     || T <- r3lfe_format_cst:significant_tokens(Doc)].
+     || T <- Toks,
+        not lists:member(r3lfe_format_lexer:kind(T), Trivia)].
 
 fmt_comments(Bin) ->
     {ok, Toks} = r3lfe_format_lexer:tokens(Bin),
