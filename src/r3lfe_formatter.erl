@@ -155,18 +155,12 @@ print_broken(Node, Col, InData) ->
             {Text, col_after_text(Text, Col)}
     end.
 
-%% print_broken_container: head-classified indentation (A4·S1) + data alignment (S3a).
+%% print_broken_container: branches on regime/2 (A7·S2b-2).
+%%   canonical        → head-classified indentation (A4) + map pair alignment (S3a)
+%%   break_preserving → author break positions preserved (A7·S2b)
 %%
-%% HEAD-COMMENT path (fix1): opener alone; all children at Indent.
-%% TYPE DISPATCH (S3a): code containers (list, eval) use head classification;
-%%   tuple/binary → element-per-line under first element (list_head rendering);
-%%   map → key-value pair alignment.
-%%
-%% Dangling trivia always goes at C+2; close on its own line at C when dangling
-%% is present or last child has trailing comment. All A3 trivia rules unchanged.
-%%
-%% NOTE (A7·S2b-1): regime/2 is computed here but not yet used to route to a
-%% different renderer — that is S2b-2. Currently all nodes use the canonical path.
+%% Dangling trivia always at C+2; close on its own line when dangling present
+%% or last child has trailing comment. All A3 trivia rules unchanged.
 -spec print_broken_container(r3lfe_format_cst:cst_node(), non_neg_integer(),
                              boolean()) ->
           {iolist(), non_neg_integer()}.
@@ -190,35 +184,170 @@ print_broken_container(Node, C, InData) ->
                     {[Open, DangIO, "\n", CIndStr, Close], C + CloseLen}
             end;
         [Head | RestChildren] ->
-            case head_has_leading_comment(Head) of
+            case regime(Node, InData) of
+                canonical ->
+                    case head_has_leading_comment(Head) of
+                        true ->
+                            %% Opener alone; all children at Indent (fix1 idempotency).
+                            {AllIO, LastCol, HasTrail} =
+                                print_rest_loop([Head | RestChildren],
+                                                Indent, IndentStr, true, InData),
+                            {CloseIO, CloseCol} =
+                                close_section(Dangling, HasTrail, LastCol,
+                                              Indent, IndentStr, C, CIndStr, Close),
+                            {[Open, AllIO, CloseIO], CloseCol};
+                        false ->
+                            case r3lfe_format_cst:type(Node) of
+                                T when T =:= list; T =:= eval ->
+                                    Class = classify_head(Head),
+                                    print_classified(Class, Head, RestChildren, Dangling,
+                                                     C, Open, OpenLen, Close, CloseLen,
+                                                     Indent, IndentStr, CIndStr, InData);
+                                map ->
+                                    print_map_pairs(Head, RestChildren, Dangling,
+                                                    C, Open, OpenLen, Close, CloseLen,
+                                                    Indent, IndentStr, CIndStr, InData)
+                            end
+                    end;
+                break_preserving ->
+                    print_bp_container(Node, C, Open, OpenLen, Close, CloseLen,
+                                       Head, RestChildren, Dangling,
+                                       Indent, IndentStr, CIndStr, InData)
+            end
+    end.
+
+%%====================================================================
+%% Internal: break-preserving renderer (A7·S2b-2)
+%%====================================================================
+
+%% print_bp_container: render a break-preserving container.
+%%
+%% Flat path is already handled by print_node (tried before print_broken is called).
+%% Here we are in the broken path.
+%%
+%% If Head has a leading comment: opener alone, all children (incl. Head) via
+%% print_rest_loop at Indent — comment safety (same as canonical fix1 path).
+%%
+%% Otherwise:
+%%   - If nl_before(Head)=true: head on new line at C+2, AlignCol=C+2.
+%%   - Else: head on opener line at C+OpenLen.
+%%     AlignCol = column of first argument:
+%%       - If first arg has nl_before or head has trailing comment → C+2 (hanging).
+%%       - Else → HTC+1 (align under first arg).
+%%
+%% Subsequent children via bp_rest_loop: new line if nl_before OR overflow OR
+%% has leading comment; otherwise space-separated on current line.
+%% Close hugs last child unless dangling or last-child trailing comment.
+-spec print_bp_container(r3lfe_format_cst:cst_node(),
+                         non_neg_integer(), string(), non_neg_integer(),
+                         string(), non_neg_integer(),
+                         r3lfe_format_cst:cst_node(), [r3lfe_format_cst:cst_node()],
+                         [r3lfe_format_cst:trivia()],
+                         non_neg_integer(), string(), string(), boolean()) ->
+          {iolist(), non_neg_integer()}.
+print_bp_container(_Node, C, Open, _OpenLen, Close, _CloseLen,
+                   Head, RestChildren, Dangling,
+                   Indent, IndentStr, CIndStr, InData) ->
+    case head_has_leading_comment(Head) of
+        true ->
+            %% Comment before head: opener alone, all children one-per-line at Indent.
+            {AllIO, LastCol, HasTrail} =
+                print_rest_loop([Head | RestChildren], Indent, IndentStr, true, InData),
+            {CloseIO, CloseCol} =
+                close_section(Dangling, HasTrail, LastCol,
+                              Indent, IndentStr, C, CIndStr, Close),
+            {[Open, AllIO, CloseIO], CloseCol};
+        false ->
+            HeadLeadIO = emit_head_leading(r3lfe_format_cst:leading(Head), CIndStr),
+            HeadCol    = C + length(Open),
+            case r3lfe_format_cst:nl_before(Head) of
                 true ->
-                    %% Opener alone; all children at Indent (fix1 idempotency).
-                    {AllIO, LastCol, HasTrail} = print_rest_loop([Head | RestChildren],
-                                                                  Indent, IndentStr,
-                                                                  true, InData),
-                    {CloseIO, CloseCol} = close_section(Dangling, HasTrail, LastCol,
-                                                        Indent, IndentStr, C, CIndStr, Close),
-                    {[Open, AllIO, CloseIO], CloseCol};
+                    %% Head on new line at C+2; all args also at C+2.
+                    HangStr = IndentStr,
+                    {HeadIO, HCol}       = print_node(Head, Indent, InData),
+                    {HeadTrailIO, HTC}   = emit_trailing(
+                                             r3lfe_format_cst:trailing(Head), HCol),
+                    {RestIO, LastCol, HasTrail} =
+                        bp_rest_loop(RestChildren, Indent, HangStr, HTC, InData),
+                    {CloseIO, CloseCol}  =
+                        close_section(Dangling, HasTrail, LastCol,
+                                      Indent, HangStr, C, CIndStr, Close),
+                    {[HeadLeadIO, Open, "\n", HangStr, HeadIO, HeadTrailIO,
+                      RestIO, CloseIO], CloseCol};
                 false ->
-                    %% Dispatch on container type: code → head classification;
-                    %% data → own alignment rules (§S3a).
-                    case r3lfe_format_cst:type(Node) of
-                        T when T =:= list; T =:= eval ->
-                            Class = classify_head(Head),
-                            print_classified(Class, Head, RestChildren, Dangling,
-                                             C, Open, OpenLen, Close, CloseLen,
-                                             Indent, IndentStr, CIndStr, InData);
-                        T when T =:= tuple; T =:= binary ->
-                            %% Element-per-line: aligned under first (list_head rule).
-                            print_classified(list_head, Head, RestChildren, Dangling,
-                                             C, Open, OpenLen, Close, CloseLen,
-                                             Indent, IndentStr, CIndStr, InData);
-                        map ->
-                            print_map_pairs(Head, RestChildren, Dangling,
-                                            C, Open, OpenLen, Close, CloseLen,
-                                            Indent, IndentStr, CIndStr, InData)
+                    {HeadIO, HCol}       = print_node(Head, HeadCol, InData),
+                    {HeadTrailIO, HTC}   = emit_trailing(
+                                             r3lfe_format_cst:trailing(Head), HCol),
+                    HeadHasTrail = r3lfe_format_cst:trailing(Head) =/= [],
+                    case RestChildren of
+                        [] ->
+                            {CloseIO, CloseCol} =
+                                close_section(Dangling, HeadHasTrail, HTC,
+                                              Indent, IndentStr, C, CIndStr, Close),
+                            {[HeadLeadIO, Open, HeadIO, HeadTrailIO, CloseIO], CloseCol};
+                        [FirstArg | _] ->
+                            %% AlignCol = column where first arg lands.
+                            %% Hanging (C+2) when: head has trailing comment, first arg
+                            %% has nl_before, OR first arg would overflow the current line.
+                            %% "Overflow" here uses >= so a token at exactly col 80
+                            %% triggers wrapping (col 80 = 81st char on the line, over limit).
+                            FirstArgNL = r3lfe_format_cst:nl_before(FirstArg),
+                            FirstArgW  = flat_width(FirstArg),
+                            FirstArgOverflows =
+                                FirstArgW =:= infinity
+                                orelse HTC + 1 + FirstArgW >= ?WIDTH,
+                            {AlignCol, AlignStr} =
+                                case HeadHasTrail orelse FirstArgNL orelse FirstArgOverflows of
+                                    true  -> {Indent, IndentStr};
+                                    false -> {HTC + 1, lists:duplicate(HTC + 1, $\s)}
+                                end,
+                            {RestIO, LastCol, HasTrail} =
+                                bp_rest_loop(RestChildren, AlignCol, AlignStr,
+                                             HTC, InData),
+                            {CloseIO, CloseCol} =
+                                close_section(Dangling, HasTrail, LastCol,
+                                              AlignCol, AlignStr, C, CIndStr, Close),
+                            {[HeadLeadIO, Open, HeadIO, HeadTrailIO, RestIO, CloseIO],
+                             CloseCol}
                     end
             end
+    end.
+
+%% bp_rest_loop: render children preserving nl_before break positions.
+%% Each child starts a new line iff:
+%%   • nl_before(Child) is true (author broke here), OR
+%%   • it has a leading comment (comment safety), OR
+%%   • it would overflow column 80 on the current line.
+%% Otherwise it is appended space-separated on the current line.
+-spec bp_rest_loop([r3lfe_format_cst:cst_node()], non_neg_integer(), string(),
+                   non_neg_integer(), boolean()) ->
+          {iolist(), non_neg_integer(), boolean()}.
+bp_rest_loop([], _AlignCol, _AlignStr, CurCol, _InData) ->
+    {[], CurCol, false};
+bp_rest_loop([Child | Rest], AlignCol, AlignStr, CurCol, InData) ->
+    W         = flat_width(Child),
+    NlBefore  = r3lfe_format_cst:nl_before(Child),
+    HasLead   = has_comment_leading(r3lfe_format_cst:leading(Child)),
+    Overflow  = W =:= infinity orelse CurCol + 1 + W >= ?WIDTH,
+    NewLine   = NlBefore orelse HasLead orelse Overflow,
+    {StartCol, Prefix} =
+        case NewLine of
+            true  -> {AlignCol, ["\n",
+                                 emit_child_leading(
+                                   r3lfe_format_cst:leading(Child), AlignStr, false),
+                                 AlignStr]};
+            false -> {CurCol + 1, " "}
+        end,
+    {ChildIO, ChildCol} = print_node(Child, StartCol, InData),
+    {TrailIO, TrailCol} = emit_trailing(r3lfe_format_cst:trailing(Child), ChildCol),
+    case Rest of
+        [] ->
+            HasTrail = r3lfe_format_cst:trailing(Child) =/= [],
+            {[Prefix, ChildIO, TrailIO], TrailCol, HasTrail};
+        _ ->
+            {RestIO, LastCol, HasTrail} =
+                bp_rest_loop(Rest, AlignCol, AlignStr, TrailCol, InData),
+            {[Prefix, ChildIO, TrailIO | RestIO], LastCol, HasTrail}
     end.
 
 %%====================================================================

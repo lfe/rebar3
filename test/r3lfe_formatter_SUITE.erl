@@ -537,23 +537,20 @@ breaking_golden_wide_form(_Config) ->
     assert_format(Input, Expected).
 
 breaking_golden_nested_inner_fits(_Config) ->
-    %% funcall rule (A4): outer breaks, inner (a b) fits flat at AlignCol=7.
-    %% "(outer " + 73 x's + " (a b) baz)" = 91 chars > 80.
-    %% AlignCol = 0+1+5+1=7 ("outer"=5); x's at col 7 (7+73=80); rest at col 7.
-    %% Updated from A3 (+2 hang) for A4 funcall rule.
+    %% BP rule (A7·S2b): outer breaks, x*73 overflows at HTC+1+73=80≥80.
+    %% FirstArgOverflows → AlignCol=C+2=2. x*73 at col 2; (a b) also overflows
+    %% (75+1+5=81≥80) → col 2; baz packs after (a b) (7+1+3=11<80).
     Xs2 = list_to_binary(lists:duplicate(73, $x)),
     Input2    = <<"(outer ", Xs2/binary, " (a b) baz)">>,
-    Expected2 = <<"(outer ", Xs2/binary, "\n       (a b)\n       baz)\n">>,
+    Expected2 = <<"(outer\n  ", Xs2/binary, "\n  (a b) baz)\n">>,
     assert_format(Input2, Expected2).
 
 breaking_golden_single_child(_Config) ->
-    %% funcall rule (A4): head 77 h's, a1=baz.
-    %% AlignCol=79; 79+3=82>80, baz can't break (symbol) → stays on head line.
-    %% Output is one 82-char line; no cross-line break possible for single symbol arg.
-    %% Updated from A3 (+2 hang) for A4 funcall rule.
+    %% BP rule (A7·S2b): head 77 h's; baz overflows (HTC+1+3=82≥80).
+    %% FirstArgOverflows → AlignCol=C+2=2; baz at col 2 on its own line.
     Head = list_to_binary(lists:duplicate(77, $h)),
     Input    = <<"(", Head/binary, " baz)">>,
-    Expected = <<"(", Head/binary, " baz)\n">>,
+    Expected = <<"(", Head/binary, "\n  baz)\n">>,
     assert_format(Input, Expected).
 
 breaking_tqstring_verbatim(_Config) ->
@@ -841,16 +838,15 @@ assert_comment_preservation(Input) ->
 %%====================================================================
 
 indent_funcall_align(_Config) ->
-    %% funcall: a1 on head line; a2..aN aligned under a1's column.
-    %% "some-function" = 13 chars; AlignCol = 0+1+13+1 = 15.
-    %% Three 22-char args → flat_width = 2+13+3+22*3+2 = 86 > 80.
+    %% BP rule (A7·S2b): head on opener line; args packed greedily until overflow.
+    %% "some-function" = 13 chars; AlignCol = HTC+1 = 14+1 = 15.
+    %% A+B pack (37+1+22=60<80); C overflows (60+1+22=83≥80) → new line at col 15.
     A = list_to_binary(lists:duplicate(22, $a)),
     B = list_to_binary(lists:duplicate(22, $b)),
     C = list_to_binary(lists:duplicate(22, $c)),
     Input    = <<"(some-function ", A/binary, " ", B/binary, " ", C/binary, ")">>,
     Pad      = list_to_binary(lists:duplicate(15, $\s)),
-    Expected = <<"(some-function ", A/binary, "\n",
-                 Pad/binary, B/binary, "\n",
+    Expected = <<"(some-function ", A/binary, " ", B/binary, "\n",
                  Pad/binary, C/binary, ")\n">>,
     assert_format(Input, Expected),
     assert_idempotent(Input).
@@ -881,10 +877,13 @@ indent_specform_if(_Config) ->
     assert_idempotent(Input).
 
 indent_list_head(_Config) ->
-    %% list_head: head not a symbol; all elements aligned under first at C+1.
-    %% Six `(aa bb cc dd)` items (14 chars each) = flat_width 91 > 80.
+    %% BP rule (A7·S2b): head not a symbol → break_preserving; pack greedily.
+    %% `(aa bb cc dd)` = 13 chars; HTC=1+13=14; AlignCol=15.
+    %% 5 items pack (14→27→40→53→66→70); 6th (qq rr ss tt: 70+1+13=84≥80) wraps.
+    %% Wait: head=(aa bb cc dd), args=(ee..)(ii..)(mm..)(qq..)(uu..); 4 args pack,
+    %% 5th overflows (66+1+13=80≥80) → uu at AlignCol=15.
     Input = <<"((aa bb cc dd) (ee ff gg hh) (ii jj kk ll) (mm nn oo pp) (qq rr ss tt) (uu vv ww xx))">>,
-    Expected = <<"((aa bb cc dd)\n (ee ff gg hh)\n (ii jj kk ll)\n (mm nn oo pp)\n (qq rr ss tt)\n (uu vv ww xx))\n">>,
+    Expected = <<"((aa bb cc dd) (ee ff gg hh) (ii jj kk ll) (mm nn oo pp) (qq rr ss tt)\n               (uu vv ww xx))\n">>,
     assert_format(Input, Expected),
     assert_idempotent(Input).
 
@@ -924,9 +923,10 @@ fix1_close_after_trailing_funcall(_Config) ->
     assert_token_preservation(Src).
 
 fix1_close_after_trailing_list_head(_Config) ->
-    %% Trailing comment on last element of list_head list: close on own line.
+    %% Trailing comment on last element of list_head list (BP): close on own line.
+    %% Head (a b) has trailing comment → AlignCol=C+2=2; (c d) at col 2.
     Src = <<"((a b)\n (c d) ; note\n )">>,
-    assert_format(Src, <<"((a b)\n (c d) ; note\n)\n">>),
+    assert_format(Src, <<"((a b)\n  (c d) ; note\n)\n">>),
     assert_idempotent(Src),
     assert_token_preservation(Src).
 
@@ -995,43 +995,53 @@ eg_import_wide(_Config) ->
     assert_idempotent(Input).
 
 eg_guard_defun_match(_Config) ->
-    %% defun match-clause with wide guard: Pat + Guard on one line, Body below at AlignCol.
-    %% The clause `((number accumulator) (when …) (long-call …))` exceeds 80 cols at C=2.
+    %% BP clause: head=(number accumulator), AlignCol=24; body overflows → col 24.
+    %% Inside body: long-factorial-function (23 chars) → AlignCol=49; (* …) wraps there.
     Input = <<"(defun long-factorial-function\n"
               "  ((0 accumulator) accumulator)\n"
               "  ((number accumulator) (when (> number 0))\n"
-              "   (long-factorial-function (- number 1) (* number accumulator))))">>,
+              "                        (long-factorial-function (- number 1)\n"
+              "                                                 (* number accumulator))))">>,
     assert_format(Input, <<Input/binary, "\n">>),
     assert_idempotent(Input),
     assert_token_preservation(Input).
 
 eg_guard_match_lambda(_Config) ->
-    %% match-lambda clause with guard: same Pat+Guard layout.
+    %% BP clause at C=2: head=(n accumulator) (15 chars), AlignCol=19.
+    %% body=(some-long-recursive-call …) 52 chars fits at col 19 (71≤80) → flat.
     Input = <<"(match-lambda\n"
               "  ((n accumulator) (when (> n 0))\n"
-              "   (some-long-recursive-call (- n 1) (* n accumulator)))\n"
+              "                   (some-long-recursive-call (- n 1) (* n accumulator)))\n"
               "  ((0 acc) acc))">>,
     assert_format(Input, <<Input/binary, "\n">>),
     assert_idempotent(Input),
     assert_token_preservation(Input).
 
 eg_guard_comment_fallback_pat_trail(_Config) ->
-    %% Pat has trailing comment → HeadHasTrail=true → guard path suppressed;
-    %% falls back to element-per-line so no content follows the comment.
+    %% Pat has trailing comment → HeadHasTrail=true → AlignCol=C+2=2 (hanging).
+    %% Children at col 2 (2 spaces) regardless of nl_before in source.
     Input = <<"((very-long-pat-name accum) ; c\n"
               " (when (> very-long-pat-name 0))\n"
               " (long-body-call very-long-pat-name accum))">>,
-    assert_format(Input, <<Input/binary, "\n">>),
+    assert_format(Input,
+                  <<"((very-long-pat-name accum) ; c\n"
+                    "  (when (> very-long-pat-name 0))\n"
+                    "  (long-body-call very-long-pat-name accum))\n">>),
     assert_idempotent(Input),
     assert_token_preservation(Input).
 
 eg_guard_comment_fallback_guard_lead(_Config) ->
-    %% Guard has leading comment → UseGuard=false → element-per-line fallback.
+    %% Guard has leading comment → nl_before(FirstArg)=true → AlignCol=C+2=2 (hanging).
+    %% Children at col 2; ;; guard comment emitted before (when …).
     Input = <<"((very-long-pat-name accum)\n"
               " ;; guard\n"
               " (when (> very-long-pat-name 0))\n"
               " (long-body-call very-long-pat-name accum))">>,
-    assert_format(Input, <<Input/binary, "\n">>),
+    assert_format(Input,
+                  <<"((very-long-pat-name accum)\n"
+                    "  ;; guard\n"
+                    "  (when (> very-long-pat-name 0))\n"
+                    "  (long-body-call very-long-pat-name accum))\n">>),
     assert_idempotent(Input),
     assert_token_preservation(Input).
 
@@ -1101,10 +1111,10 @@ fix2_defun_head_trail(_Config) ->
                 <<"(defun ; c\n  name\n  args\n  body)\n">>).
 
 fix2_list_head_head_trail(_Config) ->
-    %% list_head: head trailing is already safe (rest starts with \n).
-    %% Verify it stays correct and idempotent.
+    %% BP list with head trailing comment: HeadHasTrail=true → AlignCol=C+2=2.
+    %% (c d) lands at col 2 (2 spaces), not col 1 (old list_head alignment).
     assert_fix2(<<"((a b) ; c\n (c d))">>,
-                <<"((a b) ; c\n (c d))\n">>).
+                <<"((a b) ; c\n  (c d))\n">>).
 
 fix2_combination_head_and_body_trail(_Config) ->
     %% Head trailing + last body child trailing → close on its own line.
@@ -1235,17 +1245,14 @@ data_map_comment_fallback(_Config) ->
     assert_token_preservation(Input).
 
 data_tuple_wide(_Config) ->
-    %% Wide tuple: elements aligned under the first at C+2.
-    %% flat_width = 2+10*7+9+1=82 > 80.
-    Xs = list_to_binary(lists:duplicate(7, $a)),
-    All = list_to_binary(lists:join(" ", [lists:duplicate(7, C) || C <- "abcdefghij"])),
+    %% BP rule (A7·S2b): tuple packs greedily; head=aaaaaaa at col 2, HTC=9, AlignCol=10.
+    %% 9 items fit on first line (iiiiiii ends at col 73); jjjjjjj overflows (73+1+7=81≥80).
+    All  = list_to_binary(lists:join(" ", [lists:duplicate(7, C) || C <- "abcdefghij"])),
+    Nine = list_to_binary(lists:join(" ", [lists:duplicate(7, C) || C <- "abcdefghi"])),
+    Pad  = list_to_binary(lists:duplicate(10, $\s)),
+    Jj   = list_to_binary(lists:duplicate(7, $j)),
     Input    = <<"#(", All/binary, ")">>,
-    Pad      = <<"  ">>,
-    Expected = iolist_to_binary(["#(", Xs, "\n",
-                                  lists:join("\n", [binary_to_list(<<Pad/binary,
-                                      (list_to_binary(lists:duplicate(7, C)))/binary>>)
-                                      || C <- "bcdefghij"]),
-                                  ")\n"]),
+    Expected = <<"#(", Nine/binary, "\n", Pad/binary, Jj/binary, ")\n">>,
     assert_format(Input, Expected),
     assert_idempotent(Input).
 
@@ -1262,16 +1269,16 @@ data_binary_wide(_Config) ->
     ?assert(binary:match(Out, <<"\n">>) =/= nomatch).
 
 data_tuple_case_regression(_Config) ->
-    %% #(case …) must use element alignment, NOT case-specform indentation.
-    %% flat_width = 2+4+1+7*10+6+1=84 > 80 (regression: was wrongly a specform).
+    %% #(case …) must use BP rendering (pack), NOT case-specform indentation.
+    %% Regression: tuple is always break_preserving; 'case' is the head on the opener line.
     All = list_to_binary(lists:join(" ", ["case" |
               [lists:duplicate(10, C) || C <- "abcdefg"]])),
     Input = <<"#(", All/binary, ")">>,
     {ok, OutIO} = r3lfe_formatter:format(Input),
     Out = iolist_to_binary(OutIO),
-    %% 'case' must be the FIRST element (at C+2), not the head of a specform
-    ?assert(binary:match(Out, <<"#(case\n">>) =/= nomatch,
-            "#(case …) must emit case at C+2, not as specform head"),
+    %% 'case' must be on the opener line (BP head), NOT indented at C+2 as specform body
+    ?assert(binary:match(Out, <<"#(case ">>) =/= nomatch,
+            "#(case …) must render case on opener line (BP), not as specform"),
     assert_idempotent(Input),
     assert_token_preservation(Input).
 
@@ -1502,18 +1509,18 @@ ab_let_single_binding(_Config) ->
     assert_idempotent(<<"(let ((x 1)) (+ x 1))">>).
 
 ab_let_multi_bindings(_Config) ->
-    %% Multiple bindings: one binding per line aligned under the first.
+    %% let is canonical; binding list is BP (non-symbol head), fits flat → packs inline.
+    %% S3 will add force-break for binding lists; for now BP flat-if-fits applies.
     assert_format(<<"(let ((x 1) (y 2)) (+ x y))">>,
-                  <<"(let ((x 1)\n      (y 2))\n  (+ x y))\n">>),
+                  <<"(let ((x 1) (y 2))\n  (+ x y))\n">>),
     assert_idempotent(<<"(let ((x 1) (y 2)) (+ x y))">>).
 
 ab_let_star_bindings(_Config) ->
-    %% let* with 3 bindings; each on its own line at AlignCol=7.
+    %% let* is canonical; binding list is BP (non-symbol head), 38 chars → fits flat.
+    %% S3 will add force-break for binding lists; for now BP flat-if-fits applies.
     Input = <<"(let* ((low 1) (high 2) (sum (+ low high))) (do-something))">>,
     assert_format(Input,
-                  <<"(let* ((low 1)\n"
-                    "       (high 2)\n"
-                    "       (sum (+ low high)))\n"
+                  <<"(let* ((low 1) (high 2) (sum (+ low high)))\n"
                     "  (do-something))\n">>),
     assert_idempotent(Input).
 
@@ -1524,9 +1531,10 @@ ab_case_small(_Config) ->
     assert_idempotent(<<"(case x (1 'a) (2 'b))">>).
 
 ab_cond_small(_Config) ->
-    %% cond always breaks; funcall-align puts clauses under the first.
+    %% cond is BP (funcall regime); source flat, fits → packs inline.
+    %% S3 will add always-break for cond; for now BP flat-if-fits applies.
     assert_format(<<"(cond (a 1) (b 2))">>,
-                  <<"(cond (a 1)\n      (b 2))\n">>),
+                  <<"(cond (a 1) (b 2))\n">>),
     assert_idempotent(<<"(cond (a 1) (b 2))">>).
 
 ab_map_small(_Config) ->
