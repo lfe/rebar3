@@ -78,7 +78,7 @@
     fix1_dist_arg_leading_comment/1
 ]).
 
-%% always_break group (A4·S3c)
+%% always_break group (A4·S3c + A7·S3a)
 -export([
     ab_let_single_binding/1,
     ab_let_multi_bindings/1,
@@ -90,7 +90,16 @@
     ab_nested_let_in_defun/1,
     ab_nested_case_in_let/1,
     ab_let_head_trailing_comment/1,
-    ab_case_last_child_trailing/1
+    ab_case_last_child_trailing/1,
+    ab_if_small/1,
+    ab_progn_small/1,
+    ab_receive_small/1,
+    ab_try_small/1,
+    ab_maybe_small/1,
+    ab_lambda_still_flat/1,
+    ab_when_still_flat/1,
+    ab_lc_still_flat/1,
+    ab_colon_still_flat/1
 ]).
 
 %% conformance group (A4·S3b — style-guide fixed-point + divergence report)
@@ -301,7 +310,16 @@ groups() ->
             ab_nested_let_in_defun,
             ab_nested_case_in_let,
             ab_let_head_trailing_comment,
-            ab_case_last_child_trailing
+            ab_case_last_child_trailing,
+            ab_if_small,
+            ab_progn_small,
+            ab_receive_small,
+            ab_try_small,
+            ab_maybe_small,
+            ab_lambda_still_flat,
+            ab_when_still_flat,
+            ab_lc_still_flat,
+            ab_colon_still_flat
         ]},
         {conformance, [], [
             conf_cond,
@@ -1146,8 +1164,9 @@ fix2_combination_head_and_body_trail(_Config) ->
 
 defforms_signature_simple(_Config) ->
     %% defun with args always breaks to signature form: (defun name (args)\n  body).
+    %% The if body also always breaks (S3a): test on head line, then/else at C+2.
     assert_format(<<"(defun factorial (n) (if (== n 0) 1 (* n (factorial (- n 1)))))">>,
-                  <<"(defun factorial (n)\n  (if (== n 0) 1 (* n (factorial (- n 1)))))\n">>),
+                  <<"(defun factorial (n)\n  (if (== n 0)\n    1\n    (* n (factorial (- n 1)))))\n">>),
     assert_idempotent(<<"(defun factorial (n) (if (== n 0) 1 (* n (factorial (- n 1)))))">>).
 
 defforms_tiny_with_args(_Config) ->
@@ -1597,6 +1616,63 @@ ab_case_last_child_trailing(_Config) ->
     %% Trailing comment on last case clause: close on own line (fix1 still holds).
     Src = <<"(case x\n  (1 'a) ; note\n  )">>,
     assert_fix2(Src, <<"(case x\n  (1 'a) ; note\n)\n">>).
+
+%% A7·S3a: if/progn/receive/try/maybe always break (even when they fit in 80 cols).
+ab_if_small(_Config) ->
+    %% if is always-break: test on head line (specform N=1), then/else at C+2.
+    Input = <<"(if (> x 0) x (- x))">>,
+    assert_format(Input, <<"(if (> x 0)\n  x\n  (- x))\n">>),
+    assert_idempotent(Input).
+
+ab_progn_small(_Config) ->
+    %% progn is always-break; specform N=0 → all body at C+2.
+    Input = <<"(progn (a) (b))">>,
+    assert_format(Input, <<"(progn\n  (a)\n  (b))\n">>),
+    assert_idempotent(Input).
+
+ab_receive_small(_Config) ->
+    %% receive is always-break; fits in 80 cols but must break; clauses at C+2.
+    Input = <<"(receive (msg msg))">>,
+    assert_format(Input, <<"(receive\n  (msg msg))\n">>),
+    assert_idempotent(Input).
+
+ab_try_small(_Config) ->
+    %% try is always-break (specform N=1): (foo) on head line; catch at C+2.
+    %% (catch (_ 'err)) is 17 chars at col 2 → fits flat.
+    Input = <<"(try (foo) (catch (_ 'err)))">>,
+    assert_format(Input, <<"(try (foo)\n  (catch (_ 'err)))\n">>),
+    assert_idempotent(Input).
+
+ab_maybe_small(_Config) ->
+    %% maybe is always-break; fits in 80 cols but must break; body at C+2.
+    Input = <<"(maybe (foo x) (bar x))">>,
+    assert_format(Input, <<"(maybe\n  (foo x)\n  (bar x))\n">>),
+    assert_idempotent(Input).
+
+%% A7·S3a: forms NOT in the always-break set stay flat-if-fits.
+ab_lambda_still_flat(_Config) ->
+    %% lambda is NOT always-break; stays flat when it fits.
+    Input = <<"(lambda (x) (* x x))">>,
+    assert_format(Input, <<"(lambda (x) (* x x))\n">>),
+    assert_idempotent(Input).
+
+ab_when_still_flat(_Config) ->
+    %% when is NOT always-break; stays flat when it fits.
+    Input = <<"(when (> x 0) ok)">>,
+    assert_format(Input, <<"(when (> x 0) ok)\n">>),
+    assert_idempotent(Input).
+
+ab_lc_still_flat(_Config) ->
+    %% lc is NOT always-break; stays flat when it fits.
+    Input = <<"(lc ((<- x xs)) x)">>,
+    assert_format(Input, <<"(lc ((<- x xs)) x)\n">>),
+    assert_idempotent(Input).
+
+ab_colon_still_flat(_Config) ->
+    %% (: mod fun) is NOT always-break; stays flat when it fits.
+    Input = <<"(: erlang atom_to_list a)">>,
+    assert_format(Input, <<"(: erlang atom_to_list a)\n">>),
+    assert_idempotent(Input).
 
 %%====================================================================
 %% edge_hardening group — A6·S1

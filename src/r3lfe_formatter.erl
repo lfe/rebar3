@@ -520,7 +520,8 @@ must_break(Node) ->
         _    -> false
     end.
 
-%% is_always_break_head: true for list nodes headed by let/let*/case/cond.
+%% is_always_break_head: true for list nodes headed by a form that must always
+%% break (let/let*/case/cond/if/progn/receive/try/maybe).
 -spec is_always_break_head(r3lfe_format_cst:cst_node()) -> boolean().
 is_always_break_head(Node) ->
     case r3lfe_format_cst:children(Node) of
@@ -528,8 +529,11 @@ is_always_break_head(Node) ->
             case r3lfe_format_cst:type(Head) of
                 symbol ->
                     Text = r3lfe_format_lexer:text(r3lfe_format_cst:open(Head)),
-                    Text =:= "let" orelse Text =:= "let*"
-                    orelse Text =:= "case" orelse Text =:= "cond";
+                    Text =:= "let"     orelse Text =:= "let*"
+                    orelse Text =:= "case"    orelse Text =:= "cond"
+                    orelse Text =:= "if"      orelse Text =:= "progn"
+                    orelse Text =:= "receive" orelse Text =:= "try"
+                    orelse Text =:= "maybe";
                 _ -> false
             end;
         [] -> false
