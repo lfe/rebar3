@@ -52,7 +52,6 @@ format(Input) ->
 %%   any other list/eval (plain call, unknown head, non-symbol head) → break_preserving
 %%
 %% Note: leaves and prefixed nodes do not take a regime; only containers do.
-%% A7·S1 (cons-dot) not yet merged; dot tokens currently render as symbols.
 -spec regime(r3lfe_format_cst:cst_node(), boolean()) -> regime().
 regime(_Node, true) ->
     break_preserving;
@@ -298,7 +297,7 @@ print_bp_container(Node, C, Open, _OpenLen, Close, _CloseLen,
                                 close_section(Dangling, DotHasTrail, DotCol,
                                               Indent, IndentStr, C, CIndStr, Close),
                             {[HeadLeadIO, Open, HeadIO, HeadTrailIO, DotIO, CloseIO], CloseCol};
-                        [FirstArg | _] ->
+                        [FirstArg | OtherArgs] ->
                             %% AlignCol = column where first arg lands.
                             %% Hanging (C+2) when: head has trailing comment, first arg
                             %% has nl_before, OR first arg would overflow the current line.
@@ -314,8 +313,18 @@ print_bp_container(Node, C, Open, _OpenLen, Close, _CloseLen,
                                     true  -> {Indent, IndentStr};
                                     false -> {HTC + 1, lists:duplicate(HTC + 1, $\s)}
                                 end,
+                            IsMultiline = r3lfe_format_cst:multiline(Node),
                             {RestIO, BodyLastCol, BodyHasTrail} =
-                                bp_rest_loop(RestBody, AlignCol, AlignStr, HTC, InData),
+                                case IsMultiline orelse OtherArgs =:= [] of
+                                    true ->
+                                        bp_rest_loop(RestBody, AlignCol, AlignStr, HTC, InData);
+                                    false ->
+                                        {FirstIO, _FirstLastCol, _} =
+                                            bp_rest_loop([FirstArg], AlignCol, AlignStr, HTC, InData),
+                                        {OtherIO, OtherLastCol, OtherHasTrail} =
+                                            print_rest_loop(OtherArgs, AlignCol, AlignStr, false, InData),
+                                        {[FirstIO, OtherIO], OtherLastCol, OtherHasTrail}
+                                end,
                             {DotIO, DotCol, DotHasTrail} =
                                 apply_dot_suffix(MaybeTail, BodyLastCol, BodyHasTrail),
                             {CloseIO, CloseCol} =
