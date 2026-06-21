@@ -4,8 +4,10 @@
 > under the output cap it's pre-split. Hand one at a time:
 > - `cc-prompt-s3a-always-break.md` — add `if`/`progn`/`receive`/`try`/`maybe` to
 >   the always-break set.
-> - `cc-prompt-s3b-clauses.md` — case/match clause body rule (break unless trivial).
->   *(JIT after S3a.)*
+> - `cc-prompt-s3b-1-clauses-case-cond.md` — define the clause renderer (break
+>   unless trivial) + wire `case` and `cond`.
+> - `cc-prompt-s3b-2-clauses-rest.md` — wire the clause renderer into
+>   `match-lambda`, `defun`/`defmacro` match-form, `receive`, `try`. *(JIT.)*
 > - `cc-prompt-s3c-lambda.md` — lambda structure rule (flat only if single
 >   non-structural body). *(JIT after S3b.)*
 >

@@ -5,16 +5,17 @@ Each arc lives in its own subdir: `arcN-<slug>/cc-prompt.md` (the spec) and
 `arcN-<slug>/cc-prompt-fixM-<slug>.md` (scoped fixes). A2 is ready now; A3–A6 are
 drafts to be tightened after the prior arc's report is graded.
 
-Status: **A1–A5 ✅** · **A7 ACTIVE** (formatting model v2 — knowledge-gated;
-revises A3/A4 over-collapsing per real-world feedback; authoritative spec =
-`formatting-rules.md`; arc map = `arc7-rules-v2/cc-prompt.md`. #7 dropped-code =
-FALSE ALARM (compaction, not loss). Oracle gap REAL: 2/3 sites re-anchored to raw
-lexer; **3rd site (PropEr `fmt_sig_pairs`) still CST-derived → `cc-prompt-oracle-
-fix-proper.md` READY**. **S1 = cons-dot only** (`cc-prompt-s1-cons-dot.md` READY),
-S2a ✅, **S2b SPLIT** (blew 32k cap as one piece) → **S2b-1 classify+InData
-(behavior-neutral) READY**, S2b-2 renderer; S3/S4/S5/S6 to come; gallery PAUSED).
-**A6 (release) deferred until A7 lands** — don't ship docs/
-CHANGELOG/0.5.5 for behavior that's changing. — older A6 detail below —
+Status: **A1–A5 ✅** · **A7 ACTIVE** (formatting model v2 — knowledge-gated; spec =
+`formatting-rules.md`; arc map = `arc7-rules-v2/cc-prompt.md`; gallery PAUSED).
+Done in A7: S1 cons-dot ✅, oracle-fix ✅ (all 3 token oracles raw-lexer), S2a ✅,
+S2b ✅ (regimes + break-preserving renderer; flat-overflow wraps one-per-line,
+grouping preserved), S3a ✅ (always-break: if/progn/receive/try/maybe).
+**Next: S3b-1 clauses-case/cond READY** (`cc-prompt-s3b-1-clauses-case-cond.md`);
+then S3b-2 (clauses: match-lambda/defun-match/receive/try), S3c (lambda),
+S4 (sig/flet/try/head-comment/close-de-indent), S5 (exports sort), S6 (gallery
+regen + full sweep). #7 dropped-code was a FALSE ALARM. Minor logged: flat-overflow
+data tuples put 2 elems on the opener line (uniform head+first-arg) — revisit if
+wanted. **A6 (release) deferred until A7 lands.** — older A6 detail below —
 
 Status (history): **A6 NEXT** (release;
 `arc6-release/`: **S0 e2e-CLI ✅** (real `rebar3 lfe format` via _checkouts; found+
