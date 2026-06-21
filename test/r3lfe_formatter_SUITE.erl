@@ -146,6 +146,17 @@
     defforms_comment_head_trailing/1
 ]).
 
+%% clauses group (A7·S3b-1)
+-export([
+    clause_case_trivial/1,
+    clause_case_nontrivial/1,
+    clause_case_multi_body/1,
+    clause_cond_trivial/1,
+    clause_cond_nontrivial/1,
+    clause_guard_regression/1,
+    clause_trailing_comment/1
+]).
+
 %% export_guards group (A4·S3d)
 -export([
     eg_export_wide/1,
@@ -235,6 +246,7 @@ all() ->
      {group, indent}, {group, fix1}, {group, fix2},
      {group, defforms}, {group, data_containers},
      {group, conformance}, {group, always_break},
+     {group, clauses},
      {group, export_guards},
      {group, edge_hardening}, {group, fuzz}, {group, corpus_sweep},
      {group, regimes}, {group, cons_dot}].
@@ -423,6 +435,15 @@ groups() ->
             cons_dot_pseudo_package,
             cons_dot_token_preservation,
             cons_dot_idempotency
+        ]},
+        {clauses, [], [
+            clause_case_trivial,
+            clause_case_nontrivial,
+            clause_case_multi_body,
+            clause_cond_trivial,
+            clause_cond_nontrivial,
+            clause_guard_regression,
+            clause_trailing_comment
         ]}
     ].
 
@@ -1673,6 +1694,53 @@ ab_colon_still_flat(_Config) ->
     Input = <<"(: erlang atom_to_list a)">>,
     assert_format(Input, <<"(: erlang atom_to_list a)\n">>),
     assert_idempotent(Input).
+
+%%====================================================================
+%% clauses group (A7·S3b-1)
+%%====================================================================
+
+clause_case_trivial(_Config) ->
+    %% Trivial clauses (pattern + leaf datum, no trivia) stay flat within case.
+    Input = <<"(case x (1 'one) (2 'two))">>,
+    assert_format(Input, <<"(case x\n  (1 'one)\n  (2 'two))\n">>),
+    assert_idempotent(Input).
+
+clause_case_nontrivial(_Config) ->
+    %% Non-trivial clause (compound datum) breaks to list_head layout.
+    Input = <<"(case r ((tuple 'ok v) (store v)))">>,
+    assert_format(Input, <<"(case r\n  ((tuple 'ok v)\n   (store v)))\n">>),
+    assert_idempotent(Input).
+
+clause_case_multi_body(_Config) ->
+    %% Clause with multiple body forms: pattern on first line, each form below.
+    Input = <<"(case x ((a b) (do-foo) (do-bar)))">>,
+    assert_format(Input, <<"(case x\n  ((a b)\n   (do-foo)\n   (do-bar)))\n">>),
+    assert_idempotent(Input).
+
+clause_cond_trivial(_Config) ->
+    %% Trivial cond clauses (compound predicate + leaf datum) stay flat.
+    Input = <<"(cond ((> x 0) 'pos) ((< x 0) 'neg) ('true 'zero))">>,
+    assert_format(Input, <<"(cond ((> x 0) 'pos)\n      ((< x 0) 'neg)\n      ('true 'zero))\n">>),
+    assert_idempotent(Input).
+
+clause_cond_nontrivial(_Config) ->
+    %% Cond clause with call body breaks: predicate line, body below at col+1.
+    Input = <<"(cond ((> x 0) (do-something x)) ('true 'default))">>,
+    assert_format(Input, <<"(cond ((> x 0)\n       (do-something x))\n      ('true 'default))\n">>),
+    assert_idempotent(Input).
+
+clause_guard_regression(_Config) ->
+    %% Pattern+guard on one line, body below: A4·S3d still holds through clause path.
+    %% list_head layout aligns body at C+OpenLen=3 (three spaces), not funcall AlignCol.
+    Input = <<"(case x (n (when (> n 0)) 'pos))">>,
+    assert_format(Input, <<"(case x\n  (n (when (> n 0))\n   'pos))\n">>),
+    assert_idempotent(Input).
+
+clause_trailing_comment(_Config) ->
+    %% Trailing comment on a clause does not break trivial detection; body stays flat.
+    Src = <<"(case x\n  (1 'one) ; note\n  (2 'two))">>,
+    assert_format(Src, <<"(case x\n  (1 'one) ; note\n  (2 'two))\n">>),
+    assert_idempotent(Src).
 
 %%====================================================================
 %% edge_hardening group — A6·S1

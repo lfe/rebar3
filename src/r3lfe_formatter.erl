@@ -254,6 +254,8 @@ print_bp_container(Node, C, Open, _OpenLen, Close, _CloseLen,
                    Indent, IndentStr, CIndStr, InData) ->
     DotTok = r3lfe_format_cst:dot_token(Node),
     {RestBody, MaybeTail} = split_dot_tail(DotTok, RestChildren),
+    IsCondHead = (r3lfe_format_cst:type(Head) =:= symbol)
+        andalso (r3lfe_format_lexer:text(r3lfe_format_cst:open(Head)) =:= "cond"),
     case head_has_leading_comment(Head) of
         true ->
             %% Comment before head: opener alone, all children one-per-line at Indent.
@@ -276,7 +278,10 @@ print_bp_container(Node, C, Open, _OpenLen, Close, _CloseLen,
                     {HeadTrailIO, HTC}   = emit_trailing(
                                              r3lfe_format_cst:trailing(Head), HCol),
                     {RestIO, BodyLastCol, BodyHasTrail} =
-                        bp_rest_loop(RestBody, Indent, HangStr, HTC, InData),
+                        case IsCondHead of
+                            true  -> bp_clause_rest_loop(RestBody, Indent, HangStr, HTC, InData);
+                            false -> bp_rest_loop(RestBody, Indent, HangStr, HTC, InData)
+                        end,
                     {DotIO, DotCol, DotHasTrail} =
                         apply_dot_suffix(MaybeTail, BodyLastCol, BodyHasTrail),
                     {CloseIO, CloseCol}  =
@@ -315,11 +320,19 @@ print_bp_container(Node, C, Open, _OpenLen, Close, _CloseLen,
                                 end,
                             IsMultiline = r3lfe_format_cst:multiline(Node),
                             {RestIO, BodyLastCol, BodyHasTrail} =
-                                case IsMultiline orelse OtherArgs =:= [] of
-                                    true ->
+                                case {IsCondHead, IsMultiline orelse OtherArgs =:= []} of
+                                    {true, true} ->
+                                        bp_clause_rest_loop(RestBody, AlignCol, AlignStr, HTC, InData);
+                                    {true, false} ->
+                                        {FirstIO, _, _} =
+                                            bp_clause_rest_loop([FirstArg], AlignCol, AlignStr, HTC, InData),
+                                        {OtherIO, OtherLastCol, OtherHasTrail} =
+                                            print_clause_loop(OtherArgs, AlignCol, AlignStr, false, InData),
+                                        {[FirstIO, OtherIO], OtherLastCol, OtherHasTrail};
+                                    {false, true} ->
                                         bp_rest_loop(RestBody, AlignCol, AlignStr, HTC, InData);
-                                    false ->
-                                        {FirstIO, _FirstLastCol, _} =
+                                    {false, false} ->
+                                        {FirstIO, _, _} =
                                             bp_rest_loop([FirstArg], AlignCol, AlignStr, HTC, InData),
                                         {OtherIO, OtherLastCol, OtherHasTrail} =
                                             print_rest_loop(OtherArgs, AlignCol, AlignStr, false, InData),
@@ -371,6 +384,40 @@ bp_rest_loop([Child | Rest], AlignCol, AlignStr, CurCol, InData) ->
             {RestIO, LastCol, HasTrail} =
                 bp_rest_loop(Rest, AlignCol, AlignStr, TrailCol, InData),
             {[Prefix, ChildIO, TrailIO | RestIO], LastCol, HasTrail}
+    end.
+
+%% bp_clause_rest_loop: like bp_rest_loop but uses render_clause for each child.
+%% Used for cond clauses (preserves nl_before positioning while applying the
+%% trivial/non-trivial clause rule to each clause's internal rendering).
+-spec bp_clause_rest_loop([r3lfe_format_cst:cst_node()], non_neg_integer(), string(),
+                          non_neg_integer(), boolean()) ->
+          {iolist(), non_neg_integer(), boolean()}.
+bp_clause_rest_loop([], _AlignCol, _AlignStr, CurCol, _InData) ->
+    {[], CurCol, false};
+bp_clause_rest_loop([Clause | Rest], AlignCol, AlignStr, CurCol, InData) ->
+    W        = flat_width(Clause),
+    NlBefore = r3lfe_format_cst:nl_before(Clause),
+    HasLead  = has_comment_leading(r3lfe_format_cst:leading(Clause)),
+    Overflow = W =:= infinity orelse CurCol + 1 + W >= ?WIDTH,
+    NewLine  = NlBefore orelse HasLead orelse Overflow,
+    {StartCol, Prefix} =
+        case NewLine of
+            true  -> {AlignCol, ["\n",
+                                 emit_child_leading(
+                                   r3lfe_format_cst:leading(Clause), AlignStr, false),
+                                 AlignStr]};
+            false -> {CurCol + 1, " "}
+        end,
+    {ClauseIO, ClauseCol} = render_clause(Clause, StartCol, InData),
+    {TrailIO, TrailCol}   = emit_trailing(r3lfe_format_cst:trailing(Clause), ClauseCol),
+    case Rest of
+        [] ->
+            HasTrail = r3lfe_format_cst:trailing(Clause) =/= [],
+            {[Prefix, ClauseIO, TrailIO], TrailCol, HasTrail};
+        _ ->
+            {RestIO, LastCol, HasTrail} =
+                bp_clause_rest_loop(Rest, AlignCol, AlignStr, TrailCol, InData),
+            {[Prefix, ClauseIO, TrailIO | RestIO], LastCol, HasTrail}
     end.
 
 %%====================================================================
@@ -547,6 +594,79 @@ is_let_head(Head) ->
             Text = r3lfe_format_lexer:text(r3lfe_format_cst:open(Head)),
             Text =:= "let" orelse Text =:= "let*";
         _ -> false
+    end.
+
+%%====================================================================
+%% Internal: clause helpers (A7·S3b-1)
+%%====================================================================
+
+%% trivial_clause: a clause is trivial iff it has exactly two children
+%% (pattern + a trivial datum) and carries no internal trivia. Trivial
+%% clauses render flat; non-trivial clauses always break (pattern line +
+%% body below via the list_head path). The clause's own trailing trivia
+%% is handled by the parent loop and does not affect triviality.
+-spec trivial_clause(r3lfe_format_cst:cst_node()) -> boolean().
+trivial_clause(Node) ->
+    r3lfe_format_cst:type(Node) =:= list
+    andalso not has_clause_internal_trivia(Node)
+    andalso case r3lfe_format_cst:children(Node) of
+        [_Pattern, Datum] -> is_trivial_datum(Datum);
+        _                 -> false
+    end.
+
+%% has_clause_internal_trivia: true when the clause itself has a leading comment
+%% or dangling trivia, or any descendant has any trivia.
+%% The clause's own trailing is excluded (handled externally).
+-spec has_clause_internal_trivia(r3lfe_format_cst:cst_node()) -> boolean().
+has_clause_internal_trivia(Node) ->
+    has_comment_leading(r3lfe_format_cst:leading(Node))
+    orelse r3lfe_format_cst:dangling(Node) =/= []
+    orelse lists:any(fun has_descendant_trivia/1, r3lfe_format_cst:children(Node)).
+
+%% is_trivial_datum: true for a leaf node (symbol/number/string/char) or a
+%% prefixed node whose inner is such a leaf.
+-spec is_trivial_datum(r3lfe_format_cst:cst_node()) -> boolean().
+is_trivial_datum(Node) ->
+    case r3lfe_format_cst:type(Node) of
+        T when T =:= symbol; T =:= number; T =:= string; T =:= char -> true;
+        prefixed ->
+            case r3lfe_format_cst:children(Node) of
+                [Inner] ->
+                    case r3lfe_format_cst:type(Inner) of
+                        T when T =:= symbol; T =:= number;
+                               T =:= string; T =:= char -> true;
+                        _ -> false
+                    end;
+                _ -> false
+            end;
+        _ -> false
+    end.
+
+%% render_clause: flat if trivial; list_head layout otherwise.
+%% Directly dispatches to print_classified(list_head, …) to guarantee the
+%% break regardless of what regime/2 would return for the clause's head.
+-spec render_clause(r3lfe_format_cst:cst_node(), non_neg_integer(), boolean()) ->
+          {iolist(), non_neg_integer()}.
+render_clause(Clause, Col, InData) ->
+    case trivial_clause(Clause) of
+        true  -> {flat_render(Clause), Col + flat_width(Clause)};
+        false ->
+            case r3lfe_format_cst:children(Clause) of
+                [] ->
+                    print_broken(Clause, Col, InData);
+                [Head | Rest] ->
+                    Open     = r3lfe_format_lexer:text(r3lfe_format_cst:open(Clause)),
+                    Close    = r3lfe_format_lexer:text(r3lfe_format_cst:close(Clause)),
+                    OpenLen  = length(Open),
+                    CloseLen = length(Close),
+                    Dangling = r3lfe_format_cst:dangling(Clause),
+                    Indent    = Col + 2,
+                    IndentStr = lists:duplicate(Indent, $\s),
+                    CIndStr   = lists:duplicate(Col, $\s),
+                    print_classified(list_head, Head, Rest, Dangling,
+                                     Col, Open, OpenLen, Close, CloseLen,
+                                     Indent, IndentStr, CIndStr, InData)
+            end
     end.
 
 %%====================================================================
@@ -810,8 +930,16 @@ print_classified({specform, N}, Head, RestChildren, Dangling,
                                                 Indent, IndentStr, C, CIndStr, Close),
             {[HeadLeadIO, Open, HeadIO, HeadTrailIO, DistIO, CloseIO], CloseCol};
         _ ->
-            {BodyIO, LastCol, HasTrail} = print_rest_loop(Body, Indent, IndentStr,
-                                                          true, InData),
+            IsCaseHead = case r3lfe_format_cst:type(Head) of
+                symbol ->
+                    r3lfe_format_lexer:text(r3lfe_format_cst:open(Head)) =:= "case";
+                _ -> false
+            end,
+            {BodyIO, LastCol, HasTrail} =
+                case IsCaseHead of
+                    true  -> print_clause_loop(Body, Indent, IndentStr, true, InData);
+                    false -> print_rest_loop(Body, Indent, IndentStr, true, InData)
+                end,
             {CloseIO, CloseCol} = close_section(Dangling, HasTrail, LastCol,
                                                 Indent, IndentStr, C, CIndStr, Close),
             {[HeadLeadIO, Open, HeadIO, HeadTrailIO, DistIO, BodyIO, CloseIO], CloseCol}
@@ -934,6 +1062,25 @@ print_rest_loop([Child | Rest], Indent, IndentStr, IsFirst, InData) ->
             {RestIO, LastCol, HasTrail} = print_rest_loop(Rest, Indent, IndentStr,
                                                           false, InData),
             {["\n", LeadIO, IndentStr, ChildIO, TrailIO | RestIO], LastCol, HasTrail}
+    end.
+
+%% print_clause_loop: like print_rest_loop but uses render_clause for each child.
+%% Used for case body clauses and for remaining cond clauses.
+-spec print_clause_loop([r3lfe_format_cst:cst_node()], non_neg_integer(),
+                        string(), boolean(), boolean()) ->
+          {iolist(), non_neg_integer(), boolean()}.
+print_clause_loop([Clause | Rest], Indent, IndentStr, IsFirst, InData) ->
+    LeadIO = emit_child_leading(r3lfe_format_cst:leading(Clause), IndentStr, IsFirst),
+    {ClauseIO, ClauseCol} = render_clause(Clause, Indent, InData),
+    {TrailIO, TrailCol}   = emit_trailing(r3lfe_format_cst:trailing(Clause), ClauseCol),
+    case Rest of
+        [] ->
+            HasTrail = r3lfe_format_cst:trailing(Clause) =/= [],
+            {["\n", LeadIO, IndentStr, ClauseIO, TrailIO], TrailCol, HasTrail};
+        _ ->
+            {RestIO, LastCol, HasTrail} = print_clause_loop(Rest, Indent, IndentStr,
+                                                            false, InData),
+            {["\n", LeadIO, IndentStr, ClauseIO, TrailIO | RestIO], LastCol, HasTrail}
     end.
 
 %%====================================================================
