@@ -171,6 +171,16 @@
     lambda_overflow_breaks/1
 ]).
 
+%% signature group (A7·S4a)
+-export([
+    sig_defun_last_dist_trail_comment/1,
+    sig_defun_match_last_dist_trail_comment/1,
+    sig_defmacro_last_dist_trail_comment/1,
+    sig_defmacro_match_last_dist_trail_comment/1,
+    sig_defun_non_last_dist_trail_comment_fallback/1,
+    sig_defun_keyword_not_alone/1
+]).
+
 %% export_guards group (A4·S3d)
 -export([
     eg_export_wide/1,
@@ -470,6 +480,14 @@ groups() ->
             lambda_multi_body_breaks,
             lambda_structural_body_breaks,
             lambda_overflow_breaks
+        ]},
+        {signature, [], [
+            sig_defun_last_dist_trail_comment,
+            sig_defun_match_last_dist_trail_comment,
+            sig_defmacro_last_dist_trail_comment,
+            sig_defmacro_match_last_dist_trail_comment,
+            sig_defun_non_last_dist_trail_comment_fallback,
+            sig_defun_keyword_not_alone
         ]}
     ].
 
@@ -1859,6 +1877,77 @@ lambda_overflow_breaks(_Config) ->
     assert_format(Input, <<"(lambda (very-long-argument-name)\n"
                            "  (very-long-function-name very-long-argument-name))\n">>),
     assert_idempotent(Input).
+
+%%====================================================================
+%% signature group (A7·S4a)
+%%====================================================================
+
+sig_defun_last_dist_trail_comment(_Config) ->
+    %% Trailing comment on the arglist (last distinguished arg of a signature defun)
+    %% is safe: stays on the head line; body at +2.
+    Input = <<"(defun star (x) ; comment\n  (+ x 1))">>,
+    assert_format(Input, <<"(defun star (x) ; comment\n  (+ x 1))\n">>),
+    assert_idempotent(Input).
+
+sig_defun_match_last_dist_trail_comment(_Config) ->
+    %% Trailing comment on the name (last / only distinguished arg of a match-clause
+    %% defun, N=1) is safe: name + comment on head line; clauses below.
+    Input = <<"(defun f ; comment\n  ((0) 1)\n  ((n) n))">>,
+    assert_format(Input, <<"(defun f ; comment\n  ((0) 1)\n  ((n) n))\n">>),
+    assert_idempotent(Input).
+
+sig_defmacro_last_dist_trail_comment(_Config) ->
+    %% Same rule for defmacro signature form (N=2: name + arglist on head line).
+    Input = <<"(defmacro my-mac (args) ; comment\n  `(list ,@args))">>,
+    assert_format(Input, <<"(defmacro my-mac (args) ; comment\n  `(list ,@args))\n">>),
+    assert_idempotent(Input).
+
+sig_defmacro_match_last_dist_trail_comment(_Config) ->
+    %% defmacro match-clause form: name is the only distinguished arg; trailing
+    %% comment on it is safe — name + comment on head line, clauses below.
+    Input = <<"(defmacro m ; comment\n  ((x) x))">>,
+    assert_format(Input, <<"(defmacro m ; comment\n  ((x) x))\n">>),
+    assert_idempotent(Input).
+
+sig_defun_non_last_dist_trail_comment_fallback(_Config) ->
+    %% Trailing comment on the NAME (non-last distinguished arg when arglist follows)
+    %% is unsafe: existing fallback applies — all distinguished args go to body,
+    %% defun + name remain on head line... actually this falls back to N=1 via the
+    %% defform_n change path — the keyword + name MUST stay together.
+    %% The key invariant: no swallowing of the arglist, and (defun alone is never ok.
+    Input = <<"(defun star ; comment\n  (x)\n  (+ x 1))">>,
+    {ok, IO} = r3lfe_formatter:format(Input),
+    Out = iolist_to_binary(IO),
+    %% The arglist must NOT be swallowed by the comment — it must appear in output.
+    ?assertNotEqual(nomatch, binary:match(Out, <<"(x)">>)),
+    %% The keyword must not appear alone on a line.
+    Lines = binary:split(Out, <<"\n">>, [global, trim]),
+    lists:foreach(fun(Line) ->
+        Stripped = string:trim(binary_to_list(Line)),
+        ?assertNotEqual("(defun", Stripped),
+        ?assertNotEqual("(defmacro", Stripped)
+    end, Lines).
+
+sig_defun_keyword_not_alone(_Config) ->
+    %% Verify that no defform rendering puts the keyword alone on a line.
+    %% Test a variety of defun/defmacro shapes.
+    Inputs = [
+        <<"(defun f (x) (+ x 1))">>,
+        <<"(defun f () 'ok)">>,
+        <<"(defun f ((0) 1) ((n) n))">>,
+        <<"(defmacro m (x) `(list ,x))">>,
+        <<"(defmacro m ((x) `(f ,x)))">>
+    ],
+    lists:foreach(fun(Input) ->
+        {ok, IO} = r3lfe_formatter:format(Input),
+        Out = iolist_to_binary(IO),
+        Lines = binary:split(Out, <<"\n">>, [global, trim]),
+        lists:foreach(fun(Line) ->
+            Stripped = string:trim(binary_to_list(Line)),
+            ?assertNotEqual("(defun", Stripped),
+            ?assertNotEqual("(defmacro", Stripped)
+        end, Lines)
+    end, Inputs).
 
 %%====================================================================
 %% edge_hardening group — A6·S1

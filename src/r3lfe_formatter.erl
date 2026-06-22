@@ -542,10 +542,15 @@ head_has_leading_comment(Node) ->
     lists:any(fun({comment, _}) -> true; (_) -> false end,
               r3lfe_format_cst:leading(Node)).
 
-%% any_dist_has_comment: true if any distinguished arg has a leading or trailing
-%% comment.  Used to fall back to body layout so no comment swallows content.
+%% any_dist_has_comment: true if the distinguished args have an unsafe comment.
+%% Safe: trailing comment on the LAST distinguished arg (ends head line; body
+%% goes below at +2).  Unsafe: leading comment on ANY arg, or trailing comment
+%% on a NON-LAST arg (would swallow the next distinguished arg on the same line).
 -spec any_dist_has_comment([r3lfe_format_cst:cst_node()]) -> boolean().
 any_dist_has_comment([]) -> false;
+any_dist_has_comment([D]) ->
+    %% Last item: trailing comment is safe; only leading triggers fallback.
+    head_has_leading_comment(D);
 any_dist_has_comment([D | Rest]) ->
     head_has_leading_comment(D)
     orelse r3lfe_format_cst:trailing(D) =/= []
@@ -984,7 +989,9 @@ print_classified({specform, N}, Head, RestChildren, Dangling,
                                 true ->
                                     [BindList] = DistPotential,
                                     {BIO, BCol} = print_broken(BindList, HTC + 1, InData),
-                                    {[" ", BIO], BCol};
+                                    {BTrailIO, BTC} = emit_trailing(
+                                        r3lfe_format_cst:trailing(BindList), BCol),
+                                    {[" ", BIO, BTrailIO], BTC};
                                 false ->
                                     print_distinguished(DistPotential, HTC, InData)
                             end,
@@ -1028,7 +1035,21 @@ print_classified(defform, Head, RestChildren, Dangling,
                  C, Open, OpenLen, Close, CloseLen,
                  Indent, IndentStr, CIndStr, InData) ->
     N = defform_n(Head, RestChildren),
-    print_classified({specform, N}, Head, RestChildren, Dangling,
+    %% Rule (A7·S4a): def-forms are never alone on a line.  When N=2 and the
+    %% distinguished args have a comment that would trigger the N=0 fallback
+    %% (keyword alone), fall back to N=1 instead so keyword + name share the
+    %% head line even when the arglist cannot.
+    EffN = case N > 1 of
+        false -> N;
+        true  ->
+            NSplit = min(N, length(RestChildren)),
+            {DistPotential, _} = lists:split(NSplit, RestChildren),
+            case any_dist_has_comment(DistPotential) of
+                true  -> 1;
+                false -> N
+            end
+    end,
+    print_classified({specform, EffN}, Head, RestChildren, Dangling,
                      C, Open, OpenLen, Close, CloseLen,
                      Indent, IndentStr, CIndStr, InData);
 
