@@ -563,7 +563,9 @@ must_break(Node) ->
         map  -> true;
         list ->
             r3lfe_format_cst:dot_token(Node) =:= undefined
-            andalso (is_force_break_defform(Node) orelse is_always_break_head(Node));
+            andalso (is_force_break_defform(Node)
+                     orelse is_always_break_head(Node)
+                     orelse is_lambda_multi_body(Node));
         _    -> false
     end.
 
@@ -593,6 +595,19 @@ is_let_head(Head) ->
         symbol ->
             Text = r3lfe_format_lexer:text(r3lfe_format_cst:open(Head)),
             Text =:= "let" orelse Text =:= "let*";
+        _ -> false
+    end.
+
+%% is_lambda_multi_body: true for (lambda arglist body1 body2 …) with >1 body form.
+%% Children = [lambda-sym, arglist | body…]; body count > 1 forces a break so the
+%% implicit progn is always written one-form-per-line (formatting-rules §3.2).
+-spec is_lambda_multi_body(r3lfe_format_cst:cst_node()) -> boolean().
+is_lambda_multi_body(Node) ->
+    case r3lfe_format_cst:children(Node) of
+        [Head, _Arglist | Body] ->
+            length(Body) > 1
+            andalso r3lfe_format_cst:type(Head) =:= symbol
+            andalso r3lfe_format_lexer:text(r3lfe_format_cst:open(Head)) =:= "lambda";
         _ -> false
     end.
 

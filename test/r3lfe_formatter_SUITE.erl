@@ -162,6 +162,15 @@
     clause_receive/1
 ]).
 
+%% lambda group (A7·S3c)
+-export([
+    lambda_single_body_flat/1,
+    lambda_empty_args_flat/1,
+    lambda_multi_body_breaks/1,
+    lambda_structural_body_breaks/1,
+    lambda_overflow_breaks/1
+]).
+
 %% export_guards group (A4·S3d)
 -export([
     eg_export_wide/1,
@@ -251,7 +260,7 @@ all() ->
      {group, indent}, {group, fix1}, {group, fix2},
      {group, defforms}, {group, data_containers},
      {group, conformance}, {group, always_break},
-     {group, clauses},
+     {group, clauses}, {group, lambda},
      {group, export_guards},
      {group, edge_hardening}, {group, fuzz}, {group, corpus_sweep},
      {group, regimes}, {group, cons_dot}].
@@ -454,6 +463,13 @@ groups() ->
             clause_defun_match_guard,
             clause_defmacro_match,
             clause_receive
+        ]},
+        {lambda, [], [
+            lambda_single_body_flat,
+            lambda_empty_args_flat,
+            lambda_multi_body_breaks,
+            lambda_structural_body_breaks,
+            lambda_overflow_breaks
         ]}
     ].
 
@@ -1807,6 +1823,41 @@ clause_receive(_Config) ->
                           "   (handle m))\n"
                           "  (done 'ok)\n"
                           "  (after 1000 (timeout)))\n">>),
+    assert_idempotent(Input).
+
+%%====================================================================
+%% lambda group (A7·S3c)
+%%====================================================================
+
+lambda_single_body_flat(_Config) ->
+    %% Single body form that fits: lambda stays flat (NOT in always-break set).
+    Input = <<"(lambda (x y) (+ x y))">>,
+    assert_format(Input, <<"(lambda (x y) (+ x y))\n">>),
+    assert_idempotent(Input).
+
+lambda_empty_args_flat(_Config) ->
+    %% Empty arglist + single body: still flat-if-fits.
+    Input = <<"(lambda () (do-thing))">>,
+    assert_format(Input, <<"(lambda () (do-thing))\n">>),
+    assert_idempotent(Input).
+
+lambda_multi_body_breaks(_Config) ->
+    %% Two body forms (implicit progn): must break even though it fits in 80 cols.
+    Input = <<"(lambda (x) (a) (b))">>,
+    assert_format(Input, <<"(lambda (x)\n  (a)\n  (b))\n">>),
+    assert_idempotent(Input).
+
+lambda_structural_body_breaks(_Config) ->
+    %% Single body that is itself structural (case → must_break): lambda breaks too.
+    Input = <<"(lambda (x) (case x (0 'zero)))">>,
+    assert_format(Input, <<"(lambda (x)\n  (case x\n    (0 'zero)))\n">>),
+    assert_idempotent(Input).
+
+lambda_overflow_breaks(_Config) ->
+    %% Single body that overflows 80 cols: breaks normally (arglist on head line).
+    Input = <<"(lambda (very-long-argument-name) (very-long-function-name very-long-argument-name))">>,
+    assert_format(Input, <<"(lambda (very-long-argument-name)\n"
+                           "  (very-long-function-name very-long-argument-name))\n">>),
     assert_idempotent(Input).
 
 %%====================================================================
