@@ -21,6 +21,9 @@
 
 -include("r3lfe.hrl").
 
+-dialyzer({no_extra_return, validate_main_file/1}).
+-dialyzer({no_match, validate_main_file/1}).
+
 -define(PROVIDER, run).
 -define(DEPS, [{?NAMESPACE, compile}]).
 
@@ -107,7 +110,7 @@ format_error(Reason) ->
 %%====================================================================
 
 %% @doc Find the main file from options or config
--spec find_main_file(rebar_state:t()) -> file:filename() | undefined.
+-spec find_main_file(rebar_state:t()) -> file:filename_all() | undefined.
 find_main_file(State) ->
     %% Priority: --main option > --script option > rebar.config
     case find_main_from_options(State) of
@@ -118,7 +121,7 @@ find_main_file(State) ->
     end.
 
 %% @doc Check command line options
--spec find_main_from_options(rebar_state:t()) -> file:filename() | undefined.
+-spec find_main_from_options(rebar_state:t()) -> file:filename_all() | undefined.
 find_main_from_options(State) ->
     {Opts, _} = rebar_state:command_parsed_args(State),
 
@@ -131,13 +134,13 @@ find_main_from_options(State) ->
     end.
 
 %% @doc Check rebar.config for {lfe, [{main, "..."}]}
--spec find_main_from_config(rebar_state:t()) -> file:filename() | undefined.
+-spec find_main_from_config(rebar_state:t()) -> file:filename_all() | undefined.
 find_main_from_config(State) ->
     LfeConfig = rebar_state:get(State, lfe, []),
     proplists:get_value(main, LfeConfig).
 
 %% @doc Validate that main file exists
--spec validate_main_file(file:filename() | undefined) -> file:filename() | undefined.
+-spec validate_main_file(file:filename_all() | undefined) -> file:filename_all() | undefined.
 validate_main_file(undefined) ->
     undefined;
 validate_main_file(RelPath) ->

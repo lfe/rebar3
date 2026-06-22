@@ -37,7 +37,7 @@ init() ->
     end.
 
 %% @doc Register a package transformation
--spec register_package(map()) -> ok.
+-spec register_package(#{temp_file := file:filename_all(), _ => _}) -> ok.
 register_package(PackageInfo = #{temp_file := TempFile}) ->
     case ets:info(?TRACKER_TABLE) of
         undefined ->

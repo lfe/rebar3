@@ -109,7 +109,7 @@ compile_app(AppInfo, State) ->
 
     %% Add app's ebin to code path so include-lib can find it
     %% This must be done AFTER rebar_otp_app:compile creates the .app file
-    code:add_patha(OutDir),
+    _ = code:add_patha(OutDir),
 
     %% Ensure all dependency applications are loaded
     %% This is critical for include-lib to work (it uses code:lib_dir/1)

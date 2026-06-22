@@ -15,11 +15,16 @@ clean:
 	@rm -rf _build rebar.lock $(SYS_TEST_DIR) $(GLOBAL_INSTALL) ebin test/*.beam
 
 check: clean
-	@rebar3 check
+	@rebar3 compile
+	@rebar3 xref
+	@rebar3 dialyzer
+	@rebar3 as test proper -c
+	@rebar3 as test ct
+	@rebar3 as test cover -v
 
 test: clean
-	@rebar3 ct
-	-@rebar3 proper -c
+	@rebar3 as test ct
+	-@rebar3 as test proper -c
 
 coverage: clean
 	@rebar3 as test do ct, cover -v

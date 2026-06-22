@@ -102,7 +102,7 @@ is_package_file(File) ->
     is_nested_file(File, SourceDir).
 
 %% @doc Convert package file path to module name
--spec package_to_module_name(file:filename(), file:filename()) -> string().
+-spec package_to_module_name(file:filename_all(), file:filename_all()) -> file:filename_all().
 package_to_module_name(File, SourceDir) ->
     calculate_module_name(File, SourceDir).
 
@@ -237,7 +237,7 @@ prepare_single_package(SourceFile, SourceDir) ->
 -spec copy_file_safe(file:filename(), file:filename()) -> ok | {error, term()}.
 copy_file_safe(Source, Dest) ->
     %% Check if destination already exists (shouldn't happen, but be safe)
-    case filelib:is_file(Dest) of
+    _ = case filelib:is_file(Dest) of
         true ->
             ?WARN("Temporary file already exists: ~s", [Dest]),
             %% Delete it and try again
@@ -263,7 +263,7 @@ copy_file_safe(Source, Dest) ->
 %%   src/my/package.lfe -> my.package
 %%   src/my/other/deep.lfe -> my.other.deep
 %%   test/my-test.lfe -> my-test (flat)
--spec calculate_module_name(file:filename(), file:filename()) -> string().
+-spec calculate_module_name(file:filename_all(), file:filename_all()) -> file:filename_all().
 calculate_module_name(File, SourceDir) ->
     %% Get relative path from source directory
     AbsFile = filename:absname(File),

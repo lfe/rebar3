@@ -165,7 +165,7 @@ do_conversion(InputFile, OutputFile) ->
 write_erlang_file(OutputFile, Forms) ->
     try
         %% Delete existing file if present
-        file:delete(OutputFile),
+        _ = file:delete(OutputFile),
 
         %% Flatten and write each form
         FlatForms = flatten_forms(Forms),
@@ -203,9 +203,7 @@ flatten_forms(Forms) when is_list(Forms) ->
     [case F of
         {Form, _Line} -> Form;
         Form -> Form
-     end || F <- Forms];
-flatten_forms(Other) ->
-    [Other].
+     end || F <- Forms].
 
 %% @doc Append a single form to the output file
 -spec append_form(file:filename(), term()) -> ok.

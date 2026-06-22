@@ -214,7 +214,7 @@ clean(Files, AppInfo) ->
     ok.
 
 %% @doc Add format_error/1 callback for provider-level errors
--spec format_error(term()) -> iolist().
+-spec format_error(term()) -> [byte() | [term()]].
 format_error(Reason) ->
     r3lfe_compile_worker:format_error(Reason).
 
@@ -325,9 +325,9 @@ check_dependencies_newer(G, Source, TargetTime) ->
 
 %% @doc Convert source file path to target (beam) file path
 -spec source_to_target(
-    file:filename(),
-    [{string(), file:filename()}]
-) -> file:filename().
+    file:filename_all(),
+    [{string(), file:filename_all()}]
+) -> file:filename_all().
 source_to_target(Source, OutMappings) ->
     %% OutMappings is [{Extension, OutputDir}, ...]
     %% For LFE, it's [{".beam", "path/to/ebin"}]

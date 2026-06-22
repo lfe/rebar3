@@ -73,7 +73,7 @@ format_error(Reason) ->
 %% Internal functions
 %%====================================================================
 
--spec run_tests(rebar_state:t()) -> {ok, rebar_state:t()}.
+-spec run_tests(rebar_state:t()) -> {ok, rebar_state:t()} | {error, iolist()}.
 run_tests(State) ->
     %% Set up code paths (deps, plugins, and project apps for testing)
     rebar_paths:set_paths([deps, plugins, runtime], State),

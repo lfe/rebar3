@@ -107,7 +107,7 @@ find_escript(State) ->
     end.
 
 %% @doc Determine escript path from configuration
--spec determine_escript_path(rebar_state:t()) -> file:filename().
+-spec determine_escript_path(rebar_state:t()) -> file:filename_all().
 determine_escript_path(State) ->
     %% Get escript name from config
     EscriptName = case rebar_state:get(State, escript_name, undefined) of
@@ -145,7 +145,7 @@ parse_args(State) ->
     end.
 
 %% @doc Execute the escript
--spec run_escript(file:filename(), [string()]) -> term().
+-spec run_escript(string(), [string()]) -> ok.
 run_escript(EscriptPath, Args) ->
     %% Build command
     Cmd = build_command(EscriptPath, Args),
@@ -215,4 +215,3 @@ info(Description) ->
         "  ./_build/default/bin/myapp arg1 arg2~n",
         [Description]
     ).
-

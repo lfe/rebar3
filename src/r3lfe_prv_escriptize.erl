@@ -35,7 +35,7 @@ init(State) ->
 
     {ok, rebar_state:add_provider(State, Provider)}.
 
--spec do(rebar_state:t()) -> {ok, rebar_state:t()} | {error, string()}.
+-spec do(rebar_state:t()) -> {ok, rebar_state:t()}.
 do(State) ->
     ?DEBUG("LFE escriptize provider starting", []),
 

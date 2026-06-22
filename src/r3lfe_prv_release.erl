@@ -46,7 +46,7 @@ init(State) ->
 
     {ok, rebar_state:add_provider(State, Provider)}.
 
--spec do(rebar_state:t()) -> {ok, rebar_state:t()} | {error, string()}.
+-spec do(rebar_state:t()) -> {ok, rebar_state:t()}.
 do(State) ->
     ?DEBUG("LFE release provider starting", []),
 
@@ -176,13 +176,15 @@ get_release_name(State) ->
     end.
 
 %% @doc Get release output directory
--spec get_release_output_dir(rebar_state:t()) -> file:filename().
+-spec get_release_output_dir(rebar_state:t()) -> file:filename_all().
 get_release_output_dir(State) ->
     RelxConfig = rebar_state:get(State, relx, []),
     CustomDir = proplists:get_value(output_dir, RelxConfig, undefined),
     case CustomDir of
         undefined ->
             filename:join(rebar_dir:base_dir(State), "rel");
+        Dir when is_atom(Dir) ->
+            atom_to_list(Dir);
         Dir ->
             case filename:pathtype(Dir) of
                 absolute -> Dir;

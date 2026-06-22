@@ -148,7 +148,7 @@ validate_command(Command) ->
     end.
 
 %% @doc Find the release script path
--spec find_release_script(rebar_state:t()) -> file:filename().
+-spec find_release_script(rebar_state:t()) -> file:filename_all().
 find_release_script(State) ->
     ReleaseName = get_release_name(State),
     ReleaseDir = get_release_output_dir(State),
@@ -181,7 +181,7 @@ get_release_name(State) ->
     end.
 
 %% @doc Get release output directory
--spec get_release_output_dir(rebar_state:t()) -> file:filename().
+-spec get_release_output_dir(rebar_state:t()) -> file:filename_all().
 get_release_output_dir(State) ->
     %% Check for custom output_dir in relx config
     RelxConfig = rebar_state:get(State, relx, []),
@@ -192,6 +192,8 @@ get_release_output_dir(State) ->
         undefined ->
             %% Use default
             filename:join(rebar_dir:base_dir(State), ?DEFAULT_RELEASE_DIR);
+        Dir when is_atom(Dir) ->
+            atom_to_list(Dir);
         Dir ->
             %% Use custom directory
             case filename:pathtype(Dir) of
@@ -201,7 +203,7 @@ get_release_output_dir(State) ->
     end.
 
 %% @doc Execute a release command
--spec run_release_command(file:filename(), string()) -> term().
+-spec run_release_command(string(), string()) -> ok.
 run_release_command(ReleaseScript, Command) ->
     %% Ensure script is executable
     ok = file:change_mode(ReleaseScript, 8#755),
@@ -253,7 +255,7 @@ execute_interactive(CmdLine) ->
 
     %% Note: This will replace the current process
     %% The rebar3 command will exit when the release script exits
-    os:cmd(CmdLine),
+    _ = os:cmd(CmdLine),
 
     ok.
 

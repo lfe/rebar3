@@ -43,8 +43,6 @@ is_under_rlwrap() ->
                 {unix, _} ->
                     check_parent_is_rlwrap();
                 {win32, _} ->
-                    false;
-                _ ->
                     false
             end;
         _ ->
@@ -305,7 +303,7 @@ build_rlwrap_command(_State, Opts) ->
         Rebar3Cmd
     ]).
 
--spec get_history_file(map()) -> string().
+-spec get_history_file(map()) -> file:filename_all().
 get_history_file(Opts) ->
     case maps:get(history_file, Opts, undefined) of
         undefined ->
@@ -313,7 +311,7 @@ get_history_file(Opts) ->
             Home = os:getenv("HOME", "/tmp"),
             LfeDir = filename:join([Home, ".lfe"]),
             %% Ensure directory exists
-            filelib:ensure_dir(filename:join(LfeDir, "dummy")),
+            ok = filelib:ensure_dir(filename:join(LfeDir, "dummy")),
             filename:join(LfeDir, "history");
         Path ->
             %% Expand ~ if present

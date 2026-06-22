@@ -15,7 +15,7 @@ generate_erlang_completions(OutputPath) ->
     %% Write to file, one per line
     Content = string:join(lists:sort(Modules), "\n") ++ "\n",
 
-    filelib:ensure_dir(OutputPath),
+    ok = filelib:ensure_dir(OutputPath),
     file:write_file(OutputPath, Content).
 
 %% Generate completion file for LFE
@@ -39,7 +39,7 @@ generate_lfe_completions(OutputPath) ->
 
     Content = string:join(lists:sort(LfeForms), "\n") ++ "\n",
 
-    filelib:ensure_dir(OutputPath),
+    ok = filelib:ensure_dir(OutputPath),
     file:write_file(OutputPath, Content).
 
 %% Ensure default completion files exist
@@ -48,19 +48,19 @@ ensure_files() ->
     Home = os:getenv("HOME", "/tmp"),
     CompletionDir = filename:join([Home, ".lfe", "completions"]),
 
-    filelib:ensure_dir(filename:join(CompletionDir, "dummy")),
+    ok = filelib:ensure_dir(filename:join(CompletionDir, "dummy")),
 
     ErlangFile = filename:join(CompletionDir, "erlang.txt"),
     LfeFile = filename:join(CompletionDir, "lfe.txt"),
 
     %% Generate if they don't exist
     case filelib:is_file(ErlangFile) of
-        false -> generate_erlang_completions(ErlangFile);
+        false -> ok = generate_erlang_completions(ErlangFile);
         true -> ok
     end,
 
     case filelib:is_file(LfeFile) of
-        false -> generate_lfe_completions(LfeFile);
+        false -> ok = generate_lfe_completions(LfeFile);
         true -> ok
     end,
 

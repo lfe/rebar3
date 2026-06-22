@@ -75,7 +75,7 @@ init(State) ->
 
     {ok, rebar_state:add_provider(State, Provider)}.
 
--spec do(rebar_state:t()) -> {ok, rebar_state:t()} | {error, string()}.
+-spec do(rebar_state:t()) -> {ok, rebar_state:t()}.
 do(State) ->
     ?DEBUG("LFE REPL provider starting", []),
 
@@ -106,7 +106,7 @@ format_error(Reason) ->
 
 %% Internal function that does the actual REPL work
 -spec do_repl(rebar_state:t(), proplists:proplist()) ->
-    {ok, rebar_state:t()} | {error, string()}.
+    {ok, rebar_state:t()}.
 do_repl(State, Opts) ->
     ?DEBUG("LFE REPL provider starting (rlwrap-checked)", []),
 
@@ -139,7 +139,7 @@ do_repl(State, Opts) ->
     {ok, State}.
 
 -spec maybe_trampoline_rlwrap(rebar_state:t(), proplists:proplist()) ->
-    {ok, rebar_state:t()} | {error, string()}.
+    {ok, rebar_state:t()}.
 maybe_trampoline_rlwrap(State, Opts) ->
     %% Get config
     LfeConfig = rebar_state:get(State, lfe, []),

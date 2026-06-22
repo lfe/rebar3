@@ -220,7 +220,15 @@ read_and_format(File) ->
             end
     end.
 
--spec format_file(file:filename()) -> formatted | unchanged | {error, term()}.
+-spec format_file(string()) ->
+    formatted | unchanged |
+    {error,
+     atom() |
+     {bad_tq_string | invalid_encoding | missing_inner_node | unexpected_dot |
+      unterminated_block_comment | unterminated_qsymbol | unterminated_string,
+      binary() | non_neg_integer()} |
+     {unbalanced, eof | rbracket | rparen, pos_integer()} |
+     {unexpected_char, term(), pos_integer(), pos_integer()}}.
 format_file(File) ->
     case read_and_format(File) of
         {error, _} = Err ->

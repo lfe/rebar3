@@ -93,7 +93,7 @@ get_app_versions(Apps) ->
         Apps
     ).
 
--spec get_language_versions() -> [{atom(), string()}].
+-spec get_language_versions() -> nonempty_list({lfe | erlang | erts, string()}).
 get_language_versions() ->
     [
         {lfe, get_version(lfe)},
@@ -101,7 +101,7 @@ get_language_versions() ->
         {erts, erlang:system_info(version)}
     ].
 
--spec get_tool_versions() -> [{atom(), string()}].
+-spec get_tool_versions() -> nonempty_list({rebar3 | rebar3_lfe | rebar3_hex, string()}).
 get_tool_versions() ->
     BaseTools = [
         {rebar3, get_rebar3_version()},
@@ -172,7 +172,13 @@ format_heading(Text) ->
         "==="
     ]).
 
--spec display_versions(map()) -> ok.
+-spec display_versions(#{
+    apps := [{term(), term()}],
+    languages := nonempty_list({term(), term()}),
+    tools := nonempty_list({term(), term()}),
+    deps := [map()],
+    plugins := [map()]
+}) -> ok.
 display_versions(#{apps := Apps, languages := Langs, tools := Tools, deps := Deps, plugins := Plugins}) ->
     %% Always display Languages section
     io:format("~n~s~n", [format_heading("Languages")]),
