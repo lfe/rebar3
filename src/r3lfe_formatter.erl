@@ -1120,18 +1120,20 @@ print_distinguished([D | Rest], Col, InData) ->
     {[" ", DLeadIO, DIO, DTrailIO | RestIO], LastCol}.
 
 %% close_section: emit dangling then close, or close hugging last child.
-%% Breaks close onto its own line at C when:
+%% Breaks close onto its own line at Indent (content indent) when:
 %%   • Dangling is non-empty (existing rule), OR
 %%   • LastHasTrail=true (last child had a trailing comment — fix1: a comment
 %%     runs to end-of-line so the close must not follow it on the same line).
+%% The close aligns with the preceding content/dangling lines (IndStr), never
+%% de-indented to the form's open column C (A7·S4b).
 -spec close_section([r3lfe_format_cst:trivia()], boolean(), non_neg_integer(),
                     non_neg_integer(), string(), non_neg_integer(), string(), string()) ->
           {iolist(), non_neg_integer()}.
 close_section([], false, LastCol, _Indent, _IndStr, _C, _CIndStr, Close) ->
     {Close, LastCol + length(Close)};
-close_section(Dangling, _HasTrail, _LastCol, _Indent, IndStr, C, CIndStr, Close) ->
+close_section(Dangling, _HasTrail, _LastCol, Indent, IndStr, _C, _CIndStr, Close) ->
     DangIO = emit_dangling(Dangling, IndStr),
-    {[DangIO, "\n", CIndStr, Close], C + length(Close)}.
+    {[DangIO, "\n", IndStr, Close], Indent + length(Close)}.
 
 %% print_rest_loop: emit children [c1..cN] each preceded by \n+Indent.
 %% Returns {IO, LastCol, LastHasTrailing} where LastHasTrailing is true when

@@ -171,6 +171,14 @@
     lambda_overflow_breaks/1
 ]).
 
+%% close_deindent group (A7·S4b)
+-export([
+    cd_defmodule_export_dangling/1,
+    cd_body_trailing_comment/1,
+    cd_funcall_dangling/1,
+    cd_normal_close_hugs/1
+]).
+
 %% signature group (A7·S4a)
 -export([
     sig_defun_last_dist_trail_comment/1,
@@ -271,6 +279,7 @@ all() ->
      {group, defforms}, {group, data_containers},
      {group, conformance}, {group, always_break},
      {group, clauses}, {group, lambda},
+     {group, signature}, {group, close_deindent},
      {group, export_guards},
      {group, edge_hardening}, {group, fuzz}, {group, corpus_sweep},
      {group, regimes}, {group, cons_dot}].
@@ -488,6 +497,12 @@ groups() ->
             sig_defmacro_match_last_dist_trail_comment,
             sig_defun_non_last_dist_trail_comment_fallback,
             sig_defun_keyword_not_alone
+        ]},
+        {close_deindent, [], [
+            cd_defmodule_export_dangling,
+            cd_body_trailing_comment,
+            cd_funcall_dangling,
+            cd_normal_close_hugs
         ]}
     ].
 
@@ -704,12 +719,12 @@ comment_trailing(_Config) ->
     assert_idempotent(Src).
 
 comment_dangling(_Config) ->
-    %% Dangling comment before closing paren: close on its own line
+    %% Dangling comment before closing paren: close on its own line at
+    %% content indent (A7·S4b), not de-indented to the form's open column.
     Src = <<"(a\n  ;; c\n  )">>,
     {ok, OutIO} = r3lfe_formatter:format(Src),
     Out = iolist_to_binary(OutIO),
-    %% Broken: (a\n  ;; c\n), close on own line at C=0
-    ?assertEqual(<<"(a\n  ;; c\n)\n">>, Out),
+    ?assertEqual(<<"(a\n  ;; c\n  )\n">>, Out),
     assert_idempotent(Src).
 
 comment_blank_between(_Config) ->
@@ -1005,21 +1020,21 @@ indent_defform_provisional(_Config) ->
 fix1_close_after_trailing_progn(_Config) ->
     %% Trailing comment on last body child of a progn: close must go on its own line.
     Src = <<"(progn\n  a\n  b ; note\n  )">>,
-    assert_format(Src, <<"(progn\n  a\n  b ; note\n)\n">>),
+    assert_format(Src, <<"(progn\n  a\n  b ; note\n  )\n">>),
     assert_idempotent(Src),
     assert_token_preservation(Src).
 
 fix1_close_after_trailing_case(_Config) ->
     %% Trailing comment on last clause of a case: close on own line.
     Src = <<"(case x\n  (ok y) ; good\n  )">>,
-    assert_format(Src, <<"(case x\n  (ok y) ; good\n)\n">>),
+    assert_format(Src, <<"(case x\n  (ok y) ; good\n  )\n">>),
     assert_idempotent(Src),
     assert_token_preservation(Src).
 
 fix1_close_after_trailing_funcall(_Config) ->
     %% Trailing comment on last aligned arg of funcall: close on own line.
     Src = <<"(some-fn a\n         b ; note\n         )">>,
-    assert_format(Src, <<"(some-fn a\n         b ; note\n)\n">>),
+    assert_format(Src, <<"(some-fn a\n         b ; note\n         )\n">>),
     assert_idempotent(Src),
     assert_token_preservation(Src).
 
@@ -1027,7 +1042,7 @@ fix1_close_after_trailing_list_head(_Config) ->
     %% Trailing comment on last element of list_head list (BP): close on own line.
     %% Head (a b) has trailing comment → AlignCol=C+2=2; (c d) at col 2.
     Src = <<"((a b)\n (c d) ; note\n )">>,
-    assert_format(Src, <<"((a b)\n  (c d) ; note\n)\n">>),
+    assert_format(Src, <<"((a b)\n  (c d) ; note\n  )\n">>),
     assert_idempotent(Src),
     assert_token_preservation(Src).
 
@@ -1190,7 +1205,7 @@ fix2_funcall_head_trail_no_args(_Config) ->
     %% Note: (foo ; c) without \n before ) would have ) consumed by the comment;
     %% the source must have a newline before ).
     assert_fix2(<<"(foo ; c\n)">>,
-                <<"(foo ; c\n)\n">>).
+                <<"(foo ; c\n  )\n">>).
 
 fix2_specform_case_head_trail(_Config) ->
     %% specform N=1 (case): head trailing → all RestChildren to body.
@@ -1201,7 +1216,7 @@ fix2_specform_progn_head_trail_no_args(_Config) ->
     %% specform N=0 (progn): head trailing, no args → close on own line.
     %% Need \n before ) so ) is not consumed by the line comment.
     assert_fix2(<<"(progn ; c\n)">>,
-                <<"(progn ; c\n)\n">>).
+                <<"(progn ; c\n  )\n">>).
 
 fix2_specform_progn_head_trail_args(_Config) ->
     %% specform N=0 (progn): head trailing with body args.
@@ -1228,7 +1243,7 @@ fix2_combination_head_and_body_trail(_Config) ->
     %% Head trailing + last body child trailing → close on its own line.
     %% Need \n before ) so ) is not swallowed by the trailing comment.
     assert_fix2(<<"(foo ; c\n  a\n  b ; note\n)">>,
-                <<"(foo ; c\n  a\n  b ; note\n)\n">>).
+                <<"(foo ; c\n  a\n  b ; note\n  )\n">>).
 
 %%====================================================================
 %% defforms group — A4·S2
@@ -1689,7 +1704,7 @@ ab_let_head_trailing_comment(_Config) ->
 ab_case_last_child_trailing(_Config) ->
     %% Trailing comment on last case clause: close on own line (fix1 still holds).
     Src = <<"(case x\n  (1 'a) ; note\n  )">>,
-    assert_fix2(Src, <<"(case x\n  (1 'a) ; note\n)\n">>).
+    assert_fix2(Src, <<"(case x\n  (1 'a) ; note\n  )\n">>).
 
 %% A7·S3a: if/progn/receive/try/maybe always break (even when they fit in 80 cols).
 ab_if_small(_Config) ->
@@ -1948,6 +1963,38 @@ sig_defun_keyword_not_alone(_Config) ->
             ?assertNotEqual("(defmacro", Stripped)
         end, Lines)
     end, Inputs).
+
+%%====================================================================
+%% close_deindent group (A7·S4b)
+%%====================================================================
+
+cd_defmodule_export_dangling(_Config) ->
+    %% defmodule export whose last entries are comments: close aligns with
+    %% the export items/comment, not de-indented to the defmodule column.
+    Input = <<"(defmodule m\n  (export\n    (new 0)\n    ;; XXX broken; see #397\n  ))">>,
+    assert_format(Input,
+                  <<"(defmodule m\n  (export\n    (new 0)\n    ;; XXX broken; see #397\n    ))\n">>),
+    assert_idempotent(Input).
+
+cd_body_trailing_comment(_Config) ->
+    %% progn body whose last child has a trailing comment: close at body indent (+2),
+    %% not at the form's open column.
+    Input = <<"(progn\n  a\n  b ; note\n  )">>,
+    assert_format(Input, <<"(progn\n  a\n  b ; note\n  )\n">>),
+    assert_idempotent(Input).
+
+cd_funcall_dangling(_Config) ->
+    %% funcall with dangling comment before close: close aligns with content (arg) indent.
+    Input = <<"(some-fn\n  a\n  b\n  ;; done\n  )">>,
+    assert_format(Input, <<"(some-fn\n  a\n  b\n  ;; done\n  )\n">>),
+    assert_idempotent(Input).
+
+cd_normal_close_hugs(_Config) ->
+    %% No comment → close still hugs the last token (hug branch unchanged).
+    assert_format(<<"(progn a b)">>, <<"(progn\n  a\n  b)\n">>),
+    assert_format(<<"(defun f (x) x)">>, <<"(defun f (x)\n  x)\n">>),
+    assert_idempotent(<<"(progn a b)">>),
+    assert_idempotent(<<"(defun f (x) x)">>).
 
 %%====================================================================
 %% edge_hardening group — A6·S1
