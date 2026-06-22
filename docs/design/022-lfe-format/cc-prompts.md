@@ -10,8 +10,9 @@ Status: **A1–A5 ✅** · **A7 ACTIVE** (formatting model v2 — knowledge-gate
 Done in A7: S1 cons-dot ✅, oracle-fix ✅ (all 3 token oracles raw-lexer), S2a ✅,
 S2b ✅ (regimes + break-preserving renderer; flat-overflow wraps one-per-line,
 grouping preserved), S3a ✅ (always-break: if/progn/receive/try/maybe).
-**Next: S3b-1 clauses-case/cond READY** (`cc-prompt-s3b-1-clauses-case-cond.md`);
-then S3b-2 (clauses: match-lambda/defun-match/receive/try), S3c (lambda),
+S3b-1 ✅ (clauses: case/cond; override fires — flat non-trivial clause breaks).
+**Next: S3b-2 clauses-rest READY** (`cc-prompt-s3b-2-clauses-rest.md` — match-lambda/
+defun-match/receive; try-clauses deferred to S4); then S3c (lambda),
 S4 (sig/flet/try/head-comment/close-de-indent), S5 (exports sort), S6 (gallery
 regen + full sweep). #7 dropped-code was a FALSE ALARM. Minor logged: flat-overflow
 data tuples put 2 elems on the opener line (uniform head+first-arg) — revisit if
