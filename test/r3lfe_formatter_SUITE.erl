@@ -154,7 +154,12 @@
     clause_cond_trivial/1,
     clause_cond_nontrivial/1,
     clause_guard_regression/1,
-    clause_trailing_comment/1
+    clause_trailing_comment/1,
+    clause_match_lambda/1,
+    clause_defun_match/1,
+    clause_defun_match_guard/1,
+    clause_defmacro_match/1,
+    clause_receive/1
 ]).
 
 %% export_guards group (A4·S3d)
@@ -443,7 +448,12 @@ groups() ->
             clause_cond_trivial,
             clause_cond_nontrivial,
             clause_guard_regression,
-            clause_trailing_comment
+            clause_trailing_comment,
+            clause_match_lambda,
+            clause_defun_match,
+            clause_defun_match_guard,
+            clause_defmacro_match,
+            clause_receive
         ]}
     ].
 
@@ -1052,25 +1062,29 @@ eg_import_wide(_Config) ->
     assert_idempotent(Input).
 
 eg_guard_defun_match(_Config) ->
-    %% BP clause: head=(number accumulator), AlignCol=24; body overflows → col 24.
-    %% Inside body: long-factorial-function (23 chars) → AlignCol=49; (* …) wraps there.
     Input = <<"(defun long-factorial-function\n"
               "  ((0 accumulator) accumulator)\n"
               "  ((number accumulator) (when (> number 0))\n"
               "                        (long-factorial-function (- number 1)\n"
               "                                                 (* number accumulator))))">>,
-    assert_format(Input, <<Input/binary, "\n">>),
+    Expected = <<"(defun long-factorial-function\n"
+                 "  ((0 accumulator) accumulator)\n"
+                 "  ((number accumulator) (when (> number 0))\n"
+                 "   (long-factorial-function (- number 1) (* number accumulator))))\n">>,
+    assert_format(Input, Expected),
     assert_idempotent(Input),
     assert_token_preservation(Input).
 
 eg_guard_match_lambda(_Config) ->
-    %% BP clause at C=2: head=(n accumulator) (15 chars), AlignCol=19.
-    %% body=(some-long-recursive-call …) 52 chars fits at col 19 (71≤80) → flat.
     Input = <<"(match-lambda\n"
               "  ((n accumulator) (when (> n 0))\n"
               "                   (some-long-recursive-call (- n 1) (* n accumulator)))\n"
               "  ((0 acc) acc))">>,
-    assert_format(Input, <<Input/binary, "\n">>),
+    Expected = <<"(match-lambda\n"
+                 "  ((n accumulator) (when (> n 0))\n"
+                 "   (some-long-recursive-call (- n 1) (* n accumulator)))\n"
+                 "  ((0 acc) acc))\n">>,
+    assert_format(Input, Expected),
     assert_idempotent(Input),
     assert_token_preservation(Input).
 
@@ -1103,18 +1117,21 @@ eg_guard_comment_fallback_guard_lead(_Config) ->
     assert_token_preservation(Input).
 
 eg_guard_non_guard_unchanged(_Config) ->
-    %% Non-guard clause ((n) body): list_head element-per-line, unchanged.
+    %% Non-guard clause ((n) body): non-trivial body breaks below the pattern.
     assert_format(<<"(defun f ((0) 1) ((n) (* n 2)))">>,
-                  <<"(defun f\n  ((0) 1)\n  ((n) (* n 2)))\n">>),
+                  <<"(defun f\n  ((0) 1)\n  ((n)\n   (* n 2)))\n">>),
     assert_idempotent(<<"(defun f ((0) 1) ((n) (* n 2)))">>).
 
 eg_guard_small_stays_flat(_Config) ->
-    %% Small guard clause (fits ≤80 at its column): guard rule not needed; stays flat.
-    %% This is a fixed point — the guard rule only activates when the clause breaks.
+    %% Small guard clause: guard stays on the pattern line; body breaks below it.
     Input = <<"(defun f\n"
               "  ((n acc) (when (> n 0)) (f (- n 1) (* n acc)))\n"
               "  ((0 acc) acc))">>,
-    assert_format(Input, <<Input/binary, "\n">>),
+    Expected = <<"(defun f\n"
+                 "  ((n acc) (when (> n 0))\n"
+                 "   (f (- n 1) (* n acc)))\n"
+                 "  ((0 acc) acc))\n">>,
+    assert_format(Input, Expected),
     assert_idempotent(Input).
 
 %%====================================================================
@@ -1222,9 +1239,9 @@ defforms_multi_body(_Config) ->
     assert_idempotent(<<"(defun f (x) (foo x) (bar x) (baz x))">>).
 
 defforms_match_clause(_Config) ->
-    %% Match-clause defun: N=1, each clause at C+2.
+    %% Match-clause defun: N=1, each clause at C+2; non-trivial body breaks.
     assert_format(<<"(defun f ((0) 1) ((n) (* n 2)))">>,
-                  <<"(defun f\n  ((0) 1)\n  ((n) (* n 2)))\n">>),
+                  <<"(defun f\n  ((0) 1)\n  ((n)\n   (* n 2)))\n">>),
     assert_idempotent(<<"(defun f ((0) 1) ((n) (* n 2)))">>).
 
 defmacro_signature(_Config) ->
@@ -1234,9 +1251,9 @@ defmacro_signature(_Config) ->
     assert_idempotent(<<"(defmacro my-mac (x) `(foo ,x))">>).
 
 defmacro_match(_Config) ->
-    %% defmacro match form → N=1.
+    %% defmacro match form → N=1; non-trivial body breaks.
     assert_format(<<"(defmacro my-mac ((a b) `(+ ,a ,b)))">>,
-                  <<"(defmacro my-mac\n  ((a b) `(+ ,a ,b)))\n">>),
+                  <<"(defmacro my-mac\n  ((a b)\n   `(+ ,a ,b)))\n">>),
     assert_idempotent(<<"(defmacro my-mac ((a b) `(+ ,a ,b)))">>).
 
 defmodule_always_breaks(_Config) ->
@@ -1369,7 +1386,7 @@ data_nested_list_in_map(_Config) ->
 %%
 %%  construct                 status   notes
 %%  cond aligned clauses      ✅       funcall-align lands at correct column
-%%  defun match-clause        ✅       N=1, clauses at +2
+%%  defun match-clause        ✅       N=1, clauses at +2; call bodies break
 %%  defun constants           ✅       flat-if-fits (empty arglist)
 %%  do-something multiline    ✅       funcall-align under first arg
 %%  defrecord                 ✅       always-break, N=1
@@ -1382,13 +1399,12 @@ data_nested_list_in_map(_Config) ->
 %%  let/let* binding list     ⚠  [3]  binding list flat when it fits (≤80);
 %%                                     guide breaks each binding for readability
 %%  case small                ⚠  [4]  flat-if-fits; guide breaks even short cases
-%%  factorial with guard      ⚠  [5]  small guard (≤80) stays flat; wide guard
-%%                                     gets Pat+Guard on one line (A4·S3d Decision B)
+%%  factorial with guard      ✅       Pat+Guard on one line; body below
 %%  inline comment spacing    ⚠  [6]  exactly 1 space before ; per spec §4;
 %%                                     guide sometimes shows 3 spaces for alignment
 %%
 %%  [1] resolved by A4·S3d (export/import → specform N=0).
-%%  [2]–[6] remain: the formatter follows lfe-indent.el and the spec's flat-if-fits
+%%  [2]–[4], [6] remain: the formatter follows lfe-indent.el and the spec's flat-if-fits
 %%  rule; the guide's human choices go beyond mechanical formatting.
 %%  These are recorded for planner adjudication, not silently fixed.
 %%====================================================================
@@ -1408,15 +1424,19 @@ conf_cond(_Config) ->
 
 conf_ackermann(_Config) ->
     %% defun match-clause form: N=1, name on head line, clauses at +2.  ✅
+    %% A7·S3b: non-trivial call bodies break below the pattern.
     assert_format(
         <<"(defun ackermann\n"
           "  ((0 n) (+ n 1))\n"
           "  ((m 0) (ackermann (- m 1) 1))\n"
           "  ((m n) (ackermann (- m 1) (ackermann m (- n 1)))))">>,
         <<"(defun ackermann\n"
-          "  ((0 n) (+ n 1))\n"
-          "  ((m 0) (ackermann (- m 1) 1))\n"
-          "  ((m n) (ackermann (- m 1) (ackermann m (- n 1)))))\n">>).
+          "  ((0 n)\n"
+          "   (+ n 1))\n"
+          "  ((m 0)\n"
+          "   (ackermann (- m 1) 1))\n"
+          "  ((m n)\n"
+          "   (ackermann (- m 1) (ackermann m (- n 1)))))\n">>).
 
 conf_defun_constants(_Config) ->
     %% defun with empty arglist = constant idiom: flat-if-fits.  ✅
@@ -1484,8 +1504,7 @@ conf_map_wide_pairs(_Config) ->
 
 conf_factorial(_Config) ->
     %% First defun (signature): N=2, name+(args) on head line.  ✅
-    %% ⚠ DIVERGENCE [5] (partial): small guard (≤80 at its column) stays flat;
-    %% wide guard uses Pat+Guard on one line (A4·S3d Decision B).
+    %% A7·S3b: match-clause guard stays on the pattern line; body breaks below it.
     assert_format(
         <<"(defun factorial (n)\n  (factorial n 1))">>,
         <<"(defun factorial (n)\n  (factorial n 1))\n">>),
@@ -1742,6 +1761,54 @@ clause_trailing_comment(_Config) ->
     assert_format(Src, <<"(case x\n  (1 'one) ; note\n  (2 'two))\n">>),
     assert_idempotent(Src).
 
+clause_match_lambda(_Config) ->
+    %% match-lambda clauses use the shared clause rule: trivial flat, call body broken.
+    Input = <<"(match-lambda ((x) x) ((y) (process y)) ((z) 'done))">>,
+    assert_format(Input, <<"(match-lambda\n"
+                          "  ((x) x)\n"
+                          "  ((y)\n"
+                          "   (process y))\n"
+                          "  ((z) 'done))\n">>),
+    assert_idempotent(Input).
+
+clause_defun_match(_Config) ->
+    %% Match-form defun keeps the name on the head line; clauses use render_clause.
+    Input = <<"(defun f ((0) 1) ((n) (* n (f (- n 1)))))">>,
+    assert_format(Input, <<"(defun f\n"
+                          "  ((0) 1)\n"
+                          "  ((n)\n"
+                          "   (* n (f (- n 1)))))\n">>),
+    assert_idempotent(Input).
+
+clause_defun_match_guard(_Config) ->
+    %% Guard stays on the pattern line; body breaks below it.
+    Input = <<"(defun factorial ((0 acc) acc) ((n acc) (when (> n 0)) "
+              "(factorial (- n 1) (* n acc))))">>,
+    assert_format(Input, <<"(defun factorial\n"
+                          "  ((0 acc) acc)\n"
+                          "  ((n acc) (when (> n 0))\n"
+                          "   (factorial (- n 1) (* n acc))))\n">>),
+    assert_idempotent(Input).
+
+clause_defmacro_match(_Config) ->
+    %% defmacro match form follows the same dynamic-N=1 clause path as defun.
+    Input = <<"(defmacro choose (('ok x) x) (('error reason) `(fail ,reason)))">>,
+    assert_format(Input, <<"(defmacro choose\n"
+                          "  (('ok x) x)\n"
+                          "  (('error reason)\n"
+                          "   `(fail ,reason)))\n">>),
+    assert_idempotent(Input).
+
+clause_receive(_Config) ->
+    %% receive pattern clauses use render_clause; (after ...) remains a specform.
+    Input = <<"(receive ((tuple 'msg m) (handle m)) (done 'ok) (after 1000 (timeout)))">>,
+    assert_format(Input, <<"(receive\n"
+                          "  ((tuple 'msg m)\n"
+                          "   (handle m))\n"
+                          "  (done 'ok)\n"
+                          "  (after 1000 (timeout)))\n">>),
+    assert_idempotent(Input).
+
 %%====================================================================
 %% edge_hardening group — A6·S1
 %%====================================================================
@@ -1843,9 +1910,9 @@ eh_large_file(_Config) ->
 
 eh_blank_in_body(_Config) ->
     %% Blank line between guard and body in a match clause: dropped; clause
-    %% formats flat when it fits. Regression for A6·S1 idempotency fix.
+    %% keeps guard on the pattern line and body below it.
     Src = <<"(defun f\n  ([config] (when (is_list config))\n\n   'ok))">>,
-    assert_format(Src, <<"(defun f\n  ([config] (when (is_list config)) 'ok))\n">>),
+    assert_format(Src, <<"(defun f\n  ([config] (when (is_list config))\n   'ok))\n">>),
     assert_idempotent(Src).
 
 eh_blank_dangling_own(_Config) ->

@@ -568,7 +568,7 @@ must_break(Node) ->
     end.
 
 %% is_always_break_head: true for list nodes headed by a form that must always
-%% break (let/let*/case/cond/if/progn/receive/try/maybe).
+%% break (let/let*/case/cond/if/progn/receive/try/maybe/match-lambda).
 -spec is_always_break_head(r3lfe_format_cst:cst_node()) -> boolean().
 is_always_break_head(Node) ->
     case r3lfe_format_cst:children(Node) of
@@ -580,7 +580,7 @@ is_always_break_head(Node) ->
                     orelse Text =:= "case"    orelse Text =:= "cond"
                     orelse Text =:= "if"      orelse Text =:= "progn"
                     orelse Text =:= "receive" orelse Text =:= "try"
-                    orelse Text =:= "maybe";
+                    orelse Text =:= "maybe"   orelse Text =:= "match-lambda";
                 _ -> false
             end;
         [] -> false
@@ -595,6 +595,60 @@ is_let_head(Head) ->
             Text =:= "let" orelse Text =:= "let*";
         _ -> false
     end.
+
+%% is_clause_specform_head: true for specforms whose body children are clauses.
+%% try case/catch sections are intentionally deferred to A7·S4.
+-spec is_clause_specform_head(r3lfe_format_cst:cst_node(), non_neg_integer()) -> boolean().
+is_clause_specform_head(Head, N) ->
+    case r3lfe_format_cst:type(Head) of
+        symbol ->
+            Text = r3lfe_format_lexer:text(r3lfe_format_cst:open(Head)),
+            Text =:= "case" orelse (Text =:= "match-lambda" andalso N =:= 0);
+        _ ->
+            false
+    end.
+
+%% is_defun_match_head: true for defun/defmacro routed through dynamic N=1.
+-spec is_defun_match_head(r3lfe_format_cst:cst_node(), non_neg_integer()) -> boolean().
+is_defun_match_head(Head, 1) ->
+    case r3lfe_format_cst:type(Head) of
+        symbol ->
+            Text = r3lfe_format_lexer:text(r3lfe_format_cst:open(Head)),
+            Text =:= "defun" orelse Text =:= "defmacro";
+        _ ->
+            false
+    end;
+is_defun_match_head(_Head, _N) ->
+    false.
+
+-spec is_receive_head(r3lfe_format_cst:cst_node()) -> boolean().
+is_receive_head(Head) ->
+    case r3lfe_format_cst:type(Head) of
+        symbol ->
+            r3lfe_format_lexer:text(r3lfe_format_cst:open(Head)) =:= "receive";
+        _ ->
+            false
+    end.
+
+-spec is_after_section(r3lfe_format_cst:cst_node()) -> boolean().
+is_after_section(Node) ->
+    r3lfe_format_cst:type(Node) =:= list
+    andalso case r3lfe_format_cst:children(Node) of
+        [Head | _] ->
+            r3lfe_format_cst:type(Head) =:= symbol
+            andalso r3lfe_format_lexer:text(r3lfe_format_cst:open(Head)) =:= "after";
+        [] ->
+            false
+    end.
+
+-spec all_clauses([r3lfe_format_cst:cst_node()]) -> boolean().
+all_clauses(Children) ->
+    lists:all(
+        fun(Child) ->
+            r3lfe_format_cst:type(Child) =:= list
+            andalso r3lfe_format_cst:open(Child) =/= undefined
+            andalso r3lfe_format_cst:close(Child) =/= undefined
+        end, Children).
 
 %%====================================================================
 %% Internal: clause helpers (A7·S3b-1)
@@ -930,15 +984,15 @@ print_classified({specform, N}, Head, RestChildren, Dangling,
                                                 Indent, IndentStr, C, CIndStr, Close),
             {[HeadLeadIO, Open, HeadIO, HeadTrailIO, DistIO, CloseIO], CloseCol};
         _ ->
-            IsCaseHead = case r3lfe_format_cst:type(Head) of
-                symbol ->
-                    r3lfe_format_lexer:text(r3lfe_format_cst:open(Head)) =:= "case";
-                _ -> false
-            end,
+            IsCaseHead = is_clause_specform_head(Head, N),
+            IsReceiveHead = is_receive_head(Head),
+            IsDefunMatchHead =
+                is_defun_match_head(Head, N) andalso DistIO =/= [] andalso all_clauses(Body),
             {BodyIO, LastCol, HasTrail} =
-                case IsCaseHead of
-                    true  -> print_clause_loop(Body, Indent, IndentStr, true, InData);
-                    false -> print_rest_loop(Body, Indent, IndentStr, true, InData)
+                case {IsReceiveHead, IsCaseHead orelse IsDefunMatchHead} of
+                    {true, _}  -> print_receive_body_loop(Body, Indent, IndentStr, true, InData);
+                    {_, true}  -> print_clause_loop(Body, Indent, IndentStr, true, InData);
+                    {_, false} -> print_rest_loop(Body, Indent, IndentStr, true, InData)
                 end,
             {CloseIO, CloseCol} = close_section(Dangling, HasTrail, LastCol,
                                                 Indent, IndentStr, C, CIndStr, Close),
@@ -1081,6 +1135,29 @@ print_clause_loop([Clause | Rest], Indent, IndentStr, IsFirst, InData) ->
             {RestIO, LastCol, HasTrail} = print_clause_loop(Rest, Indent, IndentStr,
                                                             false, InData),
             {["\n", LeadIO, IndentStr, ClauseIO, TrailIO | RestIO], LastCol, HasTrail}
+    end.
+
+%% print_receive_body_loop: receive pattern clauses use render_clause, but the
+%% (after timeout body...) section is not a clause and keeps generic rendering.
+-spec print_receive_body_loop([r3lfe_format_cst:cst_node()], non_neg_integer(),
+                              string(), boolean(), boolean()) ->
+          {iolist(), non_neg_integer(), boolean()}.
+print_receive_body_loop([Child | Rest], Indent, IndentStr, IsFirst, InData) ->
+    LeadIO = emit_child_leading(r3lfe_format_cst:leading(Child), IndentStr, IsFirst),
+    {ChildIO, ChildCol} =
+        case is_after_section(Child) of
+            true  -> print_node(Child, Indent, InData);
+            false -> render_clause(Child, Indent, InData)
+        end,
+    {TrailIO, TrailCol} = emit_trailing(r3lfe_format_cst:trailing(Child), ChildCol),
+    case Rest of
+        [] ->
+            HasTrail = r3lfe_format_cst:trailing(Child) =/= [],
+            {["\n", LeadIO, IndentStr, ChildIO, TrailIO], TrailCol, HasTrail};
+        _ ->
+            {RestIO, LastCol, HasTrail} = print_receive_body_loop(Rest, Indent,
+                                                                  IndentStr, false, InData),
+            {["\n", LeadIO, IndentStr, ChildIO, TrailIO | RestIO], LastCol, HasTrail}
     end.
 
 %%====================================================================
