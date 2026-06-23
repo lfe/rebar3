@@ -189,6 +189,15 @@
     sig_defun_keyword_not_alone/1
 ]).
 
+%% flet_locals group (A7·S4c)
+-export([
+    flet_flat_if_fits/1,
+    flet_breaks_defun_like/1,
+    flet_multi_local_aligned/1,
+    flet_match_clause_local/1,
+    fletrec_defun_like/1
+]).
+
 %% export_guards group (A4·S3d)
 -export([
     eg_export_wide/1,
@@ -280,6 +289,7 @@ all() ->
      {group, conformance}, {group, always_break},
      {group, clauses}, {group, lambda},
      {group, signature}, {group, close_deindent},
+     {group, flet_locals},
      {group, export_guards},
      {group, edge_hardening}, {group, fuzz}, {group, corpus_sweep},
      {group, regimes}, {group, cons_dot}].
@@ -503,6 +513,13 @@ groups() ->
             cd_body_trailing_comment,
             cd_funcall_dangling,
             cd_normal_close_hugs
+        ]},
+        {flet_locals, [], [
+            flet_flat_if_fits,
+            flet_breaks_defun_like,
+            flet_multi_local_aligned,
+            flet_match_clause_local,
+            fletrec_defun_like
         ]}
     ].
 
@@ -1995,6 +2012,56 @@ cd_normal_close_hugs(_Config) ->
     assert_format(<<"(defun f (x) x)">>, <<"(defun f (x)\n  x)\n">>),
     assert_idempotent(<<"(progn a b)">>),
     assert_idempotent(<<"(defun f (x) x)">>).
+
+%%====================================================================
+%% flet_locals group (A7·S4c)
+%%====================================================================
+
+flet_flat_if_fits(_Config) ->
+    %% flet stays flat when it fits on one line (not in always-break set).
+    Input = <<"(flet ((f (x) (+ x 1))) body)">>,
+    assert_format(Input, <<"(flet ((f (x) (+ x 1))) body)\n">>),
+    assert_idempotent(Input).
+
+flet_breaks_defun_like(_Config) ->
+    %% When flet breaks, each binding renders defun-like: name+arglist on head
+    %% line, body at +2 of the binding column (not aligned under arglist).
+    Input = <<"(flet ((long-local-fn-name (some-arg) (some-very-long-body-expression some-arg))) (body))">>,
+    assert_format(Input,
+                  <<"(flet ((long-local-fn-name (some-arg)\n"
+                    "         (some-very-long-body-expression some-arg)))\n"
+                    "  (body))\n">>),
+    assert_idempotent(Input).
+
+flet_multi_local_aligned(_Config) ->
+    %% Multiple local fns: one per line, aligned under first binding; each defun-like.
+    Input = <<"(flet ((first-local-fn (x) (some-body x)) (second-local-fn (y) (other-body y))) (body))">>,
+    assert_format(Input,
+                  <<"(flet ((first-local-fn (x)\n"
+                    "         (some-body x))\n"
+                    "       (second-local-fn (y)\n"
+                    "         (other-body y)))\n"
+                    "  (body))\n">>),
+    assert_idempotent(Input).
+
+flet_match_clause_local(_Config) ->
+    %% Match-clause local fn: name on head line, clauses at +2 of binding column.
+    Input = <<"(flet ((my-local-fn ((arg1 arg2) (result-expression arg1 arg2)) ((other) (other-result other)))) (body))">>,
+    assert_format(Input,
+                  <<"(flet ((my-local-fn\n"
+                    "         ((arg1 arg2) (result-expression arg1 arg2))\n"
+                    "         ((other) (other-result other))))\n"
+                    "  (body))\n">>),
+    assert_idempotent(Input).
+
+fletrec_defun_like(_Config) ->
+    %% fletrec behaves identically to flet: defun-like when broken.
+    Input = <<"(fletrec ((long-fn-name (some-arg) (long-body-call-here some-arg more-args extra))) (body))">>,
+    assert_format(Input,
+                  <<"(fletrec ((long-fn-name (some-arg)\n"
+                    "            (long-body-call-here some-arg more-args extra)))\n"
+                    "  (body))\n">>),
+    assert_idempotent(Input).
 
 %%====================================================================
 %% edge_hardening group — A6·S1

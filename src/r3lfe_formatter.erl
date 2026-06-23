@@ -603,6 +603,31 @@ is_let_head(Head) ->
         _ -> false
     end.
 
+%% is_flet_head: true when the head symbol is flet, flet*, or fletrec.
+-spec is_flet_head(r3lfe_format_cst:cst_node()) -> boolean().
+is_flet_head(Head) ->
+    case r3lfe_format_cst:type(Head) of
+        symbol ->
+            Text = r3lfe_format_lexer:text(r3lfe_format_cst:open(Head)),
+            Text =:= "flet" orelse Text =:= "flet*" orelse Text =:= "fletrec";
+        _ -> false
+    end.
+
+%% local_fn_n: N for rendering a single flet/fletrec binding as a defun-like form.
+%% Binding children = [name | rest].  N=1 when rest has an arglist as its first
+%% element (signature form: name + arglist on head line); N=0 otherwise (match-
+%% clause form: name on head line, clauses at +2).
+-spec local_fn_n(r3lfe_format_cst:cst_node()) -> non_neg_integer().
+local_fn_n(Binding) ->
+    case r3lfe_format_cst:children(Binding) of
+        [_Name, Arg2 | _] ->
+            case is_arglist(Arg2) of
+                true  -> 1;
+                false -> 0
+            end;
+        _ -> 0
+    end.
+
 %% is_lambda_multi_body: true for (lambda arglist body1 body2 …) with >1 body form.
 %% Children = [lambda-sym, arglist | body…]; body count > 1 forces a break so the
 %% implicit progn is always written one-form-per-line (formatting-rules §3.2).
@@ -982,8 +1007,8 @@ print_classified({specform, N}, Head, RestChildren, Dangling,
                 case any_dist_has_comment(DistPotential) of
                     true  -> {[], HTC, RestChildren};  %% fall back: all to body
                     false ->
-                        %% For let/let*, force-break the binding list so each
-                        %% binding lands on its own line (one per line rule).
+                        %% For let/let*: force-break binding list (one per line).
+                        %% For flet/flet*/fletrec: force-break + defun-like per element.
                         {DIO, DCol} =
                             case is_let_head(Head) andalso DistPotential =/= [] of
                                 true ->
@@ -993,7 +1018,17 @@ print_classified({specform, N}, Head, RestChildren, Dangling,
                                         r3lfe_format_cst:trailing(BindList), BCol),
                                     {[" ", BIO, BTrailIO], BTC};
                                 false ->
-                                    print_distinguished(DistPotential, HTC, InData)
+                                    case is_flet_head(Head) andalso DistPotential =/= [] of
+                                        true ->
+                                            [BindList] = DistPotential,
+                                            {BIO, BCol} = print_flet_bindlist(
+                                                BindList, HTC + 1, InData),
+                                            {BTrailIO, BTC} = emit_trailing(
+                                                r3lfe_format_cst:trailing(BindList), BCol),
+                                            {[" ", BIO, BTrailIO], BTC};
+                                        false ->
+                                            print_distinguished(DistPotential, HTC, InData)
+                                    end
                             end,
                         {DIO, DCol, BodyPotential}
                 end
@@ -1155,6 +1190,89 @@ print_rest_loop([Child | Rest], Indent, IndentStr, IsFirst, InData) ->
                                                           false, InData),
             {["\n", LeadIO, IndentStr, ChildIO, TrailIO | RestIO], LastCol, HasTrail}
     end.
+
+%% print_local_fn_binding: render a single flet/fletrec binding (name args body…)
+%% with forced {specform, N} classification (defun-like layout) rather than the
+%% funcall/BP layout that a plain-symbol head would normally get.
+-spec print_local_fn_binding(r3lfe_format_cst:cst_node(), non_neg_integer(),
+                             boolean()) ->
+          {iolist(), non_neg_integer()}.
+print_local_fn_binding(Binding, C, InData) ->
+    Open      = r3lfe_format_lexer:text(r3lfe_format_cst:open(Binding)),
+    Close     = r3lfe_format_lexer:text(r3lfe_format_cst:close(Binding)),
+    OpenLen   = length(Open),
+    CloseLen  = length(Close),
+    Dangling  = r3lfe_format_cst:dangling(Binding),
+    Indent    = C + 2,
+    IndentStr = lists:duplicate(Indent, $\s),
+    CIndStr   = lists:duplicate(C, $\s),
+    N = local_fn_n(Binding),
+    case r3lfe_format_cst:children(Binding) of
+        [Head | RestChildren] ->
+            print_classified({specform, N}, Head, RestChildren, Dangling,
+                             C, Open, OpenLen, Close, CloseLen,
+                             Indent, IndentStr, CIndStr, InData);
+        [] ->
+            {[Open, Close], C + OpenLen + CloseLen}
+    end.
+
+%% print_flet_bindlist: render the binding list of an flet/fletrec form as a
+%% force-broken container, with each binding rendered via print_local_fn_binding
+%% (defun-like) rather than the generic BP/funcall path.
+%% Geometry mirrors print_broken_container for the non-map canonical path, but
+%% the element renderer is swapped.
+-spec print_flet_bindlist(r3lfe_format_cst:cst_node(), non_neg_integer(),
+                          boolean()) ->
+          {iolist(), non_neg_integer()}.
+print_flet_bindlist(BindList, C, InData) ->
+    Open      = r3lfe_format_lexer:text(r3lfe_format_cst:open(BindList)),
+    Close     = r3lfe_format_lexer:text(r3lfe_format_cst:close(BindList)),
+    OpenLen   = length(Open),
+    Bindings  = r3lfe_format_cst:children(BindList),
+    Dangling  = r3lfe_format_cst:dangling(BindList),
+    AlignCol  = C + OpenLen,
+    AlignStr  = lists:duplicate(AlignCol, $\s),
+    CIndStr   = lists:duplicate(C, $\s),
+    case Bindings of
+        [] ->
+            {[Open, Close], C + OpenLen + length(Close)};
+        [First | Rest] ->
+            FirstLead = r3lfe_format_cst:leading(First),
+            FirstPrefixIO =
+                case has_comment_leading(FirstLead) of
+                    true  -> ["\n", emit_child_leading(FirstLead, AlignStr, false), AlignStr];
+                    false -> []
+                end,
+            {FirstIO, FirstCol}     = print_local_fn_binding(First, AlignCol, InData),
+            {FirstTrailIO, FirstTC} = emit_trailing(
+                                        r3lfe_format_cst:trailing(First), FirstCol),
+            HasFirstTrail = r3lfe_format_cst:trailing(First) =/= [],
+            {RestIO, LastCol, HasTrail} =
+                print_local_fn_bindings_loop(Rest, AlignCol, AlignStr,
+                                             FirstTC, HasFirstTrail, InData),
+            {CloseIO, CloseCol} =
+                close_section(Dangling, HasTrail, LastCol,
+                              AlignCol, AlignStr, C, CIndStr, Close),
+            {[Open, FirstPrefixIO, FirstIO, FirstTrailIO, RestIO, CloseIO], CloseCol}
+    end.
+
+%% print_local_fn_bindings_loop: render the 2nd-onward flet bindings, one per
+%% line at AlignStr, each via print_local_fn_binding.
+-spec print_local_fn_bindings_loop([r3lfe_format_cst:cst_node()],
+                                   non_neg_integer(), string(),
+                                   non_neg_integer(), boolean(),
+                                   boolean()) ->
+          {iolist(), non_neg_integer(), boolean()}.
+print_local_fn_bindings_loop([], _Indent, _IndStr, LastCol, HasTrail, _InData) ->
+    {[], LastCol, HasTrail};
+print_local_fn_bindings_loop([B | Rest], Indent, IndStr, _PrevCol, _PrevTrail, InData) ->
+    LeadIO  = emit_child_leading(r3lfe_format_cst:leading(B), IndStr, false),
+    {BIO, BCol}    = print_local_fn_binding(B, Indent, InData),
+    {TrailIO, BTC} = emit_trailing(r3lfe_format_cst:trailing(B), BCol),
+    HasTrail = r3lfe_format_cst:trailing(B) =/= [],
+    {RestIO, LastCol, LastHasTrail} =
+        print_local_fn_bindings_loop(Rest, Indent, IndStr, BTC, HasTrail, InData),
+    {["\n", LeadIO, IndStr, BIO, TrailIO | RestIO], LastCol, LastHasTrail}.
 
 %% print_clause_loop: like print_rest_loop but uses render_clause for each child.
 %% Used for case body clauses and for remaining cond clauses.
