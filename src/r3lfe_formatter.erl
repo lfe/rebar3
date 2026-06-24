@@ -1209,9 +1209,25 @@ print_local_fn_binding(Binding, C, InData) ->
     N = local_fn_n(Binding),
     case r3lfe_format_cst:children(Binding) of
         [Head | RestChildren] ->
-            print_classified({specform, N}, Head, RestChildren, Dangling,
-                             C, Open, OpenLen, Close, CloseLen,
-                             Indent, IndentStr, CIndStr, InData);
+            case N =:= 0 andalso RestChildren =/= [] andalso all_clauses(RestChildren) of
+                true ->
+                    %% Match-clause local fn: name on head line, clauses via
+                    %% render_clause at +2 (mirrors match-lambda / defun N=1 path).
+                    HeadLeadIO = emit_head_leading(r3lfe_format_cst:leading(Head), CIndStr),
+                    {HeadIO, HeadCol}  = print_node(Head, C + OpenLen, InData),
+                    {HeadTrailIO, _}   = emit_trailing(r3lfe_format_cst:trailing(Head), HeadCol),
+                    HeadHasTrail = r3lfe_format_cst:trailing(Head) =/= [],
+                    {BodyIO, LastCol, HasTrail} =
+                        print_clause_loop(RestChildren, Indent, IndentStr, true, InData),
+                    {CloseIO, CloseCol} =
+                        close_section(Dangling, HasTrail orelse HeadHasTrail, LastCol,
+                                      Indent, IndentStr, C, CIndStr, Close),
+                    {[HeadLeadIO, Open, HeadIO, HeadTrailIO, BodyIO, CloseIO], CloseCol};
+                false ->
+                    print_classified({specform, N}, Head, RestChildren, Dangling,
+                                     C, Open, OpenLen, Close, CloseLen,
+                                     Indent, IndentStr, CIndStr, InData)
+            end;
         [] ->
             {[Open, Close], C + OpenLen + CloseLen}
     end.

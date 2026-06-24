@@ -189,12 +189,15 @@
     sig_defun_keyword_not_alone/1
 ]).
 
-%% flet_locals group (A7·S4c)
+%% flet_locals group (A7·S4c + S4c·fix1)
 -export([
     flet_flat_if_fits/1,
     flet_breaks_defun_like/1,
     flet_multi_local_aligned/1,
     flet_match_clause_local/1,
+    flet_wide_match_clause_local/1,
+    flet_guarded_clause_local/1,
+    flet_progn_not_clause_routed/1,
     fletrec_defun_like/1
 ]).
 
@@ -519,6 +522,9 @@ groups() ->
             flet_breaks_defun_like,
             flet_multi_local_aligned,
             flet_match_clause_local,
+            flet_wide_match_clause_local,
+            flet_guarded_clause_local,
+            flet_progn_not_clause_routed,
             fletrec_defun_like
         ]}
     ].
@@ -2045,14 +2051,52 @@ flet_multi_local_aligned(_Config) ->
     assert_idempotent(Input).
 
 flet_match_clause_local(_Config) ->
-    %% Match-clause local fn: name on head line, clauses at +2 of binding column.
+    %% Narrow match-clause local fn: trivial clauses render flat (render_clause
+    %% returns flat for trivial clauses — behavior unchanged from S4c).
+    Input = <<"(flet ((classify-value ((0) zero-result) ((1) one-result) ((_ _) default-result))) (some-body))">>,
+    assert_format(Input,
+                  <<"(flet ((classify-value\n"
+                    "         ((0) zero-result)\n"
+                    "         ((1) one-result)\n"
+                    "         ((_ _) default-result)))\n"
+                    "  (some-body))\n">>),
+    assert_idempotent(Input).
+
+flet_wide_match_clause_local(_Config) ->
+    %% Wide match-clause local fn: non-trivial clauses route through render_clause
+    %% (body below the pattern line, not aligned under it via print_rest_loop).
     Input = <<"(flet ((my-local-fn ((arg1 arg2) (result-expression arg1 arg2)) ((other) (other-result other)))) (body))">>,
     assert_format(Input,
                   <<"(flet ((my-local-fn\n"
-                    "         ((arg1 arg2) (result-expression arg1 arg2))\n"
-                    "         ((other) (other-result other))))\n"
+                    "         ((arg1 arg2)\n"
+                    "          (result-expression arg1 arg2))\n"
+                    "         ((other)\n"
+                    "          (other-result other))))\n"
                     "  (body))\n">>),
     assert_idempotent(Input).
+
+flet_guarded_clause_local(_Config) ->
+    %% Guarded clause in a local fn: pattern + (when …) guard on the clause line,
+    %% body below (A4·S3d guard rule applies inside render_clause).
+    Input = <<"(flet ((check ((n) (when (> n 0)) (positive n)) ((n) (when (< n 0)) (negative n)))) (check v))">>,
+    assert_format(Input,
+                  <<"(flet ((check\n"
+                    "         ((n) (when (> n 0))\n"
+                    "          (positive n))\n"
+                    "         ((n) (when (< n 0))\n"
+                    "          (negative n))))\n"
+                    "  (check v))\n">>),
+    assert_idempotent(Input).
+
+flet_progn_not_clause_routed(_Config) ->
+    %% Regression: progn and let bodies whose forms are all parenthesized calls
+    %% are NOT clause-routed — only local-fn match-clause bindings use render_clause.
+    assert_format(<<"(progn (foo) (bar) (baz))">>,
+                  <<"(progn\n  (foo)\n  (bar)\n  (baz))\n">>),
+    assert_format(<<"(let ((x 1)) (foo x) (bar x))">>,
+                  <<"(let ((x 1))\n  (foo x)\n  (bar x))\n">>),
+    assert_idempotent(<<"(progn (foo) (bar) (baz))">>),
+    assert_idempotent(<<"(let ((x 1)) (foo x) (bar x))">>).
 
 fletrec_defun_like(_Config) ->
     %% fletrec behaves identically to flet: defun-like when broken.
