@@ -133,6 +133,14 @@
     data_nested_list_in_map/1
 ]).
 
+%% data_head_comment group (A7·S4e)
+-export([
+    dhc_single_comment/1,
+    dhc_multi_comment/1,
+    dhc_quasiquote/1,
+    dhc_code_list_unchanged/1
+]).
+
 %% defforms group (A4·S2)
 -export([
     defforms_signature_simple/1,
@@ -294,6 +302,7 @@ all() ->
      {group, comments}, {group, edge}, {group, oracles},
      {group, indent}, {group, fix1}, {group, fix2},
      {group, defforms}, {group, data_containers},
+     {group, data_head_comment},
      {group, conformance}, {group, always_break},
      {group, clauses}, {group, lambda},
      {group, signature}, {group, close_deindent},
@@ -410,6 +419,12 @@ groups() ->
             data_tuple_case_regression,
             data_nested_map_in_list,
             data_nested_list_in_map
+        ]},
+        {data_head_comment, [], [
+            dhc_single_comment,
+            dhc_multi_comment,
+            dhc_quasiquote,
+            dhc_code_list_unchanged
         ]},
         {defforms, [], [
             defforms_signature_simple,
@@ -1456,6 +1471,50 @@ data_nested_list_in_map(_Config) ->
     Input = <<"#m(key (some-function arg1 arg2) other-key other-value)">>,
     assert_idempotent(Input),
     assert_token_preservation(Input).
+
+%%====================================================================
+%% data_head_comment group (A7·S4e)
+%%====================================================================
+
+dhc_single_comment(_Config) ->
+    %% Single leading comment on first element of quoted data list: comment
+    %% on the opener line, elements aligned at C+len(Open).
+    Input = <<"'(;; the items\nalpha\nbeta)">>,
+    assert_format(Input,
+                  <<"'(;; the items\n"
+                    "  alpha\n"
+                    "  beta)\n">>),
+    assert_idempotent(Input).
+
+dhc_multi_comment(_Config) ->
+    %% Multiple leading comments: first on opener line, subsequent at AlignCol.
+    Input = <<"'(;; first comment\n;; second comment\nalpha\nbeta)">>,
+    assert_format(Input,
+                  <<"'(;; first comment\n"
+                    "  ;; second comment\n"
+                    "  alpha\n"
+                    "  beta)\n">>),
+    assert_idempotent(Input).
+
+dhc_quasiquote(_Config) ->
+    %% Quasiquoted data list behaves identically to quoted.
+    Input = <<"`(;; items\nfoo\nbar)">>,
+    assert_format(Input,
+                  <<"`(;; items\n"
+                    "  foo\n"
+                    "  bar)\n">>),
+    assert_idempotent(Input).
+
+dhc_code_list_unchanged(_Config) ->
+    %% Code list (InData=false) with head leading comment: opener-alone layout
+    %% unchanged — regression guard.
+    Input = <<"(some-fn\n;; comment\narg1\narg2)">>,
+    assert_format(Input,
+                  <<"(some-fn\n"
+                    "  ;; comment\n"
+                    "  arg1\n"
+                    "  arg2)\n">>),
+    assert_idempotent(Input).
 
 %%====================================================================
 %% conformance group — A4·S3b: style-guide fixed-point tests

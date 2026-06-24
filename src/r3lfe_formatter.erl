@@ -258,15 +258,46 @@ print_bp_container(Node, C, Open, _OpenLen, Close, _CloseLen,
         andalso (r3lfe_format_lexer:text(r3lfe_format_cst:open(Head)) =:= "cond"),
     case head_has_leading_comment(Head) of
         true ->
-            %% Comment before head: opener alone, all children one-per-line at Indent.
-            {AllIO, LastCol, HasTrail} =
-                print_rest_loop([Head | RestBody], Indent, IndentStr, true, InData),
-            {DotIO, DotCol, DotHasTrail} =
-                apply_dot_suffix(MaybeTail, LastCol, HasTrail),
-            {CloseIO, CloseCol} =
-                close_section(Dangling, DotHasTrail, DotCol,
-                              Indent, IndentStr, C, CIndStr, Close),
-            {[Open, AllIO, DotIO, CloseIO], CloseCol};
+            case InData of
+                false ->
+                    %% Code list: opener-alone, all children one-per-line at Indent (unchanged).
+                    {AllIO, LastCol, HasTrail} =
+                        print_rest_loop([Head | RestBody], Indent, IndentStr, true, InData),
+                    {DotIO, DotCol, DotHasTrail} =
+                        apply_dot_suffix(MaybeTail, LastCol, HasTrail),
+                    {CloseIO, CloseCol} =
+                        close_section(Dangling, DotHasTrail, DotCol,
+                                      Indent, IndentStr, C, CIndStr, Close),
+                    {[Open, AllIO, DotIO, CloseIO], CloseCol};
+                true ->
+                    %% Data list (§3.9): first head comment on opener line; rest +
+                    %% elements at AlignCol = C+len(Open).
+                    AlignCol  = C + length(Open),
+                    AlignStr  = lists:duplicate(AlignCol, $\s),
+                    HeadLeading = r3lfe_format_cst:leading(Head),
+                    Comments  = [r3lfe_format_lexer:text(Tok)
+                                 || {comment, Tok} <- HeadLeading],
+                    HeadLeadIO =
+                        case Comments of
+                            [] ->
+                                [];
+                            [First | More] ->
+                                MoreIO = [[AlignStr, T, "\n"] || T <- More],
+                                [First, "\n" | MoreIO]
+                        end,
+                    {HeadIO, HeadCol}  = print_node(Head, AlignCol, InData),
+                    {HeadTrailIO, HTC} = emit_trailing(
+                                           r3lfe_format_cst:trailing(Head), HeadCol),
+                    {RestIO, BodyLastCol, BodyHasTrail} =
+                        bp_rest_loop(RestBody, AlignCol, AlignStr, HTC, InData),
+                    {DotIO, DotCol, DotHasTrail} =
+                        apply_dot_suffix(MaybeTail, BodyLastCol, BodyHasTrail),
+                    {CloseIO, CloseCol} =
+                        close_section(Dangling, DotHasTrail, DotCol,
+                                      AlignCol, AlignStr, C, CIndStr, Close),
+                    {[Open, HeadLeadIO, AlignStr, HeadIO, HeadTrailIO,
+                      RestIO, DotIO, CloseIO], CloseCol}
+            end;
         false ->
             HeadLeadIO = emit_head_leading(r3lfe_format_cst:leading(Head), CIndStr),
             HeadCol    = C + length(Open),
