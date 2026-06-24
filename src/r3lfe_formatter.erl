@@ -675,6 +675,15 @@ is_receive_head(Head) ->
             false
     end.
 
+-spec is_try_head(r3lfe_format_cst:cst_node()) -> boolean().
+is_try_head(Head) ->
+    case r3lfe_format_cst:type(Head) of
+        symbol ->
+            r3lfe_format_lexer:text(r3lfe_format_cst:open(Head)) =:= "try";
+        _ ->
+            false
+    end.
+
 -spec is_after_section(r3lfe_format_cst:cst_node()) -> boolean().
 is_after_section(Node) ->
     r3lfe_format_cst:type(Node) =:= list
@@ -906,7 +915,7 @@ specform_table() ->
         "prog2"             => 2,
         "progn"             => 0,
         "receive"           => 0,
-        "try"               => 1,
+        "try"               => 0,
         "when"              => 0,
         "syntaxlet"         => 1,
         "defflavor"         => 3,
@@ -1043,13 +1052,15 @@ print_classified({specform, N}, Head, RestChildren, Dangling,
         _ ->
             IsCaseHead = is_clause_specform_head(Head, N),
             IsReceiveHead = is_receive_head(Head),
+            IsTryHead = is_try_head(Head),
             IsDefunMatchHead =
                 is_defun_match_head(Head, N) andalso DistIO =/= [] andalso all_clauses(Body),
             {BodyIO, LastCol, HasTrail} =
-                case {IsReceiveHead, IsCaseHead orelse IsDefunMatchHead} of
-                    {true, _}  -> print_receive_body_loop(Body, Indent, IndentStr, true, InData);
-                    {_, true}  -> print_clause_loop(Body, Indent, IndentStr, true, InData);
-                    {_, false} -> print_rest_loop(Body, Indent, IndentStr, true, InData)
+                case {IsTryHead, IsReceiveHead, IsCaseHead orelse IsDefunMatchHead} of
+                    {true, _, _}  -> print_try_body_loop(Body, Indent, IndentStr, true, InData);
+                    {_, true, _}  -> print_receive_body_loop(Body, Indent, IndentStr, true, InData);
+                    {_, _, true}  -> print_clause_loop(Body, Indent, IndentStr, true, InData);
+                    {_, _, false} -> print_rest_loop(Body, Indent, IndentStr, true, InData)
                 end,
             {CloseIO, CloseCol} = close_section(Dangling, HasTrail, LastCol,
                                                 Indent, IndentStr, C, CIndStr, Close),
@@ -1330,6 +1341,85 @@ print_receive_body_loop([Child | Rest], Indent, IndentStr, IsFirst, InData) ->
             {RestIO, LastCol, HasTrail} = print_receive_body_loop(Rest, Indent,
                                                                   IndentStr, false, InData),
             {["\n", LeadIO, IndentStr, ChildIO, TrailIO | RestIO], LastCol, HasTrail}
+    end.
+
+%% print_try_body_loop: first child is the try body expr (print_node); subsequent
+%% children are case/catch/after sections rendered via print_try_section.
+-spec print_try_body_loop([r3lfe_format_cst:cst_node()], non_neg_integer(),
+                          string(), boolean(), boolean()) ->
+          {iolist(), non_neg_integer(), boolean()}.
+print_try_body_loop([Child | Rest], Indent, IndentStr, IsFirst, InData) ->
+    LeadIO = emit_child_leading(r3lfe_format_cst:leading(Child), IndentStr, IsFirst),
+    {ChildIO, ChildCol} =
+        case IsFirst of
+            true  -> print_node(Child, Indent, InData);
+            false -> print_try_section(Child, Indent, InData)
+        end,
+    {TrailIO, TrailCol} = emit_trailing(r3lfe_format_cst:trailing(Child), ChildCol),
+    case Rest of
+        [] ->
+            HasTrail = r3lfe_format_cst:trailing(Child) =/= [],
+            {["\n", LeadIO, IndentStr, ChildIO, TrailIO], TrailCol, HasTrail};
+        _ ->
+            {RestIO, LastCol, HasTrail} = print_try_body_loop(Rest, Indent, IndentStr,
+                                                              false, InData),
+            {["\n", LeadIO, IndentStr, ChildIO, TrailIO | RestIO], LastCol, HasTrail}
+    end.
+
+%% print_try_section: render a (case/catch/after …) section with the keyword alone
+%% on the section line and contents at +2 below (case/catch via print_clause_loop;
+%% after via print_rest_loop). Reachable only from print_try_body_loop.
+-spec print_try_section(r3lfe_format_cst:cst_node(), non_neg_integer(), boolean()) ->
+          {iolist(), non_neg_integer()}.
+print_try_section(Section, C, InData) ->
+    case r3lfe_format_cst:type(Section) =:= list of
+        false ->
+            print_node(Section, C, InData);
+        true ->
+            case r3lfe_format_cst:children(Section) of
+                [] ->
+                    Open  = r3lfe_format_lexer:text(r3lfe_format_cst:open(Section)),
+                    Close = r3lfe_format_lexer:text(r3lfe_format_cst:close(Section)),
+                    {[Open, Close], C + length(Open) + length(Close)};
+                [SectionHead | Contents] ->
+                    case r3lfe_format_cst:type(SectionHead) =:= symbol of
+                        false ->
+                            print_node(Section, C, InData);
+                        true ->
+                            Open      = r3lfe_format_lexer:text(r3lfe_format_cst:open(Section)),
+                            Close     = r3lfe_format_lexer:text(r3lfe_format_cst:close(Section)),
+                            OpenLen   = length(Open),
+                            Dangling  = r3lfe_format_cst:dangling(Section),
+                            Indent    = C + 2,
+                            IndentStr = lists:duplicate(Indent, $\s),
+                            CIndStr   = lists:duplicate(C, $\s),
+                            HeadLeadIO = emit_head_leading(
+                                           r3lfe_format_cst:leading(SectionHead), CIndStr),
+                            {HeadIO, HeadCol}  =
+                                print_node(SectionHead, C + OpenLen, InData),
+                            {HeadTrailIO, _}   =
+                                emit_trailing(r3lfe_format_cst:trailing(SectionHead), HeadCol),
+                            HeadHasTrail = r3lfe_format_cst:trailing(SectionHead) =/= [],
+                            {BodyIO, LastCol, HasTrail} =
+                                case Contents of
+                                    [] ->
+                                        {[], HeadCol, false};
+                                    _ ->
+                                        case is_after_section(Section) of
+                                            true ->
+                                                print_rest_loop(Contents, Indent, IndentStr,
+                                                                true, InData);
+                                            false ->
+                                                print_clause_loop(Contents, Indent, IndentStr,
+                                                                  true, InData)
+                                        end
+                                end,
+                            {CloseIO, CloseCol} =
+                                close_section(Dangling, HasTrail orelse HeadHasTrail, LastCol,
+                                              Indent, IndentStr, C, CIndStr, Close),
+                            {[HeadLeadIO, Open, HeadIO, HeadTrailIO, BodyIO, CloseIO], CloseCol}
+                    end
+            end
     end.
 
 %%====================================================================

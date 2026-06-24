@@ -95,6 +95,11 @@
     ab_progn_small/1,
     ab_receive_small/1,
     ab_try_small/1,
+    try_full_symmetry/1,
+    try_wide_catch_clause/1,
+    try_all_sections/1,
+    try_progn_body/1,
+    try_after_body/1,
     ab_maybe_small/1,
     ab_lambda_still_flat/1,
     ab_when_still_flat/1,
@@ -373,6 +378,11 @@ groups() ->
             ab_progn_small,
             ab_receive_small,
             ab_try_small,
+            try_full_symmetry,
+            try_wide_catch_clause,
+            try_all_sections,
+            try_progn_body,
+            try_after_body,
             ab_maybe_small,
             ab_lambda_still_flat,
             ab_when_still_flat,
@@ -1749,10 +1759,76 @@ ab_receive_small(_Config) ->
     assert_idempotent(Input).
 
 ab_try_small(_Config) ->
-    %% try is always-break (specform N=1): (foo) on head line; catch at C+2.
-    %% (catch (_ 'err)) is 17 chars at col 2 → fits flat.
+    %% try full-symmetry (A7·S4d): try alone, body at +2, catch alone, clauses at +4.
+    %% (_ 'err) is trivial → renders flat at +4 inside the catch section.
     Input = <<"(try (foo) (catch (_ 'err)))">>,
-    assert_format(Input, <<"(try (foo)\n  (catch (_ 'err)))\n">>),
+    assert_format(Input, <<"(try\n  (foo)\n  (catch\n    (_ 'err)))\n">>),
+    assert_idempotent(Input).
+
+try_full_symmetry(_Config) ->
+    %% §3.7 full-symmetry shape: try alone; body at +2; each section keyword alone;
+    %% case/catch contents via render_clause at +4; after contents via print_rest_loop.
+    Input = <<"(try (foo x) (case ((tuple 'ok v) v)) (catch ((tuple 'error reason) (error reason))) (after (cleanup)))">>,
+    assert_format(Input,
+                  <<"(try\n"
+                    "  (foo x)\n"
+                    "  (case\n"
+                    "    ((tuple 'ok v) v))\n"
+                    "  (catch\n"
+                    "    ((tuple 'error reason)\n"
+                    "     (error reason)))\n"
+                    "  (after\n"
+                    "    (cleanup)))\n">>),
+    assert_idempotent(Input).
+
+try_wide_catch_clause(_Config) ->
+    %% Wide catch clause: non-trivial → render_clause (pattern line, body below).
+    Input = <<"(try (some-expr) (catch ((tuple 'error reason) (some-very-long-error-handler reason more-args))))">>,
+    assert_format(Input,
+                  <<"(try\n"
+                    "  (some-expr)\n"
+                    "  (catch\n"
+                    "    ((tuple 'error reason)\n"
+                    "     (some-very-long-error-handler reason more-args))))\n">>),
+    assert_idempotent(Input).
+
+try_all_sections(_Config) ->
+    %% case + catch + after all present → all three sections symmetric.
+    Input = <<"(try (body-expr) (case ((ok v) v)) (catch ((error e) (handle-error e))) (after (cleanup) (log-done)))">>,
+    assert_format(Input,
+                  <<"(try\n"
+                    "  (body-expr)\n"
+                    "  (case\n"
+                    "    ((ok v) v))\n"
+                    "  (catch\n"
+                    "    ((error e)\n"
+                    "     (handle-error e)))\n"
+                    "  (after\n"
+                    "    (cleanup)\n"
+                    "    (log-done)))\n">>),
+    assert_idempotent(Input).
+
+try_progn_body(_Config) ->
+    %% try body is a (progn …) — breaks normally at +2 under try.
+    Input = <<"(try (progn (step-one) (step-two)) (catch (_ 'err)))">>,
+    assert_format(Input,
+                  <<"(try\n"
+                    "  (progn\n"
+                    "    (step-one)\n"
+                    "    (step-two))\n"
+                    "  (catch\n"
+                    "    (_ 'err)))\n">>),
+    assert_idempotent(Input).
+
+try_after_body(_Config) ->
+    %% after section renders body forms via print_rest_loop, not clause layout.
+    Input = <<"(try (expr) (after (first-cleanup) (second-cleanup)))">>,
+    assert_format(Input,
+                  <<"(try\n"
+                    "  (expr)\n"
+                    "  (after\n"
+                    "    (first-cleanup)\n"
+                    "    (second-cleanup)))\n">>),
     assert_idempotent(Input).
 
 ab_maybe_small(_Config) ->
