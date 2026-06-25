@@ -265,8 +265,7 @@ fmt_oracle_ast(Src, Out) ->
 normalize_module_decls([export | Entries]) ->
     [export | normalize_export_entries(Entries)];
 normalize_module_decls([import | Clauses]) ->
-    %% S5c hook: import sorting deferred. Recurse into sub-forms for future use.
-    [import | norm_list(Clauses)];
+    [import | [normalize_import_clause(C) || C <- Clauses]];
 normalize_module_decls(Term) when is_list(Term) ->
     norm_list(Term);
 normalize_module_decls(Term) ->
@@ -286,6 +285,26 @@ normalize_export_entries(Entries) ->
         true  -> lists:sort(Entries);
         false -> Entries
     end.
+
+%% normalize_import_clause: sort entries within a single import clause.
+%% (from M Es): sort Es that are [name, arity] pairs.
+%% (rename M Ps): sort Ps that are [[name, arity], new-name] by old {name, arity}.
+%% Other clause forms: unchanged.
+normalize_import_clause([from, M | Es]) ->
+    [from, M | normalize_export_entries(Es)];
+normalize_import_clause([rename, M | Ps]) ->
+    AllPairs = lists:all(
+        fun([[N, A], _]) -> is_atom(N) andalso is_integer(A);
+           (_) -> false
+        end, Ps),
+    case AllPairs of
+        true ->
+            Tagged = [{{N, A}, P} || [[N, A] | _] = P <- Ps],
+            [rename, M | [P || {_, P} <- lists:keysort(1, Tagged)]];
+        false -> [rename, M | Ps]
+    end;
+normalize_import_clause(Clause) ->
+    Clause.
 
 fmt_sig_pairs(Bin) ->
     {ok, Toks} = r3lfe_format_lexer:tokens(Bin),

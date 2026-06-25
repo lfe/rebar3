@@ -772,6 +772,55 @@ sort_export_entries(Entries) ->
               end || E <- Entries],
     [E || {_, E} <- lists:keysort(1, Tagged)].
 
+%% is_rename_entry: true for ((name arity) new-name) — a 2-child list whose first
+%% child is itself a valid export entry (name arity).
+-spec is_rename_entry(r3lfe_format_cst:cst_node()) -> boolean().
+is_rename_entry(Node) ->
+    case r3lfe_format_cst:type(Node) of
+        list ->
+            case r3lfe_format_cst:children(Node) of
+                [OldPair | _] -> is_export_entry(OldPair);
+                _             -> false
+            end;
+        _ -> false
+    end.
+
+%% sort_rename_entries: stable sort by old {name, arity} from the inner (name arity) pair.
+-spec sort_rename_entries([r3lfe_format_cst:cst_node()]) -> [r3lfe_format_cst:cst_node()].
+sort_rename_entries(Entries) ->
+    Tagged = [begin
+                  [OldPair | _] = r3lfe_format_cst:children(E),
+                  [Name, Arity] = r3lfe_format_cst:children(OldPair),
+                  NameText = r3lfe_format_lexer:text(r3lfe_format_cst:open(Name)),
+                  ArityInt = list_to_integer(
+                      r3lfe_format_lexer:text(r3lfe_format_cst:open(Arity))),
+                  {{NameText, ArityInt}, E}
+              end || E <- Entries],
+    [E || {_, E} <- lists:keysort(1, Tagged)].
+
+%% sort_import_entries: sort from/rename clause entries; suppress when any entry
+%% carries a leading comment (preserves developer ordering).
+-spec sort_import_entries(string(), [r3lfe_format_cst:cst_node()]) ->
+        [r3lfe_format_cst:cst_node()].
+sort_import_entries("from", Entries) ->
+    case lists:all(fun is_export_entry/1, Entries)
+         andalso not lists:any(
+             fun(E) -> has_comment_leading(r3lfe_format_cst:leading(E)) end,
+             Entries) of
+        true  -> sort_export_entries(Entries);
+        false -> Entries
+    end;
+sort_import_entries("rename", Entries) ->
+    case lists:all(fun is_rename_entry/1, Entries)
+         andalso not lists:any(
+             fun(E) -> has_comment_leading(r3lfe_format_cst:leading(E)) end,
+             Entries) of
+        true  -> sort_rename_entries(Entries);
+        false -> Entries
+    end;
+sort_import_entries(_, Entries) ->
+    Entries.
+
 -spec is_after_section(r3lfe_format_cst:cst_node()) -> boolean().
 is_after_section(Node) ->
     r3lfe_format_cst:type(Node) =:= list
@@ -1153,8 +1202,9 @@ print_classified({specform, N}, Head, RestChildren, Dangling,
             %% export entries sorted alphabetically by {name, arity} (A7·S5b).
             %% Sort only when head is "export", ALL items are (name arity) pairs,
             %% AND no item has a leading comment (a commented item has intentional ordering).
-            IsExportHead = IsExportImportHead
-                andalso r3lfe_format_lexer:text(r3lfe_format_cst:open(Head)) =:= "export",
+            HeadText = r3lfe_format_lexer:text(r3lfe_format_cst:open(Head)),
+            IsExportHead = IsExportImportHead andalso HeadText =:= "export",
+            IsImportHead = IsExportImportHead andalso HeadText =:= "import",
             SortedBody =
                 case IsExportHead
                      andalso lists:all(fun is_export_entry/1, Body)
@@ -1165,18 +1215,20 @@ print_classified({specform, N}, Head, RestChildren, Dangling,
                     false -> Body
                 end,
             {BodyIO, LastCol, HasTrail} =
-                case {IsExportImportHead, IsTryHead, IsReceiveHead,
+                case {IsImportHead, IsExportImportHead, IsTryHead, IsReceiveHead,
                       IsCaseHead orelse IsDefunMatchHead} of
-                    {true, _, _, _}  -> print_rest_loop(SortedBody, EffIndent, EffIndStr,
-                                                         true, InData);
-                    {_, true, _, _}  -> print_try_body_loop(Body, Indent, IndentStr,
-                                                             true, InData);
-                    {_, _, true, _}  -> print_receive_body_loop(Body, Indent, IndentStr,
-                                                                 true, InData);
-                    {_, _, _, true}  -> print_clause_loop(Body, Indent, IndentStr,
-                                                           true, InData);
-                    {_, _, _, false} -> print_rest_loop(Body, Indent, IndentStr,
-                                                         true, InData)
+                    {true, _, _, _, _}  -> print_import_body_loop(Body, EffIndent, EffIndStr,
+                                                                   true, InData);
+                    {_, true, _, _, _}  -> print_rest_loop(SortedBody, EffIndent, EffIndStr,
+                                                            true, InData);
+                    {_, _, true, _, _}  -> print_try_body_loop(Body, Indent, IndentStr,
+                                                               true, InData);
+                    {_, _, _, true, _}  -> print_receive_body_loop(Body, Indent, IndentStr,
+                                                                    true, InData);
+                    {_, _, _, _, true}  -> print_clause_loop(Body, Indent, IndentStr,
+                                                              true, InData);
+                    {_, _, _, _, false} -> print_rest_loop(Body, Indent, IndentStr,
+                                                            true, InData)
                 end,
             {CloseIO, CloseCol} = close_section(Dangling, HasTrail, LastCol,
                                                 EffIndent, EffIndStr, C, CIndStr, Close),
@@ -1536,6 +1588,95 @@ print_try_section(Section, C, InData) ->
                             {[HeadLeadIO, Open, HeadIO, HeadTrailIO, BodyIO, CloseIO], CloseCol}
                     end
             end
+    end.
+
+%% print_import_body_loop: emit import clauses one-per-line via print_import_clause.
+%% All children are clauses (from/rename/deprecated/other). Reachable only from
+%% the import arm of the specform body router.
+-spec print_import_body_loop([r3lfe_format_cst:cst_node()], non_neg_integer(),
+                              string(), boolean(), boolean()) ->
+          {iolist(), non_neg_integer(), boolean()}.
+print_import_body_loop([Child | Rest], Indent, IndentStr, IsFirst, InData) ->
+    LeadIO = emit_child_leading(r3lfe_format_cst:leading(Child), IndentStr, IsFirst),
+    {ChildIO, ChildCol} = print_import_clause(Child, Indent, InData),
+    {TrailIO, TrailCol} = emit_trailing(r3lfe_format_cst:trailing(Child), ChildCol),
+    case Rest of
+        [] ->
+            HasTrail = r3lfe_format_cst:trailing(Child) =/= [],
+            {["\n", LeadIO, IndentStr, ChildIO, TrailIO], TrailCol, HasTrail};
+        _ ->
+            {RestIO, LastCol, HasTrail} =
+                print_import_body_loop(Rest, Indent, IndentStr, false, InData),
+            {["\n", LeadIO, IndentStr, ChildIO, TrailIO | RestIO], LastCol, HasTrail}
+    end.
+
+%% print_import_clause: render a single import clause.
+%% (from M E…) and (rename M P…): keyword+module on head line; entries one-per-line
+%% at C+OpenLen (+1); entries sorted (suppressed if any has a leading comment).
+%% deprecated/other/non-list: render via print_node (generic at +1).
+-spec print_import_clause(r3lfe_format_cst:cst_node(), non_neg_integer(), boolean()) ->
+          {iolist(), non_neg_integer()}.
+print_import_clause(Clause, C, InData) ->
+    case r3lfe_format_cst:type(Clause) of
+        list ->
+            case r3lfe_format_cst:children(Clause) of
+                [ClauseHead, _Mod | _Entries] ->
+                    case r3lfe_format_cst:type(ClauseHead) of
+                        symbol ->
+                            ClauseText = r3lfe_format_lexer:text(
+                                             r3lfe_format_cst:open(ClauseHead)),
+                            case lists:member(ClauseText, ["from", "rename"]) of
+                                true  -> print_import_from_rename(Clause, C, InData);
+                                false -> print_node(Clause, C, InData)
+                            end;
+                        _ ->
+                            print_node(Clause, C, InData)
+                    end;
+                _ ->
+                    print_node(Clause, C, InData)
+            end;
+        _ ->
+            print_node(Clause, C, InData)
+    end.
+
+%% print_import_from_rename: shared renderer for (from M E…) and (rename M P…).
+%% Keyword and module on head line; entries one-per-line at C+OpenLen (+1).
+-spec print_import_from_rename(r3lfe_format_cst:cst_node(), non_neg_integer(),
+                                boolean()) -> {iolist(), non_neg_integer()}.
+print_import_from_rename(Clause, C, InData) ->
+    Open      = r3lfe_format_lexer:text(r3lfe_format_cst:open(Clause)),
+    Close     = r3lfe_format_lexer:text(r3lfe_format_cst:close(Clause)),
+    OpenLen   = length(Open),
+    Dangling  = r3lfe_format_cst:dangling(Clause),
+    Indent    = C + OpenLen,
+    IndentStr = lists:duplicate(Indent, $\s),
+    CIndStr   = lists:duplicate(C, $\s),
+    [ClauseHead, Mod | Entries] = r3lfe_format_cst:children(Clause),
+    ClauseText = r3lfe_format_lexer:text(r3lfe_format_cst:open(ClauseHead)),
+    HeadLeadIO = emit_head_leading(r3lfe_format_cst:leading(ClauseHead), CIndStr),
+    {HeadIO, HeadCol}   = print_node(ClauseHead, C + OpenLen, InData),
+    {HeadTrailIO, HTC}  = emit_trailing(r3lfe_format_cst:trailing(ClauseHead), HeadCol),
+    HeadHasTrail = r3lfe_format_cst:trailing(ClauseHead) =/= [],
+    ModLead = r3lfe_format_cst:leading(Mod),
+    HasModLeadComment = has_comment_leading(ModLead),
+    case HeadHasTrail orelse HasModLeadComment of
+        true ->
+            print_node(Clause, C, InData);
+        false ->
+            {ModIO, ModCol}   = print_node(Mod, HTC + 1, InData),
+            {ModTrailIO, MTC} = emit_trailing(r3lfe_format_cst:trailing(Mod), ModCol),
+            ModHasTrail = r3lfe_format_cst:trailing(Mod) =/= [],
+            SortedEntries = sort_import_entries(ClauseText, Entries),
+            {BodyIO, LastCol, HasTrail} =
+                case Entries of
+                    [] -> {[], MTC, false};
+                    _  -> print_rest_loop(SortedEntries, Indent, IndentStr, true, InData)
+                end,
+            {CloseIO, CloseCol} =
+                close_section(Dangling, HasTrail orelse ModHasTrail, LastCol,
+                              Indent, IndentStr, C, CIndStr, Close),
+            {[HeadLeadIO, Open, HeadIO, HeadTrailIO, " ", ModIO, ModTrailIO,
+              BodyIO, CloseIO], CloseCol}
     end.
 
 %%====================================================================

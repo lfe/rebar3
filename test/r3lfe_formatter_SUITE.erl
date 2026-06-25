@@ -248,6 +248,17 @@
     es_ast_oracle_catches_reorder/1
 ]).
 
+%% import_full group (A7·S5c — import nested layout + entry sort)
+-export([
+    if_from_layout_and_sort/1,
+    if_rename_layout_and_sort/1,
+    if_multi_clause/1,
+    if_commented_suppress/1,
+    if_deprecated_generic/1,
+    if_close_align/1,
+    if_oracle/1
+]).
+
 %% fix2 group (A4·S1·fix2 — head trailing comment + matrix)
 -export([
     fix2_funcall_head_trail_args/1,
@@ -331,6 +342,7 @@ all() ->
      {group, export_guards},
      {group, export_layout},
      {group, export_sort},
+     {group, import_full},
      {group, edge_hardening}, {group, fuzz}, {group, corpus_sweep},
      {group, regimes}, {group, cons_dot}].
 
@@ -492,6 +504,15 @@ groups() ->
             es_comment_travels,
             es_multiset_catches_drop,
             es_ast_oracle_catches_reorder
+        ]},
+        {import_full, [], [
+            if_from_layout_and_sort,
+            if_rename_layout_and_sort,
+            if_multi_clause,
+            if_commented_suppress,
+            if_deprecated_generic,
+            if_close_align,
+            if_oracle
         ]},
         {fix2, [], [
             fix2_funcall_head_trail_args,
@@ -717,8 +738,7 @@ assert_ast_equiv(Input) ->
 normalize_module_decls([export | Entries]) ->
     [export | normalize_export_entries(Entries)];
 normalize_module_decls([import | Clauses]) ->
-    %% S5c hook: deferred. Recurse for future import normalization.
-    [import | norm_list(Clauses)];
+    [import | [normalize_import_clause(C) || C <- Clauses]];
 normalize_module_decls(Term) when is_list(Term) ->
     norm_list(Term);
 normalize_module_decls(Term) ->
@@ -738,6 +758,26 @@ normalize_export_entries(Entries) ->
         true  -> lists:sort(Entries);
         false -> Entries
     end.
+
+%% normalize_import_clause: sort within-clause entries for AST oracle comparisons.
+%% (from M Es): sort Es that are [name, arity] pairs.
+%% (rename M Ps): sort Ps that are [[name, arity], new-name] by old {name, arity}.
+%% Other clause forms: unchanged.
+normalize_import_clause([from, M | Es]) ->
+    [from, M | normalize_export_entries(Es)];
+normalize_import_clause([rename, M | Ps]) ->
+    AllPairs = lists:all(
+        fun([[N, A], _]) -> is_atom(N) andalso is_integer(A);
+           (_) -> false
+        end, Ps),
+    case AllPairs of
+        true ->
+            Tagged = [{{N, A}, P} || [[N, A] | _] = P <- Ps],
+            [rename, M | [P || {_, P} <- lists:keysort(1, Tagged)]];
+        false -> [rename, M | Ps]
+    end;
+normalize_import_clause(Clause) ->
+    Clause.
 
 %% Compare raw lexer tokens, NOT CST-derived significant_tokens. If parse()
 %% silently dropped a token, both CST lists would be missing it equally, making
@@ -1220,14 +1260,22 @@ eg_export_short(_Config) ->
     assert_idempotent(<<"(defmodule m (export (run 0)))">>).
 
 eg_import_wide(_Config) ->
-    %% A7·S5a: import always breaks; (from …)/(rename …) at C+OpenLen (+1). Golden +4→+3.
+    %% A7·S5c: import clauses use nested layout (keyword+module head; entries sorted at +1).
+    %% from entries sorted: all<any<filter<foldl<foldr<map; rename single pair unchanged.
     Input = <<"(defmodule m\n"
               "  (import (from lists (map 2) (filter 2) (foldl 3) (foldr 3) (any 2) (all 2))\n"
               "          (rename io ((format 2) fmt))))">>,
     Expected = <<"(defmodule m\n"
                  "  (import\n"
-                 "   (from lists (map 2) (filter 2) (foldl 3) (foldr 3) (any 2) (all 2))\n"
-                 "   (rename io ((format 2) fmt))))\n">>,
+                 "   (from lists\n"
+                 "    (all 2)\n"
+                 "    (any 2)\n"
+                 "    (filter 2)\n"
+                 "    (foldl 3)\n"
+                 "    (foldr 3)\n"
+                 "    (map 2))\n"
+                 "   (rename io\n"
+                 "    ((format 2) fmt))))\n">>,
     assert_format(Input, Expected),
     assert_idempotent(Input).
 
@@ -1342,15 +1390,18 @@ el_single_entry(_Config) ->
     assert_idempotent(<<"(defmodule m (export (main 0)))">>).
 
 el_import_top_level_plus1(_Config) ->
-    %% Import top-level clauses at +1; (from …)/(rename …) internals unchanged (S5c).
+    %% A7·S5c: import clauses use nested layout; entries sorted (filter<map).
     assert_format(
         <<"(defmodule m\n"
           "  (import (from lists (map 2) (filter 2))\n"
           "          (from io (format 2))))">>,
         <<"(defmodule m\n"
           "  (import\n"
-          "   (from lists (map 2) (filter 2))\n"
-          "   (from io (format 2))))\n">>),
+          "   (from lists\n"
+          "    (filter 2)\n"
+          "    (map 2))\n"
+          "   (from io\n"
+          "    (format 2))))\n">>),
     assert_idempotent(
         <<"(defmodule m\n"
           "  (import (from lists (map 2) (filter 2))\n"
@@ -1468,6 +1519,127 @@ es_ast_oracle_catches_reorder(_Config) ->
     ?assertNotEqual(normalize_module_decls([Defun1, Defun2]),
                     normalize_module_decls([Defun2, Defun1]),
                     "normalized AST must still enforce non-export ordering").
+
+%%====================================================================
+%% import_full group — A7·S5c: import nested layout + entry sort
+%%====================================================================
+
+if_from_layout_and_sort(_Config) ->
+    %% (from M E…): keyword+module on head line; entries sorted one-per-line at +1.
+    assert_format(
+        <<"(defmodule m\n"
+          "  (import\n"
+          "   (from lists (member 2) (all 2) (any 2))))">>,
+        <<"(defmodule m\n"
+          "  (import\n"
+          "   (from lists\n"
+          "    (all 2)\n"
+          "    (any 2)\n"
+          "    (member 2))))\n">>),
+    assert_idempotent(
+        <<"(defmodule m\n"
+          "  (import\n"
+          "   (from lists (member 2) (all 2) (any 2))))">>).
+
+if_rename_layout_and_sort(_Config) ->
+    %% (rename M P…): keyword+module on head line; pairs sorted by old {name,arity}.
+    assert_format(
+        <<"(defmodule m\n"
+          "  (import\n"
+          "   (rename lists ((member 2) in) ((all 2) every) ((any 2) some))))">>,
+        <<"(defmodule m\n"
+          "  (import\n"
+          "   (rename lists\n"
+          "    ((all 2) every)\n"
+          "    ((any 2) some)\n"
+          "    ((member 2) in))))\n">>),
+    assert_idempotent(
+        <<"(defmodule m\n"
+          "  (import\n"
+          "   (rename lists ((member 2) in) ((all 2) every) ((any 2) some))))">>).
+
+if_multi_clause(_Config) ->
+    %% Multiple clauses: clause order preserved; each sorted internally.
+    assert_format(
+        <<"(defmodule m\n"
+          "  (import\n"
+          "   (from lists (member 2) (all 2))\n"
+          "   (rename io ((format 2) fmt))))">>,
+        <<"(defmodule m\n"
+          "  (import\n"
+          "   (from lists\n"
+          "    (all 2)\n"
+          "    (member 2))\n"
+          "   (rename io\n"
+          "    ((format 2) fmt))))\n">>),
+    assert_idempotent(
+        <<"(defmodule m\n"
+          "  (import\n"
+          "   (from lists (member 2) (all 2))\n"
+          "   (rename io ((format 2) fmt))))">>).
+
+if_commented_suppress(_Config) ->
+    %% Any entry with a leading comment: sort suppressed for that clause.
+    Input = <<"(defmodule m\n"
+              "  (import\n"
+              "   (from lists\n"
+              "    ;; keep order\n"
+              "    (member 2)\n"
+              "    (all 2))))">>,
+    assert_format(Input, <<Input/binary, "\n">>),
+    assert_idempotent(Input).
+
+if_deprecated_generic(_Config) ->
+    %% deprecated and other clause heads rendered generically (not nested layout).
+    Input = <<"(defmodule m\n"
+              "  (import\n"
+              "   (from lists (all 2))\n"
+              "   (deprecated some-old)))">>,
+    assert_format(
+        Input,
+        <<"(defmodule m\n"
+          "  (import\n"
+          "   (from lists\n"
+          "    (all 2))\n"
+          "   (deprecated some-old)))\n">>),
+    assert_idempotent(Input).
+
+if_close_align(_Config) ->
+    %% Close of a clause aligns at +1 when last entry has trailing comment (§3.4a).
+    assert_format(
+        <<"(defmodule m\n"
+          "  (import\n"
+          "   (from lists\n"
+          "    (all 2) ; always\n"
+          "    )))">>,
+        <<"(defmodule m\n"
+          "  (import\n"
+          "   (from lists\n"
+          "    (all 2) ; always\n"
+          "    )))\n">>),
+    assert_idempotent(
+        <<"(defmodule m\n"
+          "  (import\n"
+          "   (from lists\n"
+          "    (all 2) ; always\n"
+          "    )))">>).
+
+if_oracle(_Config) ->
+    %% Formatter reorders import entries; normalized AST oracle accepts both orderings.
+    Input = <<"(defmodule m\n"
+              "  (import\n"
+              "   (from lists\n"
+              "    (member 2)\n"
+              "    (all 2))))">>,
+    assert_format(
+        Input,
+        <<"(defmodule m\n"
+          "  (import\n"
+          "   (from lists\n"
+          "    (all 2)\n"
+          "    (member 2))))\n">>),
+    assert_token_preservation(Input),
+    assert_ast_equiv(Input).
 
 %%====================================================================
 %% fix2 group — A4·S1·fix2: head trailing comment matrix
