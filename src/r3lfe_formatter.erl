@@ -737,6 +737,41 @@ is_export_import_head(Head) ->
             false
     end.
 
+%% is_export_entry: true for a 2-child list (symbol name, non-negative integer arity).
+%% Used to decide whether to sort export entries.
+-spec is_export_entry(r3lfe_format_cst:cst_node()) -> boolean().
+is_export_entry(Node) ->
+    case r3lfe_format_cst:type(Node) of
+        list ->
+            case r3lfe_format_cst:children(Node) of
+                [Name, Arity] ->
+                    r3lfe_format_cst:type(Name) =:= symbol
+                    andalso r3lfe_format_cst:type(Arity) =:= number
+                    andalso is_non_neg_integer_text(
+                        r3lfe_format_lexer:text(r3lfe_format_cst:open(Arity)));
+                _ -> false
+            end;
+        _ -> false
+    end.
+
+-spec is_non_neg_integer_text(string()) -> boolean().
+is_non_neg_integer_text([]) -> false;
+is_non_neg_integer_text(Text) ->
+    lists:all(fun(C) -> C >= $0 andalso C =< $9 end, Text).
+
+%% sort_export_entries: stable sort by {name, arity} using keysort.
+-spec sort_export_entries([r3lfe_format_cst:cst_node()]) ->
+        [r3lfe_format_cst:cst_node()].
+sort_export_entries(Entries) ->
+    Tagged = [begin
+                  [Name, Arity] = r3lfe_format_cst:children(E),
+                  NameText = r3lfe_format_lexer:text(r3lfe_format_cst:open(Name)),
+                  ArityInt = list_to_integer(
+                      r3lfe_format_lexer:text(r3lfe_format_cst:open(Arity))),
+                  {{NameText, ArityInt}, E}
+              end || E <- Entries],
+    [E || {_, E} <- lists:keysort(1, Tagged)].
+
 -spec is_after_section(r3lfe_format_cst:cst_node()) -> boolean().
 is_after_section(Node) ->
     r3lfe_format_cst:type(Node) =:= list
@@ -1115,10 +1150,24 @@ print_classified({specform, N}, Head, RestChildren, Dangling,
                             true  -> lists:duplicate(C + OpenLen, $\s);
                             false -> IndentStr
                         end,
+            %% export entries sorted alphabetically by {name, arity} (A7·S5b).
+            %% Sort only when head is "export", ALL items are (name arity) pairs,
+            %% AND no item has a leading comment (a commented item has intentional ordering).
+            IsExportHead = IsExportImportHead
+                andalso r3lfe_format_lexer:text(r3lfe_format_cst:open(Head)) =:= "export",
+            SortedBody =
+                case IsExportHead
+                     andalso lists:all(fun is_export_entry/1, Body)
+                     andalso not lists:any(
+                         fun(E) -> has_comment_leading(r3lfe_format_cst:leading(E)) end,
+                         Body) of
+                    true  -> sort_export_entries(Body);
+                    false -> Body
+                end,
             {BodyIO, LastCol, HasTrail} =
                 case {IsExportImportHead, IsTryHead, IsReceiveHead,
                       IsCaseHead orelse IsDefunMatchHead} of
-                    {true, _, _, _}  -> print_rest_loop(Body, EffIndent, EffIndStr,
+                    {true, _, _, _}  -> print_rest_loop(SortedBody, EffIndent, EffIndStr,
                                                          true, InData);
                     {_, true, _, _}  -> print_try_body_loop(Body, Indent, IndentStr,
                                                              true, InData);

@@ -236,6 +236,18 @@
     el_close_alignment/1
 ]).
 
+%% export_sort group (A7·S5b — export sort + oracle carve-out)
+-export([
+    es_unsorted_to_sorted/1,
+    es_already_sorted/1,
+    es_arity_order/1,
+    es_export_all_preserved/1,
+    es_mixed_preserved/1,
+    es_comment_travels/1,
+    es_multiset_catches_drop/1,
+    es_ast_oracle_catches_reorder/1
+]).
+
 %% fix2 group (A4·S1·fix2 — head trailing comment + matrix)
 -export([
     fix2_funcall_head_trail_args/1,
@@ -318,6 +330,7 @@ all() ->
      {group, flet_locals},
      {group, export_guards},
      {group, export_layout},
+     {group, export_sort},
      {group, edge_hardening}, {group, fuzz}, {group, corpus_sweep},
      {group, regimes}, {group, cons_dot}].
 
@@ -469,6 +482,16 @@ groups() ->
             el_single_entry,
             el_import_top_level_plus1,
             el_close_alignment
+        ]},
+        {export_sort, [], [
+            es_unsorted_to_sorted,
+            es_already_sorted,
+            es_arity_order,
+            es_export_all_preserved,
+            es_mixed_preserved,
+            es_comment_travels,
+            es_multiset_catches_drop,
+            es_ast_oracle_catches_reorder
         ]},
         {fix2, [], [
             fix2_funcall_head_trail_args,
@@ -660,14 +683,18 @@ assert_idempotent(Input) ->
     ?assertEqual(Out1, Out2,
                  io_lib:format("idempotency failed for ~200p", [Input])).
 
+%% A7·S5b carve-out: multiset comparison so export sorting does not cause
+%% false negatives. Detects any token add/drop/mutate; order is relaxed.
 assert_token_preservation(Input) ->
     {ok, OutIO} = r3lfe_formatter:format(Input),
     OutBin = iolist_to_binary(OutIO),
-    SigIn  = sig_pairs(Input),
-    SigOut = sig_pairs(OutBin),
+    SigIn  = lists:sort(sig_pairs(Input)),
+    SigOut = lists:sort(sig_pairs(OutBin)),
     ?assertEqual(SigIn, SigOut,
                  io_lib:format("token-preservation failed for ~200p", [Input])).
 
+%% A7·S5b carve-out: normalize export entry order before comparison so the
+%% sort does not cause false negatives. All other ordering is still enforced.
 assert_ast_equiv(Input) ->
     {ok, OutIO} = r3lfe_formatter:format(Input),
     OutBin = iolist_to_binary(OutIO),
@@ -675,12 +702,41 @@ assert_ast_equiv(Input) ->
     OutText  = binary_to_list(OutBin),
     case {lfe_io:read_string(OrigText), lfe_io:read_string(OutText)} of
         {{ok, OrigForms}, {ok, OutForms}} ->
-            ?assertEqual(OrigForms, OutForms,
+            ?assertEqual(normalize_module_decls(OrigForms),
+                         normalize_module_decls(OutForms),
                          io_lib:format("ast-equiv failed for ~200p", [Input]));
         {{error, _}, _} ->
             ok;  %% original not parseable as forms (e.g. bare atoms), skip
         {_, {error, E}} ->
             ct:fail("lfe_io failed on formatted output: ~p~nInput: ~200p", [E, Input])
+    end.
+
+%% normalize_module_decls: sort export entries to a canonical order so the
+%% AST oracle is order-insensitive for (export …) entries only (A7·S5b).
+%% Uses norm_list/1 to handle improper lists (dotted pairs in LFE AST).
+normalize_module_decls([export | Entries]) ->
+    [export | normalize_export_entries(Entries)];
+normalize_module_decls([import | Clauses]) ->
+    %% S5c hook: deferred. Recurse for future import normalization.
+    [import | norm_list(Clauses)];
+normalize_module_decls(Term) when is_list(Term) ->
+    norm_list(Term);
+normalize_module_decls(Term) ->
+    Term.
+
+norm_list([]) -> [];
+norm_list([H | T]) when is_list(T) -> [normalize_module_decls(H) | norm_list(T)];
+norm_list([H | T])                 -> [normalize_module_decls(H) | T];
+norm_list(Other)                   -> Other.
+
+normalize_export_entries(Entries) ->
+    AllPairs = lists:all(
+        fun([N, A]) -> is_atom(N) andalso is_integer(A);
+           (_)      -> false
+        end, Entries),
+    case AllPairs of
+        true  -> lists:sort(Entries);
+        false -> Entries
     end.
 
 %% Compare raw lexer tokens, NOT CST-derived significant_tokens. If parse()
@@ -1319,6 +1375,101 @@ el_close_alignment(_Config) ->
           "   ))">>).
 
 %%====================================================================
+%% export_sort group — A7·S5b: export sort + oracle carve-out
+%%====================================================================
+
+es_unsorted_to_sorted(_Config) ->
+    %% Unsorted export entries → sorted alphabetically by {name, arity}.
+    assert_format(
+        <<"(defmodule m (export (factorial 1) (ackermann 2) (factorial 2)))">>,
+        <<"(defmodule m\n"
+          "  (export\n"
+          "   (ackermann 2)\n"
+          "   (factorial 1)\n"
+          "   (factorial 2)))\n">>),
+    assert_idempotent(
+        <<"(defmodule m (export (factorial 1) (ackermann 2) (factorial 2)))">>).
+
+es_already_sorted(_Config) ->
+    %% Already-sorted export → unchanged (idempotent).
+    Input = <<"(defmodule m\n"
+              "  (export\n"
+              "   (ackermann 2)\n"
+              "   (factorial 1)\n"
+              "   (factorial 2)))">>,
+    assert_format(Input, <<Input/binary, "\n">>),
+    assert_idempotent(Input).
+
+es_arity_order(_Config) ->
+    %% Same name, different arities → ordered by arity ascending.
+    assert_format(
+        <<"(defmodule m (export (f 3) (f 1) (f 2)))">>,
+        <<"(defmodule m\n"
+          "  (export\n"
+          "   (f 1)\n"
+          "   (f 2)\n"
+          "   (f 3)))\n">>),
+    assert_idempotent(<<"(defmodule m (export (f 3) (f 1) (f 2)))">>).
+
+es_export_all_preserved(_Config) ->
+    %% (export all) — not a pair entry — order preserved, not sorted.
+    assert_format(
+        <<"(defmodule m (export all))">>,
+        <<"(defmodule m\n"
+          "  (export\n"
+          "   all))\n">>),
+    assert_idempotent(<<"(defmodule m (export all))">>).
+
+es_mixed_preserved(_Config) ->
+    %% Mixed: one non-pair entry → no sort applied, order unchanged.
+    assert_format(
+        <<"(defmodule m (export (z 0) all (a 0)))">>,
+        <<"(defmodule m\n"
+          "  (export\n"
+          "   (z 0)\n"
+          "   all\n"
+          "   (a 0)))\n">>),
+    assert_idempotent(<<"(defmodule m (export (z 0) all (a 0)))">>).
+
+es_comment_travels(_Config) ->
+    %% Any entry with a leading comment suppresses the sort for the whole list —
+    %% preserves the developer's intentional grouping. Order unchanged.
+    assert_format(
+        <<"(defmodule m\n"
+          "  (export\n"
+          "   (z 0)\n"
+          "   ;; this is b\n"
+          "   (b 1)))">>,
+        <<"(defmodule m\n"
+          "  (export\n"
+          "   (z 0)\n"
+          "   ;; this is b\n"
+          "   (b 1)))\n">>),
+    assert_idempotent(
+        <<"(defmodule m\n"
+          "  (export\n"
+          "   (z 0)\n"
+          "   ;; this is b\n"
+          "   (b 1)))">>).
+
+es_multiset_catches_drop(_Config) ->
+    %% Oracle self-test: multiset comparison still detects a dropped token.
+    %% Simulate by directly comparing sig_pairs where one is missing a token.
+    A = [{symbol, "foo"}, {symbol, "bar"}, {symbol, "baz"}],
+    B = [{symbol, "foo"}, {symbol, "bar"}],
+    ?assertNotEqual(lists:sort(A), lists:sort(B),
+                    "multiset oracle must detect token drop").
+
+es_ast_oracle_catches_reorder(_Config) ->
+    %% Oracle self-test: normalized AST still fails on a non-export reorder.
+    %% Two defuns in swapped order → different AST even after normalize.
+    Defun1 = [defun, f, [x], x],
+    Defun2 = [defun, g, [x], x],
+    ?assertNotEqual(normalize_module_decls([Defun1, Defun2]),
+                    normalize_module_decls([Defun2, Defun1]),
+                    "normalized AST must still enforce non-export ordering").
+
+%%====================================================================
 %% fix2 group — A4·S1·fix2: head trailing comment matrix
 %%====================================================================
 
@@ -1593,12 +1744,14 @@ dhc_quasiquote(_Config) ->
     assert_idempotent(Input).
 
 dhc_code_list_unchanged(_Config) ->
-    %% Code list (InData=false) with head leading comment: opener-alone layout
-    %% unchanged — regression guard.
-    Input = <<"(some-fn\n;; comment\narg1\narg2)">>,
+    %% §4a drive-by fix: comment must precede the HEAD (some-fn), not a later arg,
+    %% so head_has_leading_comment/1 is true and the InData=false path is exercised.
+    %% Fixed from prior hollow test that put the comment after the head.
+    Input = <<"(;; comment\nsome-fn arg1 arg2)">>,
     assert_format(Input,
-                  <<"(some-fn\n"
+                  <<"(\n"
                     "  ;; comment\n"
+                    "  some-fn\n"
                     "  arg1\n"
                     "  arg2)\n">>),
     assert_idempotent(Input).
@@ -1786,12 +1939,13 @@ conf_wide_sweep(_Config) ->
                 {ok, Toks1} = r3lfe_format_lexer:tokens(Bin),
                 {ok, Toks2} = r3lfe_format_lexer:tokens(Out1),
                 Trivia = [whitespace, newline, line_comment, block_comment],
-                Sig1 = [{r3lfe_format_lexer:kind(T), r3lfe_format_lexer:text(T)}
+                Sig1 = lists:sort([{r3lfe_format_lexer:kind(T), r3lfe_format_lexer:text(T)}
                         || T <- Toks1,
-                           not lists:member(r3lfe_format_lexer:kind(T), Trivia)],
-                Sig2 = [{r3lfe_format_lexer:kind(T), r3lfe_format_lexer:text(T)}
+                           not lists:member(r3lfe_format_lexer:kind(T), Trivia)]),
+                Sig2 = lists:sort([{r3lfe_format_lexer:kind(T), r3lfe_format_lexer:text(T)}
                         || T <- Toks2,
-                           not lists:member(r3lfe_format_lexer:kind(T), Trivia)],
+                           not lists:member(r3lfe_format_lexer:kind(T), Trivia)]),
+                %% A7·S5b carve-out: multiset comparison; sort catches add/drop/mutate.
                 ?assertEqual(Sig1, Sig2,
                     io_lib:format("token-preservation failed: ~s", [File])),
                 {S, C + 1}
@@ -2573,9 +2727,9 @@ sweep_oracles(File, Src, Out) ->
         {error, IdemErr} ->
             ct:fail("idempotency pass 2 failed for ~s: ~p", [File, IdemErr])
     end,
-    %% Oracle 2: token-preservation
-    SigIn  = sweep_sig_pairs(Src),
-    SigOut = sweep_sig_pairs(Out),
+    %% Oracle 2: token-preservation (multiset — A7·S5b carve-out for export sort).
+    SigIn  = lists:sort(sweep_sig_pairs(Src)),
+    SigOut = lists:sort(sweep_sig_pairs(Out)),
     ?assertEqual(SigIn, SigOut,
                  io_lib:format("token-preservation failed: ~s", [File])),
     %% Oracle 3: comment-preservation
@@ -2583,14 +2737,15 @@ sweep_oracles(File, Src, Out) ->
     CmtOut = sweep_comments(Out),
     ?assertEqual(CmtIn, CmtOut,
                  io_lib:format("comment-preservation failed: ~s", [File])),
-    %% Oracle 4: AST-equivalence (skip if read-eval or multi-form)
+    %% Oracle 4: AST-equivalence (skip if read-eval); normalize export order (A7·S5b).
     case binary:match(Src, <<"#.(">>) of
         nomatch ->
             OrigText = binary_to_list(Src),
             OutText  = binary_to_list(Out),
             case {lfe_io:read_string(OrigText), lfe_io:read_string(OutText)} of
                 {{ok, Orig}, {ok, Fmted}} ->
-                    ?assertEqual(Orig, Fmted,
+                    ?assertEqual(normalize_module_decls(Orig),
+                                 normalize_module_decls(Fmted),
                                  io_lib:format("AST-equiv failed: ~s", [File]));
                 {{error, _}, _} -> ok;
                 {_, {error, AstErr}} ->

@@ -238,19 +238,53 @@ fmt_oracle_idempotency(Out) ->
         _         -> false
     end.
 
+%% A7·S5b carve-out: token oracle is multiset (sort-insensitive) so that
+%% export sorting does not cause false negatives. Any add/drop/mutate is
+%% still caught because the multiset changes; only order is relaxed.
 fmt_oracle_tokens(Src, Out) ->
-    fmt_sig_pairs(Src) =:= fmt_sig_pairs(Out).
+    lists:sort(fmt_sig_pairs(Src)) =:= lists:sort(fmt_sig_pairs(Out)).
 
 fmt_oracle_comments(Src, Out) ->
     fmt_comments(Src) =:= fmt_comments(Out).
 
+%% A7·S5b carve-out: AST oracle normalizes export entry order so that
+%% the sort doesn't cause false negatives. All other ordering is preserved.
 fmt_oracle_ast(Src, Out) ->
     OrigText = binary_to_list(Src),
     OutText  = binary_to_list(Out),
     case {lfe_io:read_string(OrigText), lfe_io:read_string(OutText)} of
-        {{ok, Orig}, {ok, Fmted}} -> Orig =:= Fmted;
+        {{ok, Orig}, {ok, Fmted}} ->
+            normalize_module_decls(Orig) =:= normalize_module_decls(Fmted);
         {{error, _}, _}           -> true;
         {_, {error, _}}           -> false
+    end.
+
+%% normalize_module_decls: sort export entries canonically so the AST oracle
+%% is order-insensitive for (export …) entries only. Uses norm_list/1 to
+%% handle improper lists (dotted pairs) safely.
+normalize_module_decls([export | Entries]) ->
+    [export | normalize_export_entries(Entries)];
+normalize_module_decls([import | Clauses]) ->
+    %% S5c hook: import sorting deferred. Recurse into sub-forms for future use.
+    [import | norm_list(Clauses)];
+normalize_module_decls(Term) when is_list(Term) ->
+    norm_list(Term);
+normalize_module_decls(Term) ->
+    Term.
+
+norm_list([]) -> [];
+norm_list([H | T]) when is_list(T) -> [normalize_module_decls(H) | norm_list(T)];
+norm_list([H | T])                 -> [normalize_module_decls(H) | T];
+norm_list(Other)                   -> Other.
+
+normalize_export_entries(Entries) ->
+    AllPairs = lists:all(
+        fun([N, A]) -> is_atom(N) andalso is_integer(A);
+           (_)      -> false
+        end, Entries),
+    case AllPairs of
+        true  -> lists:sort(Entries);
+        false -> Entries
     end.
 
 fmt_sig_pairs(Bin) ->
