@@ -227,6 +227,15 @@
     eg_guard_small_stays_flat/1
 ]).
 
+%% export_layout group (A7·S5a — export/import one-per-line + +1 indent)
+-export([
+    el_short_export_breaks/1,
+    el_wide_export_at_plus1/1,
+    el_single_entry/1,
+    el_import_top_level_plus1/1,
+    el_close_alignment/1
+]).
+
 %% fix2 group (A4·S1·fix2 — head trailing comment + matrix)
 -export([
     fix2_funcall_head_trail_args/1,
@@ -308,6 +317,7 @@ all() ->
      {group, signature}, {group, close_deindent},
      {group, flet_locals},
      {group, export_guards},
+     {group, export_layout},
      {group, edge_hardening}, {group, fuzz}, {group, corpus_sweep},
      {group, regimes}, {group, cons_dot}].
 
@@ -452,6 +462,13 @@ groups() ->
             eg_guard_comment_fallback_guard_lead,
             eg_guard_non_guard_unchanged,
             eg_guard_small_stays_flat
+        ]},
+        {export_layout, [], [
+            el_short_export_breaks,
+            el_wide_export_at_plus1,
+            el_single_entry,
+            el_import_top_level_plus1,
+            el_close_alignment
         ]},
         {fix2, [], [
             fix2_funcall_head_trail_args,
@@ -1123,38 +1140,38 @@ fix1_dist_arg_leading_comment(_Config) ->
 %%====================================================================
 
 eg_export_wide(_Config) ->
-    %% Wide (export …) → keyword alone on its line, items at C+2. ✅
+    %% A7·S5a: export always breaks; items at C+OpenLen (+1, not +2). ✅ golden updated +4→+3.
     assert_format(
         <<"(defmodule maths\n"
           "  (export (ackermann 2) (factorial 1) (factorial 2)\n"
           "          (large-prime-number? 1) (small-prime-number? 1)))">>,
         <<"(defmodule maths\n"
           "  (export\n"
-          "    (ackermann 2)\n"
-          "    (factorial 1)\n"
-          "    (factorial 2)\n"
-          "    (large-prime-number? 1)\n"
-          "    (small-prime-number? 1)))\n">>),
+          "   (ackermann 2)\n"
+          "   (factorial 1)\n"
+          "   (factorial 2)\n"
+          "   (large-prime-number? 1)\n"
+          "   (small-prime-number? 1)))\n">>),
     assert_idempotent(
         <<"(defmodule maths\n"
           "  (export (ackermann 2) (factorial 1) (factorial 2)\n"
           "          (large-prime-number? 1) (small-prime-number? 1)))">>).
 
 eg_export_short(_Config) ->
-    %% Short (export …) that fits flat — stays on one line.
+    %% A7·S5a: short (export …) now force-breaks — one entry per line at +1. Golden updated.
     assert_format(<<"(defmodule m (export (run 0)))">>,
-                  <<"(defmodule m\n  (export (run 0)))\n">>),
+                  <<"(defmodule m\n  (export\n   (run 0)))\n">>),
     assert_idempotent(<<"(defmodule m (export (run 0)))">>).
 
 eg_import_wide(_Config) ->
-    %% Wide (import …) → keyword alone, (from …)/(rename …) at C+2. ✅
+    %% A7·S5a: import always breaks; (from …)/(rename …) at C+OpenLen (+1). Golden +4→+3.
     Input = <<"(defmodule m\n"
               "  (import (from lists (map 2) (filter 2) (foldl 3) (foldr 3) (any 2) (all 2))\n"
               "          (rename io ((format 2) fmt))))">>,
     Expected = <<"(defmodule m\n"
                  "  (import\n"
-                 "    (from lists (map 2) (filter 2) (foldl 3) (foldr 3) (any 2) (all 2))\n"
-                 "    (rename io ((format 2) fmt))))\n">>,
+                 "   (from lists (map 2) (filter 2) (foldl 3) (foldr 3) (any 2) (all 2))\n"
+                 "   (rename io ((format 2) fmt))))\n">>,
     assert_format(Input, Expected),
     assert_idempotent(Input).
 
@@ -1230,6 +1247,76 @@ eg_guard_small_stays_flat(_Config) ->
                  "  ((0 acc) acc))\n">>,
     assert_format(Input, Expected),
     assert_idempotent(Input).
+
+%%====================================================================
+%% export_layout group — A7·S5a: export/import one-per-line at +1
+%%====================================================================
+
+el_short_export_breaks(_Config) ->
+    %% A7·S5a: short export that previously stayed flat now force-breaks.
+    %% Items at C+OpenLen = 2+1 = 3 (under the 'e' of export).
+    assert_format(
+        <<"(defmodule m (export (run 0)))">>,
+        <<"(defmodule m\n  (export\n   (run 0)))\n">>),
+    assert_idempotent(<<"(defmodule m (export (run 0)))">>).
+
+el_wide_export_at_plus1(_Config) ->
+    %% Wide export: items at +1, not +2. Golden changed +4→+3 vs A4·S3d.
+    assert_format(
+        <<"(defmodule maths\n"
+          "  (export (ackermann 2) (factorial 1) (factorial 2)\n"
+          "          (large-prime-number? 1) (small-prime-number? 1)))">>,
+        <<"(defmodule maths\n"
+          "  (export\n"
+          "   (ackermann 2)\n"
+          "   (factorial 1)\n"
+          "   (factorial 2)\n"
+          "   (large-prime-number? 1)\n"
+          "   (small-prime-number? 1)))\n">>),
+    assert_idempotent(
+        <<"(defmodule maths\n"
+          "  (export (ackermann 2) (factorial 1) (factorial 2)\n"
+          "          (large-prime-number? 1) (small-prime-number? 1)))">>).
+
+el_single_entry(_Config) ->
+    %% Single-entry export still breaks (not flat-if-fits).
+    assert_format(
+        <<"(defmodule m (export (main 0)))">>,
+        <<"(defmodule m\n  (export\n   (main 0)))\n">>),
+    assert_idempotent(<<"(defmodule m (export (main 0)))">>).
+
+el_import_top_level_plus1(_Config) ->
+    %% Import top-level clauses at +1; (from …)/(rename …) internals unchanged (S5c).
+    assert_format(
+        <<"(defmodule m\n"
+          "  (import (from lists (map 2) (filter 2))\n"
+          "          (from io (format 2))))">>,
+        <<"(defmodule m\n"
+          "  (import\n"
+          "   (from lists (map 2) (filter 2))\n"
+          "   (from io (format 2))))\n">>),
+    assert_idempotent(
+        <<"(defmodule m\n"
+          "  (import (from lists (map 2) (filter 2))\n"
+          "          (from io (format 2))))">>).
+
+el_close_alignment(_Config) ->
+    %% Close aligns with items at +1 (§3.4a via close_section).
+    %% Trailing comment on last entry forces lone-close; close at EffIndent = col 3.
+    assert_format(
+        <<"(defmodule m\n"
+          "  (export\n"
+          "   (run 0) ; entry\n"
+          "   ))">>,
+        <<"(defmodule m\n"
+          "  (export\n"
+          "   (run 0) ; entry\n"
+          "   ))\n">>),
+    assert_idempotent(
+        <<"(defmodule m\n"
+          "  (export\n"
+          "   (run 0) ; entry\n"
+          "   ))">>).
 
 %%====================================================================
 %% fix2 group — A4·S1·fix2: head trailing comment matrix
@@ -1354,9 +1441,9 @@ defmacro_match(_Config) ->
     assert_idempotent(<<"(defmacro my-mac ((a b) `(+ ,a ,b)))">>).
 
 defmodule_always_breaks(_Config) ->
-    %% defmodule always breaks even when it would fit on one line.
+    %% defmodule always breaks; A7·S5a: export also always breaks at +1. Golden updated.
     assert_format(<<"(defmodule mymod (export (f 0)))">>,
-                  <<"(defmodule mymod\n  (export (f 0)))\n">>),
+                  <<"(defmodule mymod\n  (export\n   (f 0)))\n">>),
     assert_idempotent(<<"(defmodule mymod (export (f 0)))">>).
 
 defrecord_always_breaks(_Config) ->
@@ -1605,30 +1692,29 @@ conf_defrecord(_Config) ->
         <<"(defrecord person\n  name\n  age\n  occupation)\n">>).
 
 conf_defmodule_simple(_Config) ->
-    %% Simple defmodule: always breaks, flat export fits on one line.  ✅
+    %% A7·S5a: even single-entry export now breaks. Golden +2→+1. ✅
     assert_format(
         <<"(defmodule mymod\n  (export (f 0)))">>,
-        <<"(defmodule mymod\n  (export (f 0)))\n">>).
+        <<"(defmodule mymod\n  (export\n   (f 0)))\n">>).
 
 conf_defmodule_exports_our_canonical(_Config) ->
-    %% A4·S3d Decision A: export is specform N=0 — keyword alone, items at C+2.
-    %% ✅ FIXED POINT — this now matches the style guide's (export\n  item…) layout.
-    %% (Replaces the old funcall-align divergence [1].)
+    %% A7·S5a: export always at +1 (C+OpenLen). Golden updated +4→+3 from A4·S3d baseline.
+    %% ✅ FIXED POINT — items align under the keyword letter, not at C+2.
     assert_format(
         <<"(defmodule maths\n"
           "  (export\n"
-          "    (ackermann 2)\n"
-          "    (factorial 1)\n"
-          "    (factorial 2)\n"
-          "    (large-prime-number? 1)\n"
-          "    (small-prime-number? 1)))">>,
+          "   (ackermann 2)\n"
+          "   (factorial 1)\n"
+          "   (factorial 2)\n"
+          "   (large-prime-number? 1)\n"
+          "   (small-prime-number? 1)))">>,
         <<"(defmodule maths\n"
           "  (export\n"
-          "    (ackermann 2)\n"
-          "    (factorial 1)\n"
-          "    (factorial 2)\n"
-          "    (large-prime-number? 1)\n"
-          "    (small-prime-number? 1)))\n">>).
+          "   (ackermann 2)\n"
+          "   (factorial 1)\n"
+          "   (factorial 2)\n"
+          "   (large-prime-number? 1)\n"
+          "   (small-prime-number? 1)))\n">>).
 
 conf_map_wide_pairs(_Config) ->
     %% Wide map (>80 chars): pair alignment, first pair on opener line.  ✅
@@ -1658,6 +1744,7 @@ conf_comment_levels(_Config) ->
     %% ⚠ DIVERGENCE [6]: formatter normalises trailing-comment spacing to exactly
     %% 1 space (per spec §4).  Guide allows multiple spaces for alignment.
     %% This test verifies our canonical (1-space) form is a fixed point.
+    %% A7·S5a: (export (f 0)) now breaks to +1. Input/golden updated.
     assert_format(
         <<";;;; File header\n\n"
           ";;; Section header\n\n"
@@ -1670,7 +1757,8 @@ conf_comment_levels(_Config) ->
         <<";;;; File header\n\n"
           ";;; Section header\n\n"
           "(defmodule m\n"
-          "  (export (f 0)))\n\n"
+          "  (export\n"
+          "   (f 0)))\n\n"
           ";; Code comment\n"
           "(defun f ()\n"
           "  (do-something) ; inline remark\n"
@@ -2127,11 +2215,11 @@ sig_defun_keyword_not_alone(_Config) ->
 %%====================================================================
 
 cd_defmodule_export_dangling(_Config) ->
-    %% defmodule export whose last entries are comments: close aligns with
-    %% the export items/comment, not de-indented to the defmodule column.
+    %% A7·S5a: export items at +1 (col 3), so dangling comment and close at col 3 too.
+    %% Golden +4→+3 vs prior A4·S3d baseline.
     Input = <<"(defmodule m\n  (export\n    (new 0)\n    ;; XXX broken; see #397\n  ))">>,
     assert_format(Input,
-                  <<"(defmodule m\n  (export\n    (new 0)\n    ;; XXX broken; see #397\n    ))\n">>),
+                  <<"(defmodule m\n  (export\n   (new 0)\n   ;; XXX broken; see #397\n   ))\n">>),
     assert_idempotent(Input).
 
 cd_body_trailing_comment(_Config) ->

@@ -601,8 +601,20 @@ must_break(Node) ->
             r3lfe_format_cst:dot_token(Node) =:= undefined
             andalso (is_force_break_defform(Node)
                      orelse is_always_break_head(Node)
-                     orelse is_lambda_multi_body(Node));
+                     orelse is_lambda_multi_body(Node)
+                     orelse is_export_import_with_entries(Node));
         _    -> false
+    end.
+
+%% is_export_import_with_entries: true for export/import lists with at least one entry.
+%% Empty (export) may stay flat; any entry forces a break.
+-spec is_export_import_with_entries(r3lfe_format_cst:cst_node()) -> boolean().
+is_export_import_with_entries(Node) ->
+    case r3lfe_format_cst:children(Node) of
+        [Head | Rest] when Rest =/= [] ->
+            is_export_import_head(Head);
+        _ ->
+            false
     end.
 
 %% is_always_break_head: true for list nodes headed by a form that must always
@@ -711,6 +723,16 @@ is_try_head(Head) ->
     case r3lfe_format_cst:type(Head) of
         symbol ->
             r3lfe_format_lexer:text(r3lfe_format_cst:open(Head)) =:= "try";
+        _ ->
+            false
+    end.
+
+-spec is_export_import_head(r3lfe_format_cst:cst_node()) -> boolean().
+is_export_import_head(Head) ->
+    case r3lfe_format_cst:type(Head) of
+        symbol ->
+            Text = r3lfe_format_lexer:text(r3lfe_format_cst:open(Head)),
+            Text =:= "export" orelse Text =:= "import";
         _ ->
             false
     end.
@@ -903,7 +925,7 @@ classify_head(Head) ->
 
 %% specform_table: verbatim from lfe-indent.el; maps symbol text → N distinguished args.
 %% Intentional extensions beyond lfe-indent.el (per Duncan's ruling):
-%%   "export" => 0, "import" => 0 — keyword-alone style, items at C+2, flat-if-fits.
+%%   "export" => 0, "import" => 0 — keyword-alone style, items at C+OpenLen (+1), always-break.
 %%   Other module-clause forms (behaviour, doc, …) could be added similarly.
 %% Dialyzer infers a narrower key type ([1..255,...]) than string(); suppress.
 -dialyzer({no_underspecs, specform_table/0}).
@@ -1084,17 +1106,31 @@ print_classified({specform, N}, Head, RestChildren, Dangling,
             IsCaseHead = is_clause_specform_head(Head, N),
             IsReceiveHead = is_receive_head(Head),
             IsTryHead = is_try_head(Head),
+            IsExportImportHead = is_export_import_head(Head),
             IsDefunMatchHead =
                 is_defun_match_head(Head, N) andalso DistIO =/= [] andalso all_clauses(Body),
+            %% export/import use +1 indent (C+OpenLen); all others use the standard C+2.
+            EffIndent = case IsExportImportHead of true -> C + OpenLen; false -> Indent end,
+            EffIndStr = case IsExportImportHead of
+                            true  -> lists:duplicate(C + OpenLen, $\s);
+                            false -> IndentStr
+                        end,
             {BodyIO, LastCol, HasTrail} =
-                case {IsTryHead, IsReceiveHead, IsCaseHead orelse IsDefunMatchHead} of
-                    {true, _, _}  -> print_try_body_loop(Body, Indent, IndentStr, true, InData);
-                    {_, true, _}  -> print_receive_body_loop(Body, Indent, IndentStr, true, InData);
-                    {_, _, true}  -> print_clause_loop(Body, Indent, IndentStr, true, InData);
-                    {_, _, false} -> print_rest_loop(Body, Indent, IndentStr, true, InData)
+                case {IsExportImportHead, IsTryHead, IsReceiveHead,
+                      IsCaseHead orelse IsDefunMatchHead} of
+                    {true, _, _, _}  -> print_rest_loop(Body, EffIndent, EffIndStr,
+                                                         true, InData);
+                    {_, true, _, _}  -> print_try_body_loop(Body, Indent, IndentStr,
+                                                             true, InData);
+                    {_, _, true, _}  -> print_receive_body_loop(Body, Indent, IndentStr,
+                                                                 true, InData);
+                    {_, _, _, true}  -> print_clause_loop(Body, Indent, IndentStr,
+                                                           true, InData);
+                    {_, _, _, false} -> print_rest_loop(Body, Indent, IndentStr,
+                                                         true, InData)
                 end,
             {CloseIO, CloseCol} = close_section(Dangling, HasTrail, LastCol,
-                                                Indent, IndentStr, C, CIndStr, Close),
+                                                EffIndent, EffIndStr, C, CIndStr, Close),
             {[HeadLeadIO, Open, HeadIO, HeadTrailIO, DistIO, BodyIO, CloseIO], CloseCol}
     end;
 
