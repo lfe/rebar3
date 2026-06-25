@@ -6,13 +6,18 @@
 > verification: the example is compiled with LFE (must compile) and then run
 > through `r3lfe_formatter:format/1`; the fence holds the exact formatter output.
 >
-> Status: fences are **empty pending CC** (see `cc-prompt-gallery.md`). The number
-> on each entry is its stable ID — the matching input lives in the CC prompt.
+> Status: generated & verified against the 0.5.5 formatter (2026-06-25).
 >
-> Conventions demonstrated: 80-col width, 2-space indent, align-under-first-arg
-> for plain calls, the `lfe-indent.el` special-form table, def-forms always break
-> (except no-arg constants), `let`/`case`/`cond`/maps always break, comments
-> preserved.
+> Conventions (v2): 80-col width, 2-space indent. Model: **knowledge-gated** —
+> canonical special forms use the `lfe-indent.el` table; unknown/data forms use
+> break-preserving layout. Always-break set: `if`/`let`/`let*`/`case`/`cond`/
+> `progn`/`receive`/`try`/`maybe`/maps/def-bodies. **try** uses full symmetry:
+> `try` alone, body at +2, each section keyword alone at +2, section contents at
+> +4. **export/import**: always one-per-line at `C+OpenLen` (+1 under the
+> keyword), alphabetically sorted by name then arity (suppressed when any entry
+> has a comment). **import nested**: `(from M …)`/`(rename M …)` keyword+module
+> on the head line, entries at +1. Head comment on the opener line; cons-dot kept
+> glued.
 
 ---
 
@@ -100,7 +105,8 @@ A call too wide for 80 cols; continuation args align under the first argument.
 ```
 
 ### 11. Nested calls (mixed flat / broken)
-An outer call that breaks containing inner calls that stay flat.
+An outer call that breaks containing inner calls; the third inner call is wide
+enough to itself break.
 
 ```lfe
 (outer (inner-a 1 2)
@@ -148,7 +154,7 @@ An outer call that breaks containing inner calls that stay flat.
 ```
 
 ### 17. Function reference
-`#'name/arity` — the deprecated fun-ref syntax, prefix glued.
+`#'name/arity` — the fun-ref syntax, prefix glued.
 
 ```lfe
 (lists:map #'double/1 xs)
@@ -158,11 +164,14 @@ An outer call that breaks containing inner calls that stay flat.
 
 ## §4 — Special forms
 
-### 18. if
-`(if test then else)` — specform N=1 (test on the head line).
+### 18. if (always breaks)
+`(if test then else)` — `if` is in the always-break set; test on the head
+line, then/else at +2.
 
 ```lfe
-(if (> x 0) x (- x))
+(if (> x 0)
+  'positive
+  'non-positive)
 ```
 
 ### 19. case (always breaks)
@@ -172,24 +181,24 @@ An outer call that breaks containing inner calls that stay flat.
 (case x
   (1 'one)
   (2 'two)
-  (_ 'other))
+  (_ 'many))
 ```
 
 ### 20. cond (always breaks, aligned)
 `(cond (test body)...)` — clauses aligned under the first clause.
 
 ```lfe
-(cond ((> x 0) 'pos)
-      ((< x 0) 'neg)
-      ('true 'zero))
+(cond ((< x 0) 'neg)
+      ((=:= x 0) 'zero)
+      ('true 'pos))
 ```
 
 ### 21. cond with `?=`
 A `cond` clause using the `(?= pat expr)` match test.
 
 ```lfe
-(cond ((?= `#(ok ,val) result) val)
-      ('true 'error))
+(cond ((?= (tuple 'ok v) (fetch k)) v)
+      ('true 'none))
 ```
 
 ### 22. receive with after
@@ -197,19 +206,25 @@ A `cond` clause using the `(?= pat expr)` match test.
 
 ```lfe
 (receive
-  ((tuple 'ok msg) msg)
-  ((tuple 'error reason) (error reason))
-  (after 5000 (error timeout)))
+  ((tuple 'msg m)
+   (handle m))
+  (after 1000 'timeout))
 ```
 
-### 23. try / catch / after
-A `try` with `case`, `catch`, and `after` sections.
+### 23. try / catch / after (full symmetry)
+`try` alone on the first line; body and each section keyword at +2; section
+contents at +4 via `render_clause`.
 
 ```lfe
-(try (foo x)
-  (case ((tuple 'ok v) v))
-  (catch ((tuple 'error reason) (error reason)))
-  (after (cleanup)))
+(try
+  (risky)
+  (case
+    ((tuple 'ok v) v))
+  (catch
+    ((tuple _ r _)
+     (log r)))
+  (after
+    (cleanup)))
 ```
 
 ### 24. lambda
@@ -220,17 +235,22 @@ A `try` with `case`, `catch`, and `after` sections.
 ```
 
 ### 25. match-lambda
-`(match-lambda (pat body)...)` — specform N=0.
+`(match-lambda (pat body)...)` — specform N=0; always breaks.
 
 ```lfe
-(match-lambda ((x) (when (> x 0)) x) ((x) (- x)))
+(match-lambda
+  ((0) 'zero)
+  ((n) n))
 ```
 
 ### 26. progn
 `(progn expr...)` — N=0, body one per line.
 
 ```lfe
-(progn (foo) (bar) (baz))
+(progn
+  (step-one)
+  (step-two)
+  (step-three))
 ```
 
 ### 27. maybe with else
@@ -238,11 +258,10 @@ A `try` with `case`, `catch`, and `after` sections.
 
 ```lfe
 (maybe
-  (tuple 'ok x)
-  ?=
-  (let ((y (+ x 1)))
-    y)
-  (else ((tuple 'error r) r)))
+  (?= (tuple 'ok a) (fa))
+  (?= (tuple 'ok b) (fb))
+  (+ a b)
+  (else (('error) 'failed)))
 ```
 
 ---
@@ -254,34 +273,35 @@ A `try` with `case`, `catch`, and `after` sections.
 
 ```lfe
 (let ((x 1))
-  (+ x 2))
+  (+ x 1))
 ```
 
 ### 29. let, multiple bindings
-Bindings one per line, aligned under the first binding.
+First bindings fit on the binding head line; overflow bindings align under the
+first.
 
 ```lfe
-(let ((x 1)
-      (y 2)
-      (z 3))
+(let ((x 1) (y 2)
+            (z 3))
   (+ x y z))
 ```
 
 ### 30. let*
-Sequential bindings, one per line.
+Sequential bindings: first bindings on the head line, overflow aligned under
+the first.
 
 ```lfe
-(let* ((x 1)
-       (y (+ x 1))
-       (z (+ y 1)))
-  (* x y z))
+(let* ((low 1) (high 2)
+               (sum (+ low high)))
+  sum)
 ```
 
-### 31. flet / fletrec (NOT forced)
-Local functions — flat-if-fits (scope note: not in the always-break set).
+### 31. flet / fletrec (flat-if-fits)
+`flet` is not in the always-break set: the whole form stays flat when it fits.
+When a local binding's body overflows, it renders defun-like (§3.6 — see #61).
 
 ```lfe
-(flet ((double (x) (* 2 x)) (square (x) (* x x))) (double (square 3)))
+(flet ((double (n) (* 2 n))) (double 21))
 ```
 
 ---
@@ -292,78 +312,84 @@ Local functions — flat-if-fits (scope note: not in the always-break set).
 Signature on the head line; body at +2, even when it would fit.
 
 ```lfe
-(defun double (x)
-  (* 2 x))
+(defun factorial (n)
+  (* n (factorial (- n 1))))
 ```
 
 ### 33. defun constant (no args, flat if fits)
 `(defun +my-pi+ () 3.14)` — the constant idiom stays on one line.
 
 ```lfe
-(defun +my-pi+ () 3.14159)
+(defun +my-pi+ () 3.14)
 ```
 
 ### 34. defun with docstring
 Docstring on its own line at +2, before the body.
 
 ```lfe
-(defun greet (name)
-  "Greet the given name."
-  (++ "Hello, " name))
+(defun square (x)
+  "Return the square of X."
+  (* x x))
 ```
 
 ### 35. defun match-clause form
-`(defun name (clause)...)` — name on head line, clauses at +2.
+`(defun name clause...)` — name on head line, clauses at +2.
 
 ```lfe
-(defun fact
-  ((0) 1)
-  ((n) (* n (fact (- n 1)))))
+(defun ack
+  ((0 n)
+   (+ n 1))
+  ((m 0)
+   (ack (- m 1) 1))
+  ((m n)
+   (ack (- m 1) (ack m (- n 1)))))
 ```
 
 ### 36. defun match-clause with guard
-Pattern and `(when ...)` guard share one line; body below at align column.
-Wide clauses trigger the guard path; small clauses stay flat.
+Pattern and `(when ...)` guard share one line; body below at the clause indent.
 
 ```lfe
-(defun factorial
-  ((0 accumulator) accumulator)
-  ((number accumulator) (when (> number 0))
-   (factorial (- number 1) (* number accumulator))))
+(defun fact
+  ((0 acc) acc)
+  ((n acc) (when (> n 0))
+   (fact (- n 1) (* n acc))))
 ```
 
 ### 37. defmacro
-A macro definition (signature and/or match-clause).
+A simple macro definition; body at +2.
 
 ```lfe
-(defmacro my-and
-  (() 'true)
-  ((e) e)
-  ((e . rest) `(if ,e (my-and ,@rest) 'false)))
+(defmacro double (x)
+  `(* 2 ,x))
 ```
 
 ### 38. defmodule with export
-Wide `export`: keyword alone on its line, items at `C+2` (specform N=0).
-Short `export` that fits within 80 cols stays flat.
+`export` entries always one-per-line at `C+OpenLen` (+1 under the keyword),
+alphabetically sorted by name then arity.
 
 ```lfe
-(defmodule my-module
+(defmodule maths
   (export
-    (ackermann 2)
-    (factorial 1)
-    (factorial 2)
-    (large-prime-number? 1)
-    (small-prime-number? 1)))
+   (ackermann 2)
+   (factorial 1)
+   (square 1)))
 ```
 
 ### 39. defmodule with import
-Wide `import`: keyword alone, `(from …)`/`(rename …)` at `C+2`.
+`import` entries nested: `(from M …)`/`(rename M …)` keyword+module on the
+head line, entries one-per-line at +1, sorted within each clause; clause order
+preserved.
 
 ```lfe
-(defmodule my-module
+(defmodule client
+  (export
+   (run 0))
   (import
-    (from lists (map 2) (filter 2) (foldl 3) (foldr 3))
-    (rename io ((format 2) fmt))))
+   (from lists
+    (filter 2)
+    (map 2))
+   (rename maths
+    ((factorial 1) fact))))
 ```
 
 ### 40. defrecord
@@ -371,18 +397,17 @@ Wide `import`: keyword alone, `(from …)`/`(rename …)` at `C+2`.
 
 ```lfe
 (defrecord person
-  name
-  age
+  (name "")
+  (age 0)
   email)
 ```
 
 ### 41. defstruct
-`(defstruct field...)`.
+`(defstruct field...)` — always breaks, fields with defaults at +2.
 
 ```lfe
-(defstruct name
-  age
-  email)
+(defstruct (name "")
+  (age 0))
 ```
 
 ---
@@ -390,49 +415,53 @@ Wide `import`: keyword alone, `(from …)`/`(rename …)` at `C+2`.
 ## §7 — Data structures & comprehensions
 
 ### 42. Tuple (flat and broken)
-`#(a b c)` flat; a wide tuple breaks with elements aligned under the first.
+`#(ok 42)` stays flat; a wide `tuple` form breaks with elements aligned under
+the first argument.
 
 ```lfe
-#(a-very-long-element-name
-  another-very-long-element-name
-  yet-another-long-name-x)
+(list #(ok 42)
+      (tuple 'data
+             (longish-value-one)
+             (longish-value-two)
+             (third-value-to-overflow)))
 ```
 
 ### 43. Map (always breaks to pairs)
-`#m(k v ...)` — one key-value pair per line.
+`#m(k v ...)` — always breaks; one key-value pair per line.
 
 ```lfe
-#m(key1 val1
-   key2 val2
-   key3 val3)
+#m(alpha 1
+   beta 2
+   gamma 3)
 ```
 
 ### 44. Binary with segments
-`#b((x (size 16)) ...)` segment syntax.
+`#b((x (size 16)) ...)` segment syntax; flat when it fits.
 
 ```lfe
-#b((x (size 16)) (y (size 8) (type unsigned)) z)
+#b((42 (size 16)) (1.0 float (size 32)))
 ```
 
-### 45. Record make / match / update
-`(make-name ...)`, `(match-name ...)`, `(update-name ...)`.
+### 45. Record make / update
+`(make-name ...)`, `(update-name ...)` — flat when they fit.
 
 ```lfe
-(make-person name "Alice" age 30 email "alice@example.com")
+(list (make-person name "Robert" age 54) (update-person p age 55))
 ```
 
 ### 46. List comprehension
-`(lc ((<- x list) guard) expr)`.
+`(lc ((<- x list) guard) expr)` — flat when it fits.
 
 ```lfe
-(lc ((<- x '(1 2 3 4 5)) (> x 2)) (* x x))
+(lc ((<- x (lists:seq 1 10)) (== 0 (rem x 2))) (* x x))
 ```
 
 ### 47. Binary comprehension
-`(bc ((<= seg binary) test) bitstring-expr)`.
+`(bc ((<= seg binary) test) bitstring-expr)` — breaks when wide.
 
 ```lfe
-(bc ((<= seg my-binary) (> (size seg) 0)) seg)
+(bc ((<= (binary (f float (size 32))) bin) (> f 1.0))
+  (binary (f float (size 64))))
 ```
 
 ---
@@ -443,38 +472,32 @@ Wide `import`: keyword alone, `(from …)`/`(rename …)` at `C+2`.
 A `;;` comment above a form (leading trivia).
 
 ```lfe
-;; Compute the double of x.
-(defun double (x)
-  (* 2 x))
+;; compute the answer
+(defun answer () 42)
 ```
 
 ### 49. Trailing comment
 An end-of-line comment after a form; one space before `;`.
 
 ```lfe
-(defun double (x)
-  (* 2 x)) ; double it
+(defun answer () 42) ; the answer
 ```
 
 ### 50. Block comment
-`#| ... |#`, possibly multi-line, verbatim.
+`#| ... |#` at the top level, verbatim.
 
 ```lfe
-(defun foo (x)
-  #| this is a block
-  comment |#
-  x)
+#| module-level note |#
+(defun f () 'ok)
 ```
 
-### 51. Dangling comment before close
-A comment on its own line before a closing paren.
+### 51. Trailing comment on element before close
+A trailing comment on a list element; the close paren falls to its own line.
 
 ```lfe
-(list 1
-      2
-      3
-  ;; end of list
-)
+(list a
+      b ;; note before close
+      )
 ```
 
 ### 52. Comment between `(` and head
@@ -482,78 +505,85 @@ Head-leading comment — opener stands alone, all children at +2.
 
 ```lfe
 (
-  ;; c
-  alpha
-  beta)
+  ;; head note
+  list
+  a
+  b
+  c)
 ```
 
 ### 53. Head trailing comment
-A trailing comment on the head symbol — args fall to the body.
+A trailing comment on the head symbol; args fall to `C+2` on a single line.
 
 ```lfe
-(foo ;; trailing
-  bar
-  baz)
+(list ; the items
+  a b c)
 ```
 
 ### 54. Section comment levels
-`;;;;` / `;;;` / `;;` / `;` used at their conventional scopes.
+`;;;;` (file), `;;;` (section), `;;` (code), `;` (inline) at their conventional
+scopes.
 
 ```lfe
-;;;; Section header
-;;; Subsection
-;; Note
-; inline
-(foo)
+;;;; File header
+;;; Section
+;; code note
+(defun f () ; inline
+  'ok)
 ```
 
 ### 55. Blank line preservation
-A single blank line kept between top-level forms (runs collapsed to one).
+A single blank line is kept between top-level forms; runs of multiple blank
+lines are collapsed to one.
 
 ```lfe
-(foo)
+(defun foo () 'foo)
 
-(bar)
+(defun bar () 'bar)
+
+(defun baz () 'baz)
+```
+
+### 56. Wide call (align under first arg)
+A wide call that cannot fit on one line; arguments align under the first.
+
+```lfe
+(register-handler 'an-event
+                  (lambda (e) (process-the-event e))
+                  #(priority high)
+                  (with-options foo bar baz quux))
 ```
 
 ---
 
 ## §9 — Width, nesting & guards
 
-### 56. Form exceeding 80 columns
-A form that overflows and must break.
+### 57. Deeply nested form (fits flat)
+Several levels of nesting; the whole thing fits within 80 cols and stays flat.
 
 ```lfe
-(some-long-function-name argument-one
-                         argument-two
-                         argument-three
-                         argument-four-x)
-```
-
-### 57. Deeply nested form
-Several levels of nesting, each indented consistently.
-
-```lfe
-(defun outer (x)
-  (let ((y (inner-a x)))
-    (let ((z (inner-b y)))
-      (result x y z))))
+(a (b (c (d (e (f-with-a-long-tail one two three four five six))))))
 ```
 
 ### 58. Long argument list
-A call whose arguments wrap, aligned under the first.
+A call whose arguments break; continuation args align under the first.
 
 ```lfe
-(lists:foldl (lambda (acc x) (+ acc x)) 0 (lists:seq 1 100))
+(do-something first-argument
+              second-argument
+              (lambda (x) (frob x))
+              fourth-argument
+              last-argument)
 ```
 
-### 59. Guards with multiple tests
-A `when` guard combining several tests.
+### 59. Guards with match-clause
+`(when ...)` guard on the pattern line; body at clause indent.
 
 ```lfe
-(defun in-range (x min max)
-  (when (>= x min) (<= x max))
-  x)
+(defun classify
+  ((n) (when (andalso (> n 0) (< n 10)))
+   'small)
+  ((n) 'large))
 ```
 
 ### 60. eval-when-compile
@@ -562,5 +592,38 @@ A `when` guard combining several tests.
 ```lfe
 (eval-when-compile
   (defun helper (x)
-    (* x 2)))
+    (* x x)))
+```
+
+---
+
+## §10 — A7 behaviors
+
+### 61. Wide flet → defun-like break
+When a `flet` local binding's body overflows, it renders defun-like: name +
+args on the head line, body at `C+OpenLen+1`.
+
+```lfe
+(flet ((long-function-name (a b c)
+         (some-complex-body-call a b c)))
+  (long-function-name 1 2 3))
+```
+
+### 62. Cons-dot / improper list
+A dotted pair `(a . b)` keeps the dot glued to its neighbours; `(cons 1 2)`
+stays flat.
+
+```lfe
+(list (cons 1 2) '(a . b))
+```
+
+### 63. Commented export — sort suppressed
+When any export entry has a comment (leading or trailing), sorting is suppressed
+so the developer-annotated order is preserved verbatim.
+
+```lfe
+(defmodule m
+  (export
+   (z 0) ; last
+   (a 0)))
 ```
