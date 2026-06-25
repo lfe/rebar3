@@ -101,24 +101,77 @@ calls.
   `close_section`'s lone-close indentation. (Routes to S4.)
 
 ### 3.5 export / import
-- Always **one entry per line**, regardless of count. *(corr. #4, #12)*
-- Entries **sorted alphabetically** by name, then arity. **This is the one rule
+- Always **one entry per line**, regardless of count (force-break; not
+  flat-if-fits). *(corr. #4, #12)*
+- **Item indent = +1, aligned under the keyword** *(decided 2026-06-23, Duncan;
+  matches xrepl-store.lfe and the mnesia-demo)*. `export` items sit one column
+  past the `(export` open paren (under the `e`), **not** the body +2 used by other
+  special forms. The same +1-under-keyword rule applies at every level of
+  `import` (clauses under `import`; `from`/`rename` entries under their keyword).
+- **Entries sorted alphabetically** by name, then arity. **This is the one rule
   that reorders tokens** — a deliberate, semantics-preserving exception to the
-  never-reorder invariant; the token-preservation oracle gets a carve-out for
-  export/import entry order. *(corr. #4)*
-- **Open detail:** item indentation. Current build indents items +2 from
-  `(export`; the mnesia-demo example suggests +1 (under the keyword). Settle in S5.
+  never-reorder invariant.
+  - `export`: sort the `(name arity)` entries.
+  - `import` `(from M …)`: sort the `(name arity)` entries within each clause; the
+    module `M` stays on the clause head line.
+  - `import` `(rename M …)`: sort the `((name arity) new-name)` pairs by the
+    **old** name then arity.
+  - The order of the `from`/`rename`/`deprecated` **clauses themselves is
+    preserved** (not reordered); only entries *within* a clause are sorted.
+  - `(export all)` / non-`(name arity)` entries: left as-is (no sort).
+  - **Commented entries suppress the sort** *(S5b decision, 2026-06-23; ratify):*
+    if **any** entry carries a comment (leading **or** trailing), the whole list's
+    order is **preserved**, not sorted — such a comment typically marks an intentional
+    category grouping (`;; Callbacks`, `;; Public API`), and reordering would both
+    scramble the grouping and force a third oracle carve-out (the
+    comment-preservation oracle, which checks comment *order*). Suppressing the
+    sort keeps that oracle strict.
+- **Oracle carve-out** (both oracles break under reordering): the
+  token-preservation oracle weakens from token *sequence* to token *multiset*
+  (catches add/drop/mutate, ignores order); the AST oracle normalizes
+  export/import entry order on both sides before comparison (so it remains the
+  ordering authority everywhere *except* the carved-out entries). *(corr. #4)*
 - Closing delimiters follow §3.4a (no de-indent; align with the last item/comment).
+- **Layout (import), worked example:**
+
+  ```
+  (import
+   (from lists
+    (all 2)
+    (any 2)
+    (member 2))
+   (rename lists
+    ((all 2) every)
+    ((any 2) some)
+    ((filter 2) find-all)))
+  ```
 
 ### 3.6 flet / fletrec / let-function / letrec-function
 - Local function definitions format like `defun`s: name + args on the head line,
   body at +2 (not align-under-the-arglist). *(corr. #9)*
 
 ### 3.7 try
-- The body expr, and the `case`/`catch`/`after` sections, format consistently: a
-  section keyword + its expr on the section line, contents below. Symmetry across
-  sections matters more than the arg/no-arg distinction. *(corr. #10; exact shape
-  to be finalized against examples)*
+- **Full symmetry** *(corr. #10; shape finalized 2026-06-23, Duncan)*. `try`
+  always breaks. The `try` keyword sits **alone** on its line; the protected body
+  expr **and** every `case`/`catch`/`after` section sit at **+2**; each section
+  keyword sits **alone** on its line with its contents below at **+4**. Even small
+  sections break (symmetry over flat-if-fits); the body expr is never kept on the
+  `try` head line.
+- `case`/`catch` sections hold clauses directly (no test expr) → rendered via
+  `render_clause` (resolves the S3b-2 deferral). `after` holds body forms →
+  rendered as a body (one per line), not as clauses.
+
+  ```
+  (try
+    (foo x)
+    (case
+      ((tuple 'ok v) v))
+    (catch
+      ((tuple 'error reason)
+       (error reason)))
+    (after
+      (cleanup)))
+  ```
 
 ### 3.8 Cons-dot / improper lists
 - A standalone `.` (the cons operator, surrounded by whitespace) is **not** a
