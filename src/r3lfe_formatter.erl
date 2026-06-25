@@ -804,17 +804,13 @@ sort_rename_entries(Entries) ->
         [r3lfe_format_cst:cst_node()].
 sort_import_entries("from", Entries) ->
     case lists:all(fun is_export_entry/1, Entries)
-         andalso not lists:any(
-             fun(E) -> has_comment_leading(r3lfe_format_cst:leading(E)) end,
-             Entries) of
+         andalso not lists:any(fun entry_has_comment/1, Entries) of
         true  -> sort_export_entries(Entries);
         false -> Entries
     end;
 sort_import_entries("rename", Entries) ->
     case lists:all(fun is_rename_entry/1, Entries)
-         andalso not lists:any(
-             fun(E) -> has_comment_leading(r3lfe_format_cst:leading(E)) end,
-             Entries) of
+         andalso not lists:any(fun entry_has_comment/1, Entries) of
         true  -> sort_rename_entries(Entries);
         false -> Entries
     end;
@@ -1208,9 +1204,7 @@ print_classified({specform, N}, Head, RestChildren, Dangling,
             SortedBody =
                 case IsExportHead
                      andalso lists:all(fun is_export_entry/1, Body)
-                     andalso not lists:any(
-                         fun(E) -> has_comment_leading(r3lfe_format_cst:leading(E)) end,
-                         Body) of
+                     andalso not lists:any(fun entry_has_comment/1, Body) of
                     true  -> sort_export_entries(Body);
                     false -> Body
                 end,
@@ -1857,6 +1851,13 @@ has_descendant_trivia(Node) ->
 has_comment_leading([])               -> false;
 has_comment_leading([blank | Rest])   -> has_comment_leading(Rest);
 has_comment_leading([{comment,_}|_])  -> true.
+
+%% entry_has_comment: true when an entry node carries a leading OR trailing comment.
+%% Used for sort suppression — any developer comment signals intentional ordering.
+-spec entry_has_comment(r3lfe_format_cst:cst_node()) -> boolean().
+entry_has_comment(E) ->
+    has_comment_leading(r3lfe_format_cst:leading(E))
+    orelse r3lfe_format_cst:trailing(E) =/= [].
 
 %%====================================================================
 %% Internal: column helpers

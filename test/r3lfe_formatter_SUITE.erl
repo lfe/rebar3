@@ -244,6 +244,7 @@
     es_export_all_preserved/1,
     es_mixed_preserved/1,
     es_comment_travels/1,
+    es_trailing_comment_suppress/1,
     es_multiset_catches_drop/1,
     es_ast_oracle_catches_reorder/1
 ]).
@@ -254,6 +255,8 @@
     if_rename_layout_and_sort/1,
     if_multi_clause/1,
     if_commented_suppress/1,
+    if_from_trailing_suppress/1,
+    if_rename_trailing_suppress/1,
     if_deprecated_generic/1,
     if_close_align/1,
     if_oracle/1
@@ -502,6 +505,7 @@ groups() ->
             es_export_all_preserved,
             es_mixed_preserved,
             es_comment_travels,
+            es_trailing_comment_suppress,
             es_multiset_catches_drop,
             es_ast_oracle_catches_reorder
         ]},
@@ -510,6 +514,8 @@ groups() ->
             if_rename_layout_and_sort,
             if_multi_clause,
             if_commented_suppress,
+            if_from_trailing_suppress,
+            if_rename_trailing_suppress,
             if_deprecated_generic,
             if_close_align,
             if_oracle
@@ -1503,6 +1509,17 @@ es_comment_travels(_Config) ->
           "   ;; this is b\n"
           "   (b 1)))">>).
 
+es_trailing_comment_suppress(_Config) ->
+    %% A7·S5c·fix1: trailing comment on an entry suppresses sort (leading OR trailing).
+    %% (z 0) has trailing '; zc'; sort suppressed; order preserved.
+    assert_format(
+        <<"(defmodule m (export (z 0) ; zc\n (a 0)))">>,
+        <<"(defmodule m\n"
+          "  (export\n"
+          "   (z 0) ; zc\n"
+          "   (a 0)))\n">>),
+    assert_idempotent(<<"(defmodule m (export (z 0) ; zc\n (a 0)))">>).
+
 es_multiset_catches_drop(_Config) ->
     %% Oracle self-test: multiset comparison still detects a dropped token.
     %% Simulate by directly comparing sig_pairs where one is missing a token.
@@ -1586,6 +1603,26 @@ if_commented_suppress(_Config) ->
               "    ;; keep order\n"
               "    (member 2)\n"
               "    (all 2))))">>,
+    assert_format(Input, <<Input/binary, "\n">>),
+    assert_idempotent(Input).
+
+if_from_trailing_suppress(_Config) ->
+    %% A7·S5c·fix1: trailing comment on a from-entry suppresses sort; order preserved.
+    Input = <<"(defmodule m\n"
+              "  (import\n"
+              "   (from lists\n"
+              "    (member 2) ; mc\n"
+              "    (all 2))))">>,
+    assert_format(Input, <<Input/binary, "\n">>),
+    assert_idempotent(Input).
+
+if_rename_trailing_suppress(_Config) ->
+    %% A7·S5c·fix1: trailing comment on a rename-pair suppresses sort; order preserved.
+    Input = <<"(defmodule m\n"
+              "  (import\n"
+              "   (rename lists\n"
+              "    ((member 2) in) ; mc\n"
+              "    ((all 2) every))))">>,
     assert_format(Input, <<Input/binary, "\n">>),
     assert_idempotent(Input).
 
