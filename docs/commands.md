@@ -56,6 +56,62 @@ rebar3 lfe clean
 rebar3 clean
 ```
 
+### format
+
+Reformat LFE source files to LFE style conventions.
+
+```bash
+rebar3 lfe format [OPTIONS]
+```
+
+**What it does:**
+Reformats every `.lfe` file in the project's source directories (default: `src/`)
+to the LFE style conventions: 80-column width, 2-space indentation, the
+`lfe-indent.el`-derived special-form table. The formatter is:
+
+- **Comment-preserving** — all comments (leading, trailing, block) are kept in
+  place
+- **Idempotent** — formatting an already-formatted file is a no-op
+- **Token-preserving** — no identifiers, literals, or punctuation are added,
+  removed, or altered (export/import entry sorting is the one intentional
+  reorder)
+- **AST-equivalent** — the formatted output parses to the same Lisp structure
+- **Zero new runtime dependencies**
+
+**Behavior (knowledge-gated layout):**
+Known LFE special forms (`defun`, `let`, `case`, `cond`, `if`, `try`, etc.) are
+laid out canonically per the `lfe-indent.el` table; unknown or data-oriented
+forms preserve the author's line breaks (reindented to the correct column).
+`export` and `import` clauses are always rendered one-per-line at +1 under the
+keyword, alphabetically sorted by name then arity — sort is suppressed when any
+entry carries a developer comment.
+
+**Options:**
+- `--dry-run` — print formatted output to stdout; no files written
+- `--check` — CI mode: exit non-zero if any file is not already formatted; no
+  files written
+- `--path P` — restrict to a single `.lfe` file or a directory (recursive)
+
+`--dry-run` and `--check` are mutually exclusive.
+
+**Examples:**
+```bash
+# Format every .lfe file in the project (in place)
+rebar3 lfe format
+
+# Restrict to one directory (recursive)
+rebar3 lfe format --path src/sub
+
+# Restrict to one file
+rebar3 lfe format --path src/mymodule.lfe
+
+# Print formatted output to stdout, write nothing
+rebar3 lfe format --dry-run
+
+# CI gate — exit non-zero if any file is unformatted
+rebar3 lfe format --check
+```
+
 ### repl
 
 Start an LFE REPL.

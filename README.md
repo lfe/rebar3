@@ -105,10 +105,11 @@ src/myapp.lfe:10: error: undefined function foo/1
 ### 📐 Consistent Formatting
 
 `rebar3 lfe format` reformats your LFE source to the LFE style conventions
-(80-column width, 2-space indentation, the standard special-form indentation, and
-key-value pairs in maps), **preserving every comment**. By default it edits files
-in place; `--dry-run` prints the result to stdout instead, and `--check` makes it
-a CI gate.
+(80-column width, 2-space indentation, the `lfe-indent.el`-derived special-form
+table), **preserving every comment**. It is idempotent and token-preserving.
+`export`/`import` entries are sorted alphabetically one-per-line (sort suppressed
+when an entry carries a comment). By default it edits files in place; `--dry-run`
+prints the result to stdout instead, and `--check` makes it a CI gate.
 
 **Format in place** (the default — files are rewritten):
 
@@ -136,14 +137,6 @@ rebar3 lfe format --check
 
 Without `--path`, `format` operates on the source directories configured in
 `rebar.config` (`src_dirs`), defaulting to `src/`.
-
-> **Common Lisp alignment.** LFE's indentation conventions descend from Emacs
-> `lisp-mode`, so `format`'s output for standard Lisp forms is intentionally
-> CL-idiomatic. The implementation was cross-checked against a Common Lisp
-> indenter ([yasi](https://github.com/nkmathew/yasi-sexp-indenter), Lisp dialect):
-> for the forms LFE shares with Common Lisp the formatted output is **whitespace-
-> identical**. LFE-specific choices (always breaking `defun` bodies, `let`,
-> `case`/`cond`, and maps) are deliberate house style on top of that shared base.
 
 ### ⚡ All the Commands
 

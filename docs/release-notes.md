@@ -5,6 +5,52 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.5] - TBD
+
+### New `rebar3 lfe format` command — an LFE source formatter
+
+**Upgrade urgency:** LOW — purely additive; no breaking changes, no new runtime
+dependencies.
+
+#### Added
+
+- **`rebar3 lfe format`** — a clean-room LFE source formatter:
+  - Reformats all `.lfe` files in the project source directories (default: `src/`)
+    to LFE style conventions: 80-column width, 2-space indentation, the
+    `lfe-indent.el`-derived special-form table.
+  - **Comment-preserving**: all leading, trailing, and block comments are kept
+    in place and never moved relative to their enclosing form.
+  - **Idempotent**: formatting an already-formatted file is a no-op.
+  - **Token-preserving**: no identifiers, literals, or punctuation added,
+    removed, or mutated.
+  - **AST-equivalent**: formatted output parses to the same Lisp structure as
+    the input.
+  - **Knowledge-gated layout**: known LFE special forms (`defun`, `let`, `case`,
+    `cond`, `if`, `try`, `receive`, `progn`, `maybe`, maps, def-forms, etc.) are
+    laid out canonically; unknown or data-oriented forms preserve the author's
+    line breaks (reindented to the correct column).
+  - **`export`/`import` sorted**: entries always one-per-line at `C+1` under the
+    keyword, alphabetically sorted by name then arity; sort is suppressed when
+    any entry carries a developer comment.
+  - **`--dry-run`**: print formatted output to stdout; no files written.
+  - **`--check`**: CI mode — exit non-zero if any file is not already formatted;
+    no files written.
+  - **`--path P`**: restrict formatting to a single `.lfe` file or a directory
+    (recursive).
+  - **Zero new runtime dependencies** — formatter modules are plugin-only.
+  - New modules: clean-room comment-preserving lexer (`r3lfe_format_lexer`), CST
+    builder (`r3lfe_format_cst`), formatter engine (`r3lfe_formatter`), and
+    provider (`r3lfe_prv_format`).
+
+#### Fixed
+
+- **`r3lfe_prv_clean` / provider `?DEPS`**: changed `[{default, compile}]` to
+  `[{default, app_discovery}]` so bare `rebar3 lfe format` and `rebar3 lfe clean`
+  run correctly without requiring a prior compile step. Discovered via real-CLI
+  e2e testing.
+
+---
+
 ## [0.5.4] - 2025-10-31
 
 ### Maintenance Release - Templates and Polish
