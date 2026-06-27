@@ -108,16 +108,11 @@ APPSRC
 # The checkout contains only the compiled ebin so it does not conflict with
 # the consuming project's own src/ when rebar3 discovers apps.
 CHECKOUT="$E2E_TMP/_checkouts/rebar3_lfe"
-mkdir -p "$CHECKOUT/ebin" "$CHECKOUT/src"
+mkdir -p "$CHECKOUT/ebin"
 cp -rL "$REPO_ROOT/_build/default/lib/rebar3_lfe/ebin/." "$CHECKOUT/ebin/"
-cat > "$CHECKOUT/src/rebar3_lfe.app.src" <<'APPSRC'
-{application, rebar3_lfe, [
-    {description, "rebar3 LFE plugin (local checkout for e2e)"},
-    {vsn, "0.5.5"},
-    {modules, []},
-    {applications, [kernel, stdlib]}
-]}.
-APPSRC
+# lfmt is a runtime dep of the plugin; copy its beams into the same ebin so
+# they land on the code path when rebar3 loads the checkout.
+cp -rL "$REPO_ROOT/_build/default/checkouts/lfmt/ebin/"*.beam "$CHECKOUT/ebin/"
 
 cat > "$E2E_TMP/rebar.config" <<'REBAR'
 {plugins, [rebar3_lfe]}.

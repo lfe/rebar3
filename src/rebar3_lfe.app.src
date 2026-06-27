@@ -5,7 +5,8 @@
   {applications, [
     kernel,
     stdlib,
-    lfe]},
+    lfe,
+    lfmt]},
   {env,[]},
   {modules, [
     rebar3_lfe,
@@ -19,6 +20,7 @@
     r3lfe_package,
     r3lfe_package_tracker,
     r3lfe_progress,
+    r3lfe_prv_format,
     r3lfe_prv_compile,
     r3lfe_prv_clean,
     r3lfe_prv_repl,

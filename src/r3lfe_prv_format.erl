@@ -210,7 +210,7 @@ read_and_format(File) ->
             ?ERROR("Failed to read ~s: ~p", [File, ReadReason]),
             {error, ReadReason};
         {ok, Original} ->
-            case r3lfe_formatter:format(Original) of
+            case lfmt:format(Original) of
                 {error, FmtReason} ->
                     ?ERROR("Failed to format ~s: ~p", [File, FmtReason]),
                     {error, FmtReason};
