@@ -9,8 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### New `rebar3 lfe format` command — an LFE source formatter
 
-**Upgrade urgency:** LOW — purely additive; no breaking changes, no new runtime
-dependencies.
+**Upgrade urgency:** LOW — purely additive; no breaking changes, and no new
+dependencies in your application (the formatter engine is pulled in as a plugin
+dependency).
 
 #### Added
 
@@ -37,10 +38,13 @@ dependencies.
     no files written.
   - **`--path P`**: restrict formatting to a single `.lfe` file or a directory
     (recursive).
-  - **Zero new runtime dependencies** — formatter modules are plugin-only.
-  - New modules: clean-room comment-preserving lexer (`r3lfe_format_lexer`), CST
-    builder (`r3lfe_format_cst`), formatter engine (`r3lfe_formatter`), and
-    provider (`r3lfe_prv_format`).
+  - **Powered by the [`lfmt`](https://hex.pm/packages/lfmt) formatter library**
+    (`{lfmt, "~> 0.4"}`): the formatter engine lives in a standalone, dependency-free
+    hex package — shared across LFE tooling — and is resolved automatically as a
+    plugin dependency. No new dependencies are added to *your* application. The
+    `r3lfe_prv_format` provider delegates to `lfmt:format/1`; its
+    `{ok, binary()} | {error, term()}` contract and the
+    `unicode:characters_to_binary/1` flatten are unchanged.
 
 #### Fixed
 

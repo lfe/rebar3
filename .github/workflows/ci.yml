@@ -19,6 +19,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # OTP 29 with latest rebar3
+          - otp: '29'
+            rebar3: '3.25.0'
+            coverage: true
+
           # OTP 28 with latest rebar3
           - otp: '28'
             rebar3: '3.25.0'
