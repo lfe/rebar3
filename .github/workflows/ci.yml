@@ -36,13 +36,13 @@ jobs:
           - otp: '26'
             rebar3: '3.27.0'
 
-          # OTP 25 with rebar3 3.27
+          # OTP 25: rebar3 3.27 requires OTP 26+; 3.24.0 is the latest that supports OTP 25
           - otp: '25'
-            rebar3: '3.27.0'
+            rebar3: '3.24.0'
 
-          # OTP 24 with rebar3 3.27 (minimum supported)
+          # OTP 24: rebar3 3.22+ requires OTP 25+; 3.21.0 is the latest that supports OTP 24
           - otp: '24'
-            rebar3: '3.27.0'
+            rebar3: '3.21.0'
 
     steps:
       - name: Checkout
