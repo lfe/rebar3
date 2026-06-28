@@ -19,7 +19,7 @@
 
 * **🚀 Fast**: Incremental compilation is 10-30x faster than full rebuilds
 * **🎯 Correct**: Header changes automatically trigger recompilation
-* **🛡️ Reliable**: >90% test coverage, tested on Erlang/OTP 24-28
+* **🛡️ Reliable**: >90% test coverage, tested on Erlang/OTP 25-29
 * **📦 Powerful**: Nested module packages with proper cleanup
 * **💬 Clear**: Professional error messages that help you fix issues
 * **🔧 Modern**: Uses rebar3's latest compiler infrastructure
@@ -182,11 +182,11 @@ Without `--path`, `format` operates on the source directories configured in
 
 | Erlang/OTP | rebar3  | r3lfe | Status |
 |------------|---------|--------|--------|
-| 28         | 3.25    | 0.5.0  | ✅ Tested |
-| 27         | 3.25    | 0.5.0  | ✅ Tested |
-| 26         | 3.25    | 0.5.0  | ✅ Tested |
-| 25         | 3.22    | 0.5.0  | ✅ Tested |
-| 24         | 3.22    | 0.5.0  | ✅ Tested |
+| 29         | 3.27    | 0.5.x  | ✅ Tested |
+| 28         | 3.27    | 0.5.x  | ✅ Tested |
+| 27         | 3.27    | 0.5.x  | ✅ Tested |
+| 26         | 3.27    | 0.5.x  | ✅ Tested |
+| 25         | 3.24    | 0.5.x  | ✅ Tested |
 
 ## Breaking Changes from 0.4.x
 
@@ -228,7 +228,7 @@ Apache 2.0 - See [LICENSE](LICENSE)
 [gh-actions]: https://github.com/lfe/rebar3/actions
 [lfe]: https://github.com/lfe/lfe
 [lfe-badge]: https://img.shields.io/badge/lfe-2.1+-blue.svg
-[erlang-badge]: https://img.shields.io/badge/erlang-21+-blue.svg
+[erlang-badge]: https://img.shields.io/badge/erlang-25+-blue.svg
 [versions]: https://github.com/lfe/rebar3/blob/master/.github/workflows/cicd.yml
 [github-tag]: https://github.com/lfe/rebar3/tags
 [github-tag-badge]: https://img.shields.io/github/tag/lfe/rebar3.svg
