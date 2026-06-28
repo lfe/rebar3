@@ -5,7 +5,7 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.5.5] - TBD
+## [0.5.6] - 2026-06-28
 
 **Upgrade urgency:** MEDIUM — `confabulate` was renamed to `defabulate` (breaking
 for any caller of the old command); all other changes are additive. See the
@@ -57,10 +57,10 @@ for the one-line fix.
   changes. LFE keeps the fabulous name for its own command (see below).
 
   ```bash
-  # ❌ 0.5.4 and earlier
+  # ❌ 0.5.5 and earlier
   rebar3 lfe confabulate --input data.lfe
 
-  # ✅ 0.5.5+
+  # ✅ 0.5.6+
   rebar3 lfe defabulate --input data.lfe
   ```
 
@@ -111,6 +111,24 @@ for the one-line fix.
   `codecov/codecov-action` updated to `@v5`.
 - **CI**: `rebar3 lfe format --check` e2e test (`test/e2e/format_e2e.sh`) wired
   into the `template-checks` job so formatter regressions are caught in CI.
+
+---
+
+## [0.5.5] - 2025-11-13
+
+### Housekeeping release
+
+**Upgrade urgency:** LOW — internal header relocation only; no API or behaviour
+changes.
+
+#### Changed
+
+- **Internal header location**: `include/r3lfe.hrl` moved to `src/r3lfe.hrl`.
+  All 26 source modules updated their `-include` path accordingly. The header
+  is not part of the public API, so no downstream impact is expected; if you
+  happened to reference it directly, update the path.
+
+- **README**: Updated badge versions to reflect the current OTP and LFE ranges.
 
 ---
 
