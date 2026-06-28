@@ -327,10 +327,10 @@ This is a ground-up rewrite of the rebar3_lfe plugin with modern architecture an
   - Console and remote shell access
   - Hot code upgrades/downgrades
   - Status checking and monitoring
-- **Data Conversion**: `rebar3 lfe confabulate` for LFE to Erlang data conversion
-  - Config file conversion
-  - Test data generation
-  - Data migration tools
+- **Data Conversion**: bidirectional data conversion between LFE and Erlang
+  - `rebar3 lfe defabulate` — LFE data to Erlang terms
+  - `rebar3 lfe confabulate` — Erlang terms to LFE data
+  - Config file conversion, test data generation, data migration tools
 
 #### Changed
 

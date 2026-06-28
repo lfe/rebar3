@@ -1,4 +1,4 @@
--module(r3lfe_prv_confabulate).
+-module(r3lfe_prv_defabulate).
 -behaviour(provider).
 
 -export([
@@ -14,7 +14,7 @@
 
 -include("r3lfe.hrl").
 
--define(PROVIDER, confabulate).
+-define(PROVIDER, defabulate).
 -define(DEPS, []).
 
 %%====================================================================
@@ -23,13 +23,13 @@
 
 -spec init(rebar_state:t()) -> {ok, rebar_state:t()}.
 init(State) ->
-    Description = "Convert Erlang data files to LFE data files",
+    Description = "Convert LFE data files to Erlang data files",
 
     Opts = [
         {input, $i, "input", string,
-         "Input Erlang file to convert"},
+         "Input LFE file to convert"},
         {output, $o, "output", string,
-         "Output LFE file (defaults to <input>.lfe)"},
+         "Output Erlang file (defaults to <input>.erl)"},
         {force, $f, "force", boolean,
          "Overwrite output file if it exists"}
     ],
@@ -40,7 +40,7 @@ init(State) ->
         {module, ?MODULE},
         {bare, true},
         {deps, ?DEPS},
-        {example, "rebar3 lfe confabulate --input data.erl"},
+        {example, "rebar3 lfe defabulate --input data.lfe"},
         {opts, Opts},
         {short_desc, Description},
         {desc, info(Description)}
@@ -50,7 +50,7 @@ init(State) ->
 
 -spec do(rebar_state:t()) -> {ok, rebar_state:t()} | {error, string()}.
 do(State) ->
-    ?DEBUG("LFE confabulate provider starting", []),
+    ?DEBUG("LFE defabulate provider starting", []),
 
     rebar_paths:set_paths([deps, plugins], State),
 
@@ -81,15 +81,15 @@ do(State) ->
         throw:{error, ErrorReason} ->
             {error, format_error(ErrorReason)};
         error:ErrorReason:Stack ->
-            ?ERROR("Confabulate failed: ~p", [ErrorReason]),
+            ?ERROR("Defabulate failed: ~p", [ErrorReason]),
             ?DEBUG("Stack trace: ~p", [Stack]),
-            {error, format_error({confabulate_error, ErrorReason})}
+            {error, format_error({defabulate_error, ErrorReason})}
     end.
 
 -spec format_error(term()) -> iolist().
 format_error(no_input_file) ->
     "No input file specified. Use --input option:\n"
-    "  rebar3 lfe confabulate --input data.erl";
+    "  rebar3 lfe defabulate --input data.lfe";
 format_error({input_not_found, File}) ->
     io_lib:format("Input file not found: ~s", [File]);
 format_error({output_exists, File}) ->
@@ -98,11 +98,11 @@ format_error({output_exists, File}) ->
         "Use --force to overwrite",
         [File]
     );
-format_error({read_error, File, Reason}) ->
-    io_lib:format("Failed to read ~s: ~p", [File, Reason]);
+format_error({parse_error, File, Reason}) ->
+    io_lib:format("Failed to parse ~s: ~p", [File, Reason]);
 format_error({write_error, File, Reason}) ->
     io_lib:format("Failed to write ~s: ~p", [File, Reason]);
-format_error({confabulate_error, Reason}) ->
+format_error({defabulate_error, Reason}) ->
     io_lib:format("Conversion failed: ~p", [Reason]);
 format_error(Reason) ->
     io_lib:format("~p", [Reason]).
@@ -119,13 +119,13 @@ determine_output_file(undefined, _Opts) ->
 determine_output_file(InputFile, Opts) ->
     case proplists:get_value(output, Opts) of
         undefined ->
-            %% Default: replace .erl with .lfe
-            filename:rootname(InputFile, ".erl") ++ ".lfe";
+            %% Default: replace .lfe with .erl
+            filename:rootname(InputFile, ".lfe") ++ ".erl";
         OutputFile ->
             OutputFile
     end.
 
-%% @doc Convert a single Erlang file to LFE format
+%% @doc Convert a single LFE file to Erlang format
 -spec convert_file(file:filename(), file:filename(), boolean()) ->
     ok | {error, term()}.
 convert_file(InputFile, OutputFile, Force) ->
@@ -146,29 +146,35 @@ convert_file(InputFile, OutputFile, Force) ->
 %% @doc Perform the actual conversion
 -spec do_conversion(file:filename(), file:filename()) -> ok | {error, term()}.
 do_conversion(InputFile, OutputFile) ->
-    ?DEBUG("Reading Erlang file: ~s", [InputFile]),
+    ?DEBUG("Parsing LFE file: ~s", [InputFile]),
 
-    %% Read Erlang terms via file:consult/1
-    case file:consult(InputFile) of
-        {ok, Terms} ->
-            ?DEBUG("Read ~p terms", [length(Terms)]),
-            write_lfe_file(OutputFile, Terms);
+    %% Parse LFE file
+    case lfe_io:parse_file(InputFile) of
+        {ok, Forms} ->
+            ?DEBUG("Parsed ~p forms", [length(Forms)]),
+
+            %% Convert and write
+            write_erlang_file(OutputFile, Forms);
+
         {error, Reason} ->
-            {error, {read_error, InputFile, Reason}}
+            {error, {parse_error, InputFile, Reason}}
     end.
 
-%% @doc Write terms as LFE data, one per line
--spec write_lfe_file(file:filename(), [term()]) -> ok | {error, term()}.
-write_lfe_file(OutputFile, Terms) ->
+%% @doc Write forms as Erlang data
+-spec write_erlang_file(file:filename(), [term()]) -> ok | {error, term()}.
+write_erlang_file(OutputFile, Forms) ->
     try
         %% Delete existing file if present
         _ = file:delete(OutputFile),
 
+        %% Flatten and write each form
+        FlatForms = flatten_forms(Forms),
+
         lists:foreach(
-            fun(Term) ->
-                ok = append_lfe_term(OutputFile, Term)
+            fun(Form) ->
+                ok = append_form(OutputFile, Form)
             end,
-            Terms
+            FlatForms
         ),
 
         ok
@@ -177,12 +183,38 @@ write_lfe_file(OutputFile, Terms) ->
             {error, {write_error, OutputFile, Reason}}
     end.
 
-%% @doc Append a single term to the output file in LFE syntax
--spec append_lfe_term(file:filename(), term()) -> ok.
-append_lfe_term(OutputFile, Term) ->
-    LfeTerm = [lfe_io:print1(Term), "\n"],
+%% @doc Flatten forms - if the parsed result is a single list of forms,
+%% unwrap it so each element is written as a separate term
+-spec flatten_forms([term()]) -> [term()].
+flatten_forms([{Form, _Line}]) when is_list(Form) ->
+    %% Single form that is a list - unwrap it
+    Form;
+flatten_forms([{Form, _Line}]) ->
+    %% Single form that is not a list - keep as is
+    [Form];
+flatten_forms([Form]) when is_list(Form) ->
+    %% Single form without line info that is a list - unwrap it
+    Form;
+flatten_forms([Form]) ->
+    %% Single form without line info - keep as is
+    [Form];
+flatten_forms(Forms) when is_list(Forms) ->
+    %% Multiple forms - strip line info
+    [case F of
+        {Form, _Line} -> Form;
+        Form -> Form
+     end || F <- Forms].
 
-    case file:write_file(OutputFile, LfeTerm, [append]) of
+%% @doc Append a single form to the output file
+-spec append_form(file:filename(), term()) -> ok.
+append_form(OutputFile, {Form, _Line}) ->
+    append_form(OutputFile, Form);
+append_form(OutputFile, Form) ->
+    %% Format as Erlang term
+    FormattedTerm = io_lib:format("~p.~n", [Form]),
+
+    %% Append to file
+    case file:write_file(OutputFile, FormattedTerm, [append]) of
         ok ->
             ok;
         {error, Reason} ->
@@ -194,41 +226,37 @@ info(Description) ->
     io_lib:format(
         "~n~s~n"
         "~n"
-        "Converts Erlang data files to LFE data files. This is useful for:~n"
-        "  - Converting Erlang configuration to LFE format~n"
-        "  - Generating LFE test data from Erlang~n"
-        "  - Data exchange between Erlang and LFE codebases~n"
+        "Converts LFE data files to Erlang data files. This is useful for:~n"
+        "  - Converting LFE configuration to Erlang format~n"
+        "  - Generating Erlang test data from LFE~n"
+        "  - Data exchange between LFE and Erlang codebases~n"
         "  - Migration between languages~n"
         "~n"
-        "The conversion reads Erlang terms and writes them as LFE~n"
-        "data structures, one per line.~n"
+        "The conversion parses LFE data structures and writes them as~n"
+        "Erlang terms, one per line.~n"
         "~n"
-        "Input Format (Erlang):~n"
+        "Input Format (LFE):~n"
+        "  ;; data.lfe~n"
+        "  ((tuple 'person \"Alice\" 30)~n"
+        "   (tuple 'person \"Bob\" 25))~n"
+        "~n"
+        "Output Format (Erlang):~n"
         "  %% data.erl~n"
         "  {person,\"Alice\",30}.~n"
         "  {person,\"Bob\",25}.~n"
         "~n"
-        "Output Format (LFE):~n"
-        "  ;; data.lfe~n"
-        "  #(person \"Alice\" 30)~n"
-        "  #(person \"Bob\" 25)~n"
-        "~n"
         "Options:~n"
-        "  --input FILE    Input Erlang file (required)~n"
-        "  --output FILE   Output LFE file (default: <input>.lfe)~n"
+        "  --input FILE    Input LFE file (required)~n"
+        "  --output FILE   Output Erlang file (default: <input>.erl)~n"
         "  --force         Overwrite existing output file~n"
         "~n"
         "Examples:~n"
-        "  rebar3 lfe confabulate --input data.erl~n"
-        "  rebar3 lfe confabulate --input data.erl --output config.lfe~n"
-        "  rebar3 lfe confabulate -i data.erl -o config.lfe --force~n"
+        "  rebar3 lfe defabulate --input data.lfe~n"
+        "  rebar3 lfe defabulate --input data.lfe --output config.erl~n"
+        "  rebar3 lfe defabulate -i data.lfe -o config.erl --force~n"
         "~n"
         "Note: Only data files are supported, not code modules.~n"
-        "The input should contain Erlang terms terminated with '.',~n"
-        "not function definitions or module declarations.~n"
-        "~n"
-        "Pair with 'defabulate' for roundtrip conversions:~n"
-        "  rebar3 lfe confabulate --input data.erl~n"
-        "  rebar3 lfe defabulate --input data.lfe~n",
+        "The input should contain LFE data structures, not function~n"
+        "definitions or module declarations.~n",
         [Description]
     ).

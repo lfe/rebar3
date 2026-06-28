@@ -47,6 +47,7 @@ init(State) ->
         r3lfe_prv_run_escript,
         r3lfe_prv_run_release,
         r3lfe_prv_confabulate,
+        r3lfe_prv_defabulate,
         r3lfe_prv_format
     ],
 

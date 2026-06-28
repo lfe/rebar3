@@ -163,7 +163,8 @@ Without `--path`, `format` operates on the source directories configured in
 
 **Utilities:**
 
-* `confabulate` - Convert LFE data to Erlang format
+* `confabulate` - Convert Erlang data to LFE format
+* `defabulate` - Convert LFE data to Erlang format
 
 **[See All Commands →](docs/commands.md)**
 
@@ -180,7 +181,7 @@ Without `--path`, `format` operates on the source directories configured in
 
 ## Compatibility
 
-| Erlang/OTP | rebar3  | r3lfe | Status |
+| Erlang/OTP | rebar3  | lfe/rebar | Status |
 |------------|---------|--------|--------|
 | 29         | 3.27    | 0.5.x  | ✅ Tested |
 | 28         | 3.27    | 0.5.x  | ✅ Tested |

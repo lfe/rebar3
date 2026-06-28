@@ -31,7 +31,8 @@
     r3lfe_prv_escriptize,
     r3lfe_prv_run_escript,
     r3lfe_prv_run_release,
-    r3lfe_prv_confabulate
+    r3lfe_prv_confabulate,
+    r3lfe_prv_defabulate
   ]},
 
   %% Hex.pm metadata

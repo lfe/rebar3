@@ -14,9 +14,9 @@
 
 %% Test cases
 -export([
-    convert_config_file/1,
-    convert_test_data/1,
-    roundtrip_conversion/1,
+    convert_erlang_config/1,
+    convert_user_records/1,
+    roundtrip_via_defabulate/1,
     batch_conversion_workflow/1
 ]).
 
@@ -26,9 +26,9 @@
 
 all() ->
     [
-        convert_config_file,
-        convert_test_data,
-        roundtrip_conversion,
+        convert_erlang_config,
+        convert_user_records,
+        roundtrip_via_defabulate,
         batch_conversion_workflow
     ].
 
@@ -52,21 +52,20 @@ end_per_testcase(_TestCase, Config) ->
 %% Test Cases
 %%====================================================================
 
-convert_config_file(Config) ->
+convert_erlang_config(Config) ->
     TestDir = ?config(test_dir, Config),
 
-    %% Create simplified config file (avoiding deep nesting for now)
-    ConfigFile = filename:join(TestDir, "app.config.lfe"),
-    test_utils:write_file(ConfigFile,
-        "(#(myapp 8080 \"localhost\")\n"
-        " #(sasl false)\n"
-        " #(lager info))\n"
+    %% Write an Erlang config file
+    ErlFile = filename:join(TestDir, "app.config"),
+    test_utils:write_file(ErlFile,
+        "{myapp, [{port, 8080}, {host, \"localhost\"}]}.\n"
+        "{sasl, false}.\n"
+        "{lager, info}.\n"
     ),
 
-    %% Convert
     State = rebar_state:new(),
     State1 = rebar_state:command_parsed_args(State, {
-        [{input, ConfigFile}, {output, filename:join(TestDir, "app.config")}],
+        [{input, ErlFile}, {output, filename:join(TestDir, "app.config.lfe")}],
         []
     }),
 
@@ -74,66 +73,64 @@ convert_config_file(Config) ->
 
     ?assertMatch({ok, _}, Result),
 
-    %% Verify output can be consulted
-    OutputFile = filename:join(TestDir, "app.config"),
-    {ok, Terms} = file:consult(OutputFile),
+    OutputFile = filename:join(TestDir, "app.config.lfe"),
+    ?assert(filelib:is_file(OutputFile)),
 
-    ?assert(is_list(Terms)),
-    ?assert(length(Terms) > 0, "Should have at least one term"),
+    {ok, Content} = file:read_file(OutputFile),
+    ContentStr = binary_to_list(Content),
 
-    %% Verify we can find at least the first term
-    ?assert(lists:keymember(myapp, 1, Terms)),
+    ?assert(string:find(ContentStr, "myapp") =/= nomatch),
+    ?assert(string:find(ContentStr, "port") =/= nomatch),
 
-    ct:pal("Successfully converted config file with ~p terms", [length(Terms)]),
+    ct:pal("Successfully converted Erlang config to LFE"),
 
     ok.
 
-convert_test_data(Config) ->
+convert_user_records(Config) ->
     TestDir = ?config(test_dir, Config),
 
-    %% Create test data
-    TestDataFile = filename:join(TestDir, "test_data.lfe"),
-    test_utils:write_file(TestDataFile,
-        "(#(user \"alice\" \"alice@example.com\" admin)\n"
-        " #(user \"bob\" \"bob@example.com\" user)\n"
-        " #(user \"charlie\" \"charlie@example.com\" user))\n"
+    %% Write user records as Erlang
+    ErlFile = filename:join(TestDir, "users.erl"),
+    test_utils:write_file(ErlFile,
+        "{user, \"alice\", \"alice@example.com\", admin}.\n"
+        "{user, \"bob\", \"bob@example.com\", user}.\n"
+        "{user, \"charlie\", \"charlie@example.com\", user}.\n"
     ),
 
     State = rebar_state:new(),
-    State1 = rebar_state:command_parsed_args(State, {
-        [{input, TestDataFile}], []
-    }),
+    State1 = rebar_state:command_parsed_args(State, {[{input, ErlFile}], []}),
 
     Result = r3lfe_prv_confabulate:do(State1),
 
     ?assertMatch({ok, _}, Result),
 
-    %% Load and verify
-    OutputFile = filename:join(TestDir, "test_data.erl"),
-    {ok, Terms} = file:consult(OutputFile),
+    OutputFile = filename:join(TestDir, "users.lfe"),
+    {ok, Content} = file:read_file(OutputFile),
+    ContentStr = binary_to_list(Content),
 
-    ?assertEqual(3, length(Terms)),
+    %% Should have 3 LFE tuples
+    Matches = string:split(ContentStr, "#(user", all),
+    ?assertEqual(4, length(Matches), "Should have 3 user tuples (4 splits)"),
 
-    %% Verify each record
-    [User1, User2, User3] = Terms,
+    %% Check atoms (lfe_io:print1 renders char-list strings as integer lists)
+    ?assert(string:find(ContentStr, "admin") =/= nomatch),
+    ?assert(string:find(ContentStr, "user") =/= nomatch),
 
-    ?assertMatch({user, "alice", "alice@example.com", admin}, User1),
-    ?assertMatch({user, "bob", "bob@example.com", user}, User2),
-    ?assertMatch({user, "charlie", "charlie@example.com", user}, User3),
+    ct:pal("Converted ~p user records to LFE", [length(Matches) - 1]),
 
     ok.
 
-roundtrip_conversion(Config) ->
+roundtrip_via_defabulate(Config) ->
     TestDir = ?config(test_dir, Config),
 
-    %% Original Erlang data
+    %% Original Erlang terms
     OriginalData = [
         {person, "Alice", 30, developer},
         {person, "Bob", 25, designer},
         {company, "ACME Corp", [employee1, employee2]}
     ],
 
-    %% Write as Erlang terms
+    %% Write as Erlang
     ErlFile = filename:join(TestDir, "original.erl"),
     lists:foreach(
         fun(Term) ->
@@ -143,23 +140,38 @@ roundtrip_conversion(Config) ->
         OriginalData
     ),
 
+    %% Confabulate: Erlang → LFE
+    LfeFile = filename:join(TestDir, "original.lfe"),
+    State = rebar_state:new(),
+    State1 = rebar_state:command_parsed_args(State, {
+        [{input, ErlFile}, {output, LfeFile}], []
+    }),
+    ?assertMatch({ok, _}, r3lfe_prv_confabulate:do(State1)),
+
+    %% Defabulate: LFE → Erlang
+    RtFile = filename:join(TestDir, "roundtrip.erl"),
+    State2 = rebar_state:command_parsed_args(State, {
+        [{input, LfeFile}, {output, RtFile}], []
+    }),
+    ?assertMatch({ok, _}, r3lfe_prv_defabulate:do(State2)),
+
     %% Read back and verify
-    {ok, ReadBack} = file:consult(ErlFile),
+    {ok, RoundTripped} = file:consult(RtFile),
 
-    ?assertEqual(OriginalData, ReadBack),
+    ?assertEqual(OriginalData, RoundTripped),
 
-    ct:pal("Roundtrip successful - data preserved"),
+    ct:pal("Roundtrip successful: Erlang -> LFE -> Erlang, data preserved"),
 
     ok.
 
 batch_conversion_workflow(Config) ->
     TestDir = ?config(test_dir, Config),
 
-    %% Simulate converting multiple files
+    %% Simulate converting multiple Erlang files
     Files = [
-        {"users.lfe", "(#(user \"alice\" 30))"},
-        {"products.lfe", "(#(product \"Widget\" 9.99))"},
-        {"orders.lfe", "(#(order 1001 \"alice\" \"Widget\"))"}
+        {"users.erl", "{user, alice, 30}.\n"},
+        {"products.erl", "{product, widget, 9.99}.\n"},
+        {"orders.erl", "{order, 1001, alice, widget}.\n"}
     ],
 
     %% Create files
@@ -187,10 +199,10 @@ batch_conversion_workflow(Config) ->
     %% All should succeed
     ?assert(lists:all(fun(R) -> element(1, R) =:= ok end, Results)),
 
-    %% Verify outputs
+    %% Verify .lfe outputs exist
     lists:foreach(
         fun({Name, _}) ->
-            OutputName = filename:rootname(Name, ".lfe") ++ ".erl",
+            OutputName = filename:rootname(Name, ".erl") ++ ".lfe",
             OutputFile = filename:join(TestDir, OutputName),
             ?assert(filelib:is_file(OutputFile))
         end,

@@ -506,10 +506,57 @@ rebar3 lfe run-release status
 
 ### confabulate
 
-Convert LFE data files to Erlang data files.
+Convert Erlang data files to LFE data files.
 
 ```bash
 rebar3 lfe confabulate --input FILE [OPTIONS]
+```
+
+**Purpose:**
+- Configuration file conversion
+- Test data generation
+- Interoperability between Erlang and LFE
+- Data migration tools
+
+**Options:**
+- `--input FILE` or `-i FILE` - Input Erlang file (required)
+- `--output FILE` or `-o FILE` - Output LFE file (default: `<input>.lfe`)
+- `--force` or `-f` - Overwrite existing output file
+
+**Examples:**
+```bash
+# Basic conversion
+rebar3 lfe confabulate --input data.erl
+
+# Custom output
+rebar3 lfe confabulate -i config.erl -o app.config.lfe
+
+# Force overwrite
+rebar3 lfe confabulate -i data.erl --force
+```
+
+**Input (Erlang):**
+```erlang
+%% data.erl
+{user,"alice","alice@example.com",admin}.
+{user,"bob","bob@example.com",user}.
+```
+
+**Output (LFE):**
+```lfe
+;; data.lfe
+#(user "alice" "alice@example.com" admin)
+#(user "bob" "bob@example.com" user)
+```
+
+Pair with `defabulate` for roundtrip conversions between formats.
+
+### defabulate
+
+Convert LFE data files to Erlang data files.
+
+```bash
+rebar3 lfe defabulate --input FILE [OPTIONS]
 ```
 
 **Purpose:**
@@ -520,19 +567,19 @@ rebar3 lfe confabulate --input FILE [OPTIONS]
 
 **Options:**
 - `--input FILE` or `-i FILE` - Input LFE file (required)
-- `--output FILE` or `-o FILE` - Output Erlang file (default: input.erl)
+- `--output FILE` or `-o FILE` - Output Erlang file (default: `<input>.erl`)
 - `--force` or `-f` - Overwrite existing output file
 
 **Examples:**
 ```bash
 # Basic conversion
-rebar3 lfe confabulate --input data.lfe
+rebar3 lfe defabulate --input data.lfe
 
 # Custom output
-rebar3 lfe confabulate -i config.lfe -o app.config
+rebar3 lfe defabulate -i config.lfe -o app.config
 
 # Force overwrite
-rebar3 lfe confabulate -i data.lfe --force
+rebar3 lfe defabulate -i data.lfe --force
 ```
 
 **Input (LFE):**
