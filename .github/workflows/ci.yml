@@ -21,29 +21,28 @@ jobs:
         include:
           # OTP 29 with latest rebar3
           - otp: '29'
-            rebar3: '3.25.0'
+            rebar3: '3.27.0'
             coverage: true
 
           # OTP 28 with latest rebar3
           - otp: '28'
-            rebar3: '3.25.0'
-            coverage: true
+            rebar3: '3.27.0'
 
           # OTP 27 with latest rebar3
           - otp: '27'
-            rebar3: '3.25.0'
+            rebar3: '3.27.0'
 
-          # OTP 26 with rebar3 3.25
+          # OTP 26 with latest rebar3
           - otp: '26'
-            rebar3: '3.25.0'
+            rebar3: '3.27.0'
 
-          # OTP 25 with rebar3 3.22
+          # OTP 25 with rebar3 3.27
           - otp: '25'
-            rebar3: '3.22.0'
+            rebar3: '3.27.0'
 
-          # OTP 24 with rebar3 3.22 (minimum supported)
+          # OTP 24 with rebar3 3.27 (minimum supported)
           - otp: '24'
-            rebar3: '3.22.0'
+            rebar3: '3.27.0'
 
     steps:
       - name: Checkout
@@ -84,7 +83,7 @@ jobs:
 
       - name: Upload coverage to Codecov
         if: matrix.coverage
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
           files: _build/test/cover/ct.coverdata
           flags: unittests
@@ -100,7 +99,7 @@ jobs:
     - uses: erlef/setup-beam@v1
       with:
         otp-version: '27'
-        rebar3-version: '3.25.0'
+        rebar3-version: '3.27.0'
     - name: Get Supported 'new' Templates
       run: make test-new
     - name: Check New LFE Library Project
@@ -133,7 +132,7 @@ jobs:
         uses: erlef/setup-beam@v1
         with:
           otp-version: '27'
-          rebar3-version: '3.25.0'
+          rebar3-version: '3.27.0'
 
       - name: Run integration tests
         run: |
@@ -154,7 +153,7 @@ jobs:
         uses: erlef/setup-beam@v1
         with:
           otp-version: '27'
-          rebar3-version: '3.25.0'
+          rebar3-version: '3.27.0'
 
       - name: Publish to Hex
         env:

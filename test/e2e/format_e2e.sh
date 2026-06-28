@@ -112,7 +112,15 @@ mkdir -p "$CHECKOUT/ebin"
 cp -rL "$REPO_ROOT/_build/default/lib/rebar3_lfe/ebin/." "$CHECKOUT/ebin/"
 # lfmt is a runtime dep of the plugin; copy its beams into the same ebin so
 # they land on the code path when rebar3 loads the checkout.
-cp -rL "$REPO_ROOT/_build/default/checkouts/lfmt/ebin/"*.beam "$CHECKOUT/ebin/"
+# In dev lfmt is a _checkouts/ dep; in CI it is a hex dep — handle both.
+if [ -d "$REPO_ROOT/_build/default/checkouts/lfmt/ebin" ]; then
+    cp -rL "$REPO_ROOT/_build/default/checkouts/lfmt/ebin/"*.beam "$CHECKOUT/ebin/"
+elif [ -d "$REPO_ROOT/_build/default/lib/lfmt/ebin" ]; then
+    cp -rL "$REPO_ROOT/_build/default/lib/lfmt/ebin/"*.beam "$CHECKOUT/ebin/"
+else
+    echo "ERROR: cannot find compiled lfmt beams (tried checkouts/ and lib/)" >&2
+    exit 1
+fi
 
 cat > "$E2E_TMP/rebar.config" <<'REBAR'
 {plugins, [rebar3_lfe]}.
