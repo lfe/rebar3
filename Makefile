@@ -142,4 +142,4 @@ test-format-e2e:
 
 smoke-tests: test-new test-new-lfe-lib test-new-lfe-main \
 			 test-new-lfe-app test-new-lfe-escript test-new-lfe-release \
-			 test-versions-cmd test-clean-cmd
+			 test-versions-cmd test-clean-cmd test-format-e2e

@@ -112,6 +112,8 @@ jobs:
       run: make test-versions-cmd
     - name: Check clean Command
       run: make test-clean-cmd
+    - name: Check format e2e
+      run: make test-format-e2e
 
   integration:
     name: Integration Tests
