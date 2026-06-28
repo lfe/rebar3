@@ -7,11 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.5.5] - TBD
 
-### New `rebar3 lfe format` command — an LFE source formatter
+**Upgrade urgency:** MEDIUM — `confabulate` was renamed to `defabulate` (breaking
+for any caller of the old command); all other changes are additive. See the
+[migration guide](0.4-to-0.5-migration.md#confabulate--defabulate-breaking-rename-in-055)
+for the one-line fix.
 
-**Upgrade urgency:** LOW — purely additive; no breaking changes, and no new
-dependencies in your application (the formatter engine is pulled in as a plugin
-dependency).
+### New `rebar3 lfe format` command — an LFE source formatter
 
 #### Added
 
@@ -39,19 +40,77 @@ dependency).
   - **`--path P`**: restrict formatting to a single `.lfe` file or a directory
     (recursive).
   - **Powered by the [`lfmt`](https://hex.pm/packages/lfmt) formatter library**
-    (`{lfmt, "~> 0.4"}`): the formatter engine lives in a standalone, dependency-free
-    hex package — shared across LFE tooling — and is resolved automatically as a
-    plugin dependency. No new dependencies are added to *your* application. The
-    `r3lfe_prv_format` provider delegates to `lfmt:format/1`; its
-    `{ok, binary()} | {error, term()}` contract and the
+    (`{lfmt, "~> 0.4"}`): the formatter engine lives in a standalone,
+    dependency-free hex package — shared across LFE tooling — and is resolved
+    automatically as a plugin dependency. No new runtime dependencies are added to
+    *your* application. The `r3lfe_prv_format` provider delegates to
+    `lfmt:format/1`; its `{ok, binary()} | {error, term()}` contract and the
     `unicode:characters_to_binary/1` flatten are unchanged.
 
-#### Fixed
+### Data conversion — new `confabulate`, renamed `defabulate`
+
+#### Breaking
+
+- **`rebar3 lfe confabulate` renamed to `rebar3 lfe defabulate`** — the
+  command that converts LFE data files to Erlang format (`*.lfe` → `*.erl`) is
+  now called `defabulate`. The behaviour is identical; only the invocation name
+  changes. LFE keeps the fabulous name for its own command (see below).
+
+  ```bash
+  # ❌ 0.5.4 and earlier
+  rebar3 lfe confabulate --input data.lfe
+
+  # ✅ 0.5.5+
+  rebar3 lfe defabulate --input data.lfe
+  ```
+
+#### Added
+
+- **`rebar3 lfe confabulate`** — new command that converts Erlang data files to
+  LFE syntax (`*.erl` → `*.lfe`). Reads Erlang terms (`.`-terminated, parsed via
+  `file:consult/1`) and writes one LFE expression per line via `lfe_io:print1/1`.
+  Accepts `--input`, `--output`, and `--force` options, mirroring `defabulate`.
+
+  ```bash
+  # Erlang → LFE
+  rebar3 lfe confabulate --input data.erl
+
+  # Full roundtrip
+  rebar3 lfe confabulate --input data.erl --output data.lfe
+  rebar3 lfe defabulate  --input data.lfe --output roundtrip.erl
+  ```
+
+  > **Note on string rendering**: `lfe_io:print1/1` renders Erlang char-list
+  > strings (e.g. `"alice"`) as LFE integer-list syntax (`(97 108 105 99 101)`).
+  > This is correct — char lists *are* integer lists in LFE/Erlang — and the
+  > roundtrip is lossless.
+
+### OTP compatibility
+
+#### Changed
+
+- **Supported OTP range is now 25–29** (was 24–28).
+  - **Dropped OTP 24**: EOL since May 2023; the `-dialyzer({no_extra_return, …})`
+    attribute used in `src/r3lfe_prv_run.erl` requires OTP 25+.
+  - **Added OTP 29**: matrix now covers OTP 25, 26, 27, 28, and 29.
+  - rebar3 pins: 3.27.0 for OTP 26–29; 3.24.0 for OTP 25.
+
+### Fixed
 
 - **`r3lfe_prv_clean` / provider `?DEPS`**: changed `[{default, compile}]` to
   `[{default, app_discovery}]` so bare `rebar3 lfe format` and `rebar3 lfe clean`
   run correctly without requiring a prior compile step. Discovered via real-CLI
   e2e testing.
+
+- **Dialyzer**: fixed spurious Dialyzer warnings produced during rebar3 plugin
+  builds by adjusting the `-dialyzer` attribute scope in `src/r3lfe_prv_run.erl`.
+
+### Infrastructure
+
+- **CI**: OTP 29 added to the test matrix; rebar3 bumped to 3.27.0 for OTP 26+;
+  `codecov/codecov-action` updated to `@v5`.
+- **CI**: `rebar3 lfe format --check` e2e test (`test/e2e/format_e2e.sh`) wired
+  into the `template-checks` job so formatter regressions are caught in CI.
 
 ---
 

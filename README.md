@@ -10,11 +10,6 @@
 
 *A modern rebar3 plugin for LFE projects*
 
-**⚠️ IMPORTANT! ⚠️**
-
-* `rebar3_lfe` is currently getting a 100% re-write, *from scratch!* - if you want to experiment with this bleeding edge, use the latest of the 0.5.x release.
-* If "Danger" is not your middle name, then continue using the latest 0.4.x release
-
 ## ✨ Why rebar3_lfe?
 
 * **🚀 Fast**: Incremental compilation is 10-30x faster than full rebuilds
@@ -29,7 +24,7 @@
 ```erlang
 %% rebar.config
 {plugins, [
-    {rebar3_lfe, "0.5.x"}
+    {rebar3_lfe, "~> 0.5"}
 ]}.
 
 {deps, [
@@ -175,14 +170,10 @@ Without `--path`, `format` operates on the source directories configured in
 * **[Troubleshooting](docs/troubleshooting.md)** - Common issues
 * **[Migration Guide](docs/0.4-to-0.5-migration.md)** - Upgrade from 0.4.x
 
-## Examples
-
-* [Simple Library](examples/simple-lib/) - Basic LFE library
-
 ## Compatibility
 
-| Erlang/OTP | rebar3  | lfe/rebar | Status |
-|------------|---------|--------|--------|
+| Erlang/OTP | rebar3  | lfe/rebar | Status    |
+|------------|---------|-----------|-----------|
 | 29         | 3.27    | 0.5.x  | ✅ Tested |
 | 28         | 3.27    | 0.5.x  | ✅ Tested |
 | 27         | 3.27    | 0.5.x  | ✅ Tested |
@@ -228,9 +219,9 @@ Apache 2.0 - See [LICENSE](LICENSE)
 [gh-actions-badge]: https://github.com/lfe/rebar3/workflows/CI%2FCD/badge.svg
 [gh-actions]: https://github.com/lfe/rebar3/actions
 [lfe]: https://github.com/lfe/lfe
-[lfe-badge]: https://img.shields.io/badge/lfe-2.1+-blue.svg
+[lfe-badge]: https://img.shields.io/badge/lfe-2.2+-blue.svg
 [erlang-badge]: https://img.shields.io/badge/erlang-25+-blue.svg
-[versions]: https://github.com/lfe/rebar3/blob/master/.github/workflows/cicd.yml
+[versions]: https://github.com/lfe/rebar3/blob/release/0.5.x/.github/workflows/ci.yml
 [github-tag]: https://github.com/lfe/rebar3/tags
 [github-tag-badge]: https://img.shields.io/github/tag/lfe/rebar3.svg
 [hex-package]: https://hex.pm/packages/rebar3_lfe
