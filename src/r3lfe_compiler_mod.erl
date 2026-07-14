@@ -156,10 +156,26 @@ compile(Source, OutMappings, _Dict, Opts) ->
             r3lfe_config:get_lfe_opts(AppInfo)
     end,
 
-    %% Get include directories from Opts and add to compiler options
-    IncludeDirs = case lists:keyfind(include_dirs, 1, Opts) of
-        {include_dirs, Dirs} -> Dirs;
-        false -> []
+    %% Get include directories from AppInfo. NOTE: rebar_compiler does not
+    %% pass the context map from context/1 into compile/4, so looking for
+    %% include_dirs in Opts always failed and the LFE compiler ran with an
+    %% empty include path -- self (include-lib "app/include/f.hrl") then
+    %% depended entirely on the code:lib_dir/1 fallback, which only works
+    %% once the app has been staged in _build. Resolve include dirs from
+    %% AppInfo directly, and add the app dir's PARENT so self-references
+    %% resolve via path search regardless of _build staging (mirrors
+    %% epp/rebar3 behaviour for erlc).
+    IncludeDirs = case AppInfo of
+        undefined ->
+            %% AppInfo unavailable (context/1 pdict does not reach this
+            %% process). Derive the app dir from the source path:
+            %% <appdir>/src/foo.lfe -> <appdir>.
+            AppDir0 = filename:dirname(filename:dirname(filename:absname(Source))),
+            [filename:join(AppDir0, "include"), AppDir0,
+             filename:dirname(AppDir0)];
+        _ ->
+            r3lfe_config:get_include_dirs(AppInfo) ++
+                [filename:dirname(rebar_app_info:dir(AppInfo))]
     end,
     IncludeOpts = [{i, Dir} || Dir <- IncludeDirs],
     FinalOpts = BaseLfeOpts ++ IncludeOpts,

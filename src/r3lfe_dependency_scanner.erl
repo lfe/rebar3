@@ -81,8 +81,17 @@ resolve_include(Form, AppDir) ->
     {ok, file:filename()} | {error, term()}.
 resolve_include({include_file, Path}, AppDir, IncludeDirs) ->
     resolve_include_file(Path, AppDir, IncludeDirs);
-resolve_include({include_lib, Path}, _AppDir, _IncludeDirs) ->
-    resolve_include_lib(Path).
+resolve_include({include_lib, Path}, AppDir, IncludeDirs) ->
+    %% Path-first search (mirrors lfe_macro_include:lib/3 and epp):
+    %% try the include dirs and the parent of the app dir before
+    %% falling back to code:lib_dir/1, so self-references resolve
+    %% before the app is staged in _build.
+    SearchDirs = IncludeDirs ++ [filename:dirname(AppDir)],
+    Candidates = [filename:join(Dir, Path) || Dir <- SearchDirs],
+    case find_existing_file(Candidates) of
+        {ok, Found} -> {ok, filename:absname(Found)};
+        error -> resolve_include_lib(Path)
+    end.
 
 %%====================================================================
 %% Internal functions - Scanning

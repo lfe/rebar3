@@ -242,7 +242,14 @@ compile_files(AllFilesWithSrcDirs, PackageInfos, AppInfo, State) ->
     %% This is critical for include-lib to work with test dependencies like ltest
     DepIncludeDirs = get_dep_include_dirs(State),
     
-    AllIncludeDirs = lists:usort(IncludeDirs ++ DepIncludeDirs),
+    %% Add the PARENT of the app dir so that self-referencing
+    %% (include-lib "app/include/foo.hrl") resolves via LFE's path-first
+    %% search even when the app is not yet staged in _build (code:lib_dir/1
+    %% only works after rebar has created the app-dir symlinks). This
+    %% mirrors epp/rebar3 behaviour for erlc self-includes.
+    AppParentDir = filename:dirname(rebar_app_info:dir(AppInfo)),
+
+    AllIncludeDirs = lists:usort(IncludeDirs ++ DepIncludeDirs ++ [AppParentDir]),
     IncludeOpts = [{i, Dir} || Dir <- AllIncludeDirs],
     FinalOpts = LfeOpts ++ IncludeOpts,
 
