@@ -5,6 +5,38 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.7] - 2026-07-14
+
+**Upgrade urgency:** MEDIUM — fixes a long-standing bug where `include-lib`
+self-references failed to resolve before the app was staged in `_build`. No API
+or command changes; a drop-in bugfix release.
+
+### Fixed
+
+- **`include-lib` self-references now resolve before `_build` staging.**
+  A form such as `(include-lib "myapp/include/records.hrl")` — where an app
+  includes one of its *own* headers by application name — previously failed on a
+  clean build. The LFE compiler was being handed an empty include path
+  (`rebar_compiler` does not thread the `context/1` map through to `compile/4`,
+  so the `include_dirs` lookup in `Opts` always came back empty), leaving
+  resolution to fall through to `code:lib_dir/1`. That fallback only succeeds
+  once rebar3 has created the app-dir symlinks under `_build`, so the very first
+  compile of a fresh checkout — or any app not yet staged — could not find its
+  own includes.
+
+  The include path is now resolved from `AppInfo` directly, and the **parent of
+  the app directory** is added to the search path so self-references resolve via
+  LFE's path-first search regardless of `_build` staging. This mirrors
+  `epp`/rebar3 behaviour for `erlc` self-includes. When `AppInfo` is
+  unavailable, the app directory is derived from the source path
+  (`<appdir>/src/foo.lfe` → `<appdir>`) as a fallback.
+
+  Fixed across three call sites: the compiler module (`r3lfe_compiler_mod`), the
+  dependency scanner (`r3lfe_dependency_scanner`), and the compile provider
+  (`r3lfe_prv_compile`).
+
+---
+
 ## [0.5.6] - 2026-06-28
 
 **Upgrade urgency:** MEDIUM — `confabulate` was renamed to `defabulate` (breaking
