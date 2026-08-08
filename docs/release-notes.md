@@ -5,6 +5,36 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.8] - 2026-08-08
+
+**Upgrade urgency:** LOW — dependency and release-readiness refresh for the
+current 0.5.x line. No command syntax changes; recommended for new projects and
+CI template smoke checks.
+
+### Changed
+
+- **LFE dependency now tracks the latest compatible 2.x release.** The plugin
+  config, generated project templates, docs, and test fixtures now use
+  `{lfe, "~> 2.0"}` so consumers resolve the newest LFE 2.x release instead of
+  pinning to `2.2.0`.
+- **Quickstart examples now use the 0.5.x-compatible plugin requirement.**
+  Current-facing install snippets use `{rebar3_lfe, "~> 0.5"}` to avoid stale
+  patch-version pins.
+
+### Fixed
+
+- **Generated template smoke checks use normal project compilation.** Template
+  checks now compile generated projects through `rebar3 compile`, allowing
+  dependencies to compile before the LFE compile hook runs.
+- **Provider compile dependencies now use the default compile provider.**
+  Runtime providers depend on `{default, compile}` so dependency compilation
+  happens before provider-specific commands run.
+- **LFE compiler loading is more robust inside compiler worker processes.**
+  The compiler path setup now survives rebar3 compiler worker process boundaries
+  and explicitly loads `lfe_comp` from candidate ebin directories when needed.
+
+---
+
 ## [0.5.7] - 2026-07-14
 
 **Upgrade urgency:** MEDIUM — fixes a long-standing bug where `include-lib`

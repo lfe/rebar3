@@ -14,7 +14,7 @@ cd my-lfe-app
 # Create rebar.config
 cat > rebar.config <<EOF
 {plugins, [
-    {rebar3_lfe, "0.5.0"}
+    {rebar3_lfe, "~> 0.5"}
 ]}.
 
 {deps, [
@@ -55,7 +55,7 @@ Add to your `rebar.config`:
 
 ```erlang
 {plugins, [
-    {rebar3_lfe, "0.5.0"}
+    {rebar3_lfe, "~> 0.5"}
 ]}.
 ```
 

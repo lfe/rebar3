@@ -324,7 +324,7 @@ rebar3 lfe versions
 
 === Build Tools ===
   rebar3               3.25.0
-  r3lfe               0.5.0
+  r3lfe               0.5.8
 ```
 
 ## Script Commands
