@@ -12,6 +12,7 @@
 -ifdef(TEST).
 -export([
     get_command/1,
+    get_command_args/1,
     validate_command/1,
     find_release_script/1,
     get_release_name/1,
@@ -57,12 +58,12 @@ do(State) ->
 
     try
         %% Get the command to run
-        Command = get_command(State),
+        CommandArgs = get_command_args(State),
 
-        case Command of
-            undefined ->
+        case CommandArgs of
+            [] ->
                 {error, format_error(no_command)};
-            _ ->
+            [_Command | _] ->
                 %% Find release script
                 ReleaseScript = find_release_script(State),
 
@@ -71,22 +72,28 @@ do(State) ->
                         {error, format_error({release_script_not_found, ReleaseScript})};
                     true ->
                         %% Execute command
-                        ?INFO("Running release command: ~s", [Command]),
+                        ?INFO("Running release command: ~s",
+                              [format_command_args(CommandArgs)]),
 
-                        Result = run_release_command(ReleaseScript, Command),
+                        Result = run_release_command(ReleaseScript, CommandArgs),
 
                         ?DEBUG("Command result: ~p", [Result]),
 
-                        {ok, State}
+                        case Result of
+                            ok ->
+                                {ok, State};
+                            {error, RunReason} ->
+                                {error, lists:flatten(format_error(RunReason))}
+                        end
                 end
         end
     catch
-        throw:{error, Reason} ->
-            {error, format_error(Reason)};
-        error:Reason:Stack ->
-            ?ERROR("Run-release failed: ~p", [Reason]),
+        throw:{error, ThrowReason} ->
+            {error, format_error(ThrowReason)};
+        error:ErrorReason:Stack ->
+            ?ERROR("Run-release failed: ~p", [ErrorReason]),
             ?DEBUG("Stack trace: ~p", [Stack]),
-            {error, format_error({run_error, Reason})}
+            {error, format_error({run_error, ErrorReason})}
     end.
 
 -spec format_error(term()) -> iolist().
@@ -107,6 +114,10 @@ format_error({invalid_command, Command}) ->
     );
 format_error({run_error, Reason}) ->
     io_lib:format("Release command failed: ~p", [Reason]);
+format_error({release_command_failed, Status}) ->
+    io_lib:format("Release command failed with status: ~p", [Status]);
+format_error(release_command_timeout) ->
+    "Release command timed out";
 format_error(Reason) ->
     io_lib:format("~p", [Reason]).
 
@@ -124,6 +135,18 @@ get_command(State) ->
             undefined;
         [Command | _] ->
             validate_command(Command)
+    end.
+
+%% @doc Get the full command vector from command line arguments.
+-spec get_command_args(rebar_state:t()) -> [string()].
+get_command_args(State) ->
+    Args = rebar_state:command_args(State),
+
+    case Args of
+        [] ->
+            [];
+        [_Command | Rest] ->
+            [get_command(State) | Rest]
     end.
 
 %% @doc Validate that the command is supported
@@ -203,37 +226,35 @@ get_release_output_dir(State) ->
     end.
 
 %% @doc Execute a release command
--spec run_release_command(string(), string()) -> ok.
-run_release_command(ReleaseScript, Command) ->
+-spec run_release_command(string(), [string()]) ->
+    ok | {error, {release_command_failed, integer()} | release_command_timeout}.
+run_release_command(ReleaseScript, CommandArgs) ->
     %% Ensure script is executable
     ok = file:change_mode(ReleaseScript, 8#755),
 
-    %% Build full command with arguments
-    CmdLine = build_command_line(ReleaseScript, Command),
-
-    ?DEBUG("Executing: ~s", [CmdLine]),
+    ?DEBUG("Executing: ~s", [build_command_line(ReleaseScript, CommandArgs)]),
 
     %% Execute command
-    execute_command(CmdLine, Command).
+    execute_command(ReleaseScript, CommandArgs).
 
 %% @doc Build command line string
--spec build_command_line(file:filename(), string()) -> string().
-build_command_line(ReleaseScript, Command) ->
-    %% Some commands may have additional arguments
-    %% For now, just pass the command directly
-    string:join([ReleaseScript, Command], " ").
+-spec build_command_line(file:filename(), string() | [string()]) -> string().
+build_command_line(ReleaseScript, CommandOrArgs) ->
+    CommandArgs = normalize_command_args(CommandOrArgs),
+    string:join([shell_quote(ReleaseScript) |
+                 [shell_quote(Arg) || Arg <- CommandArgs]], " ").
 
 %% @doc Execute command and handle output
--spec execute_command(string(), string()) -> ok.
-execute_command(CmdLine, Command) ->
+-spec execute_command(string(), [string()]) ->
+    ok | {error, {release_command_failed, integer()} | release_command_timeout}.
+execute_command(ReleaseScript, [Command | _] = CommandArgs) ->
     %% Determine if command is interactive
     case is_interactive_command(Command) of
         true ->
             %% Interactive commands (console, attach) need special handling
-            execute_interactive(CmdLine);
+            execute_interactive(build_command_line(ReleaseScript, CommandArgs));
         false ->
-            %% Non-interactive commands can use os:cmd
-            execute_non_interactive(CmdLine)
+            execute_non_interactive(ReleaseScript, CommandArgs)
     end.
 
 %% @doc Check if command requires interactive terminal
@@ -260,18 +281,21 @@ execute_interactive(CmdLine) ->
     ok.
 
 %% @doc Execute non-interactive command
--spec execute_non_interactive(string()) -> ok.
-execute_non_interactive(CmdLine) ->
+-spec execute_non_interactive(string(), [string()]) ->
+    ok | {error, {release_command_failed, integer()} | release_command_timeout}.
+execute_non_interactive(ReleaseScript, CommandArgs) ->
     %% Use port for better output handling
     Port = open_port(
-        {spawn, CmdLine},
-        [stream, exit_status, use_stdio, stderr_to_stdout, in, eof]
+        {spawn_executable, ReleaseScript},
+        [stream, exit_status, use_stdio, stderr_to_stdout, in, eof,
+         {args, CommandArgs}]
     ),
 
     collect_output(Port).
 
 %% @doc Collect output from port
--spec collect_output(port()) -> ok.
+-spec collect_output(port()) ->
+    ok | {error, {release_command_failed, integer()} | release_command_timeout}.
 collect_output(Port) ->
     receive
         {Port, {data, Data}} ->
@@ -284,24 +308,42 @@ collect_output(Port) ->
                     ok;
                 {Port, {exit_status, Status}} ->
                     ?WARN("Command exited with status: ~p", [Status]),
-                    ok
+                    {error, {release_command_failed, Status}}
             after 1000 ->
                 ok
             end;
         {Port, {exit_status, Status}} ->
             port_close(Port),
-            if
-                Status =/= 0 ->
-                    ?WARN("Command exited with status: ~p", [Status]);
-                true ->
-                    ok
+            case Status of
+                0 ->
+                    ok;
+                _ ->
+                    ?WARN("Command exited with status: ~p", [Status]),
+                    {error, {release_command_failed, Status}}
             end
     after 30000 ->
         %% Timeout after 30 seconds
         ?WARN("Command timed out", []),
         port_close(Port),
-        ok
+        {error, release_command_timeout}
     end.
+
+-spec normalize_command_args(string() | [string()]) -> [string()].
+normalize_command_args([]) ->
+    [];
+normalize_command_args([First | _] = Command) when is_integer(First) ->
+    [Command];
+normalize_command_args(CommandArgs) ->
+    CommandArgs.
+
+-spec shell_quote(string()) -> string().
+shell_quote(Str) ->
+    Escaped = re:replace(Str, "'", "'\\\\''", [global, {return, list}]),
+    "'" ++ Escaped ++ "'".
+
+-spec format_command_args([string()]) -> string().
+format_command_args(CommandArgs) ->
+    string:join(CommandArgs, " ").
 
 -spec info(string()) -> iolist().
 info(Description) ->

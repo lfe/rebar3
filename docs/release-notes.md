@@ -7,9 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.5.8] - 2026-08-08
 
-**Upgrade urgency:** LOW — dependency and release-readiness refresh for the
-current 0.5.x line. No command syntax changes; recommended for new projects and
-CI template smoke checks.
+**Upgrade urgency:** MEDIUM — fixes OTP release-management behavior in the
+0.5.x line and refreshes LFE dependency handling. Recommended for any project
+using `rebar3 lfe release` or `rebar3 lfe run-release`, and for new projects
+created from the bundled templates.
 
 ### Changed
 
@@ -26,12 +27,22 @@ CI template smoke checks.
 - **Generated template smoke checks use normal project compilation.** Template
   checks now compile generated projects through `rebar3 compile`, allowing
   dependencies to compile before the LFE compile hook runs.
+- **OTP release support was verified against a real multi-app LFE umbrella.**
+  Release assembly and direct relx lifecycle commands (`daemon`, `ping`,
+  `eval`, `rpc`, and `stop`) were tested with multiple LFE applications under
+  `apps/`, confirming that the release itself boots and runs correctly.
 - **Provider compile dependencies now use the default compile provider.**
   Runtime providers depend on `{default, compile}` so dependency compilation
   happens before provider-specific commands run.
 - **LFE compiler loading is more robust inside compiler worker processes.**
   The compiler path setup now survives rebar3 compiler worker process boundaries
   and explicitly loads `lfe_comp` from candidate ebin directories when needed.
+- **`run-release` now preserves command arguments and propagates failures.**
+  Commands such as `rebar3 lfe run-release eval 'otp_root_server:ping().'` and
+  `rebar3 lfe run-release rpc otp_root_server ping '[]'` now pass all arguments
+  to the generated release script, and non-zero release-script exits are
+  reported as provider errors instead of being reduced to warnings with an outer
+  success status.
 
 ---
 

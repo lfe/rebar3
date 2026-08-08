@@ -26,11 +26,14 @@
     release_name_from_app/1,
     release_name_fallback/1,
     get_command_with_args/1,
+    get_command_args_preserves_arguments/1,
     get_command_empty/1,
     validate_command_valid/1,
     validate_command_unknown/1,
     build_command_line_simple/1,
     build_command_line_with_args/1,
+    run_release_forwards_arguments/1,
+    run_release_nonzero_status_returns_error/1,
     is_interactive_command_console/1,
     is_interactive_command_status/1,
     find_release_script_path/1,
@@ -57,11 +60,14 @@ all() ->
         release_name_from_app,
         release_name_fallback,
         get_command_with_args,
+        get_command_args_preserves_arguments,
         get_command_empty,
         validate_command_valid,
         validate_command_unknown,
         build_command_line_simple,
         build_command_line_with_args,
+        run_release_forwards_arguments,
+        run_release_nonzero_status_returns_error,
         is_interactive_command_console,
         is_interactive_command_status,
         find_release_script_path,
@@ -274,6 +280,16 @@ get_command_with_args(_Config) ->
 
     ok.
 
+get_command_args_preserves_arguments(_Config) ->
+    State = rebar_state:new(),
+    Args = ["eval", "otp_root_server:ping()."],
+    State1 = rebar_state:command_args(State, Args),
+
+    CommandArgs = r3lfe_prv_run_release:get_command_args(State1),
+    ?assertEqual(Args, CommandArgs),
+
+    ok.
+
 get_command_empty(_Config) ->
     State = rebar_state:new(),
     State1 = rebar_state:command_args(State, []),
@@ -310,18 +326,77 @@ build_command_line_simple(_Config) ->
     Command = "start",
 
     Result = r3lfe_prv_run_release:build_command_line(Script, Command),
-    Expected = "/path/to/release start",
+    Expected = "'/path/to/release' 'start'",
     ?assertEqual(Expected, Result),
 
     ok.
 
 build_command_line_with_args(_Config) ->
     Script = "/path/to/release",
-    Command = "eval \"io:format('test')\"",
+    Args = ["eval", "io:format('test')."],
 
-    Result = r3lfe_prv_run_release:build_command_line(Script, Command),
+    Result = r3lfe_prv_run_release:build_command_line(Script, Args),
     ?assert(string:str(Result, Script) > 0),
     ?assert(string:str(Result, "eval") > 0),
+    ?assert(string:str(Result, "io:format") > 0),
+    ?assert(string:str(Result, "\\''test") > 0),
+
+    ok.
+
+run_release_forwards_arguments(Config) ->
+    TestDir = ?config(test_dir, Config),
+    RelOut = filename:join([TestDir, "_build", "default", "rel"]),
+    State = create_test_state(TestDir, "myapp", RelOut),
+    RelDir = filename:join([RelOut, "myapp", "bin"]),
+    ScriptPath = filename:join(RelDir, "myapp"),
+    ok = filelib:ensure_dir(filename:join(RelDir, "dummy")),
+    Script = [
+        "#!/bin/sh\n",
+        "if [ \"$1\" = \"eval\" ] && [ \"$2\" = \"otp_root_server:ping().\" ]; then\n",
+        "  echo forwarded\n",
+        "  exit 0\n",
+        "fi\n",
+        "echo missing-args:$@\n",
+        "exit 11\n"
+    ],
+    test_utils:write_file(ScriptPath, Script),
+    State1 = rebar_state:command_args(State, ["eval", "otp_root_server:ping()."]),
+
+    ct:capture_start(),
+    Result = r3lfe_prv_run_release:do(State1),
+    Output = lists:flatten(ct:capture_get()),
+    ct:capture_stop(),
+
+    ?assertMatch({ok, _}, Result),
+    ?assert(string:find(Output, "forwarded") =/= nomatch),
+    ?assertEqual(nomatch, string:find(Output, "missing-args")),
+
+    ok.
+
+run_release_nonzero_status_returns_error(Config) ->
+    TestDir = ?config(test_dir, Config),
+    RelOut = filename:join([TestDir, "_build", "default", "rel"]),
+    State = create_test_state(TestDir, "myapp", RelOut),
+    RelDir = filename:join([RelOut, "myapp", "bin"]),
+    ScriptPath = filename:join(RelDir, "myapp"),
+    ok = filelib:ensure_dir(filename:join(RelDir, "dummy")),
+    Script = [
+        "#!/bin/sh\n",
+        "echo failing-release-command\n",
+        "exit 7\n"
+    ],
+    test_utils:write_file(ScriptPath, Script),
+    State1 = rebar_state:command_args(State, ["rpc", "otp_root_server", "ping", "[]"]),
+
+    ct:capture_start(),
+    Result = r3lfe_prv_run_release:do(State1),
+    Output = lists:flatten(ct:capture_get()),
+    ct:capture_stop(),
+
+    ?assertMatch({error, _}, Result),
+    {error, Msg} = Result,
+    ?assert(string:find(Msg, "status: 7") =/= nomatch),
+    ?assert(string:find(Output, "failing-release-command") =/= nomatch),
 
     ok.
 
@@ -399,13 +474,20 @@ format_error_invalid_command(_Config) ->
 %%====================================================================
 
 create_test_state(TestDir, AppName) ->
+    create_test_state(TestDir, AppName, undefined).
+
+create_test_state(TestDir, AppName, OutputDir) ->
     State = rebar_state:new(),
     State1 = rebar_state:dir(State, TestDir),
 
     %% Add relx config
-    RelxConfig = [
+    BaseRelxConfig = [
         {release, {list_to_atom(AppName), "0.1.0"}, [list_to_atom(AppName)]}
     ],
+    RelxConfig = case OutputDir of
+        undefined -> BaseRelxConfig;
+        _ -> [{output_dir, OutputDir} | BaseRelxConfig]
+    end,
     State2 = rebar_state:set(State1, relx, RelxConfig),
 
     State2.
