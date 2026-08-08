@@ -318,7 +318,7 @@ rebar3 lfe versions
   myapp                0.1.0
 
 === Languages ===
-  lfe                  2.2.0
+  lfe                  2.2.2
   erlang               27
   erts                 14.2.1
 

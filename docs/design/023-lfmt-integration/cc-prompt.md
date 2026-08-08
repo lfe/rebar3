@@ -37,7 +37,7 @@ your LI-6 parity proof — capture it before the swap.
 
 ## Step 1 — dep
 
-`rebar.config`: add `{lfmt, "~> 0.4"}` to `deps` (keep `{lfe, "2.2.0"}`).
+`rebar.config`: add `{lfmt, "~> 0.4"}` to `deps` (keep `{lfe, "~> 2.0"}`).
 
 ## Step 2 — rewire the provider (one line)
 

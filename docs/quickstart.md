@@ -18,7 +18,7 @@ cat > rebar.config <<EOF
 ]}.
 
 {deps, [
-    {lfe, "2.2.0"}
+    {lfe, "~> 2.0"}
 ]}.
 EOF
 

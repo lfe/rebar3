@@ -141,7 +141,7 @@ create_full_project(TestDir) ->
     %% Create rebar.config
     RebarConfig =
         "{plugins, [{rebar3_lfe, \"0.5.0\"}]}.\n"
-        "{deps, [{lfe, \"2.2.0\"}]}.\n",
+        "{deps, [{lfe, \"~> 2.0\"}]}.\n",
     file:write_file(filename:join(TestDir, "rebar.config"), RebarConfig),
 
     %% Create src structure

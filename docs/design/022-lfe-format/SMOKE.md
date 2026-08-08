@@ -13,7 +13,7 @@ mkdir -p "$SCRATCH/src"
 
 cat > "$SCRATCH/rebar.config" <<'EOF'
 {plugins, [{rebar3_lfe, "0.5.5"}]}.
-{deps, [{lfe, "2.2.0"}]}.
+{deps, [{lfe, "~> 2.0"}]}.
 EOF
 
 cat > "$SCRATCH/src/scratch.app.src" <<'EOF'

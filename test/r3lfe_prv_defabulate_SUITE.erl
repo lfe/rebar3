@@ -126,7 +126,7 @@ defabulate_complex_data(Config) ->
     test_utils:write_file(InputFile,
         "(#(name \"Project\")\n"
         " #(version \"1.0.0\")\n"
-        " #(deps (#(lfe \"2.2.0\")\n"
+        " #(deps (#(lfe \"~> 2.0\")\n"
         "         #(cowboy \"2.9.0\"))))\n"
     ),
 

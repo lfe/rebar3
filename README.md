@@ -28,7 +28,7 @@
 ]}.
 
 {deps, [
-    {lfe, "2.2.0"}
+    {lfe, "~> 2.0"}
 ]}.
 ```
 
@@ -219,7 +219,7 @@ Apache 2.0 - See [LICENSE](LICENSE)
 [gh-actions-badge]: https://github.com/lfe/rebar3/workflows/CI%2FCD/badge.svg
 [gh-actions]: https://github.com/lfe/rebar3/actions
 [lfe]: https://github.com/lfe/lfe
-[lfe-badge]: https://img.shields.io/badge/lfe-2.2+-blue.svg
+[lfe-badge]: https://img.shields.io/badge/lfe-2.x-blue.svg
 [erlang-badge]: https://img.shields.io/badge/erlang-25+-blue.svg
 [versions]: https://github.com/lfe/rebar3/blob/release/0.5.x/.github/workflows/ci.yml
 [github-tag]: https://github.com/lfe/rebar3/tags

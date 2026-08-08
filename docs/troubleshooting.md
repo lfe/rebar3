@@ -82,7 +82,7 @@ Error: ...
 1. **Check LFE version:**
    ```erlang
    {deps, [
-       {lfe, "2.2.0"}  % Must be 2.2+
+       {lfe, "~> 2.0"}  % Latest compatible 2.x release
    ]}.
    ```
 

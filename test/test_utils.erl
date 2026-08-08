@@ -79,7 +79,7 @@ create_test_app(Dir, AppName) ->
     %% Create rebar.config
     RebarConfig =
         "{erl_opts, [debug_info]}.\n"
-        "{deps, [{lfe, \"2.2.0\"}]}.\n",
+        "{deps, [{lfe, \"~> 2.0\"}]}.\n",
     write_file(filename:join(Dir, "rebar.config"), RebarConfig),
 
     #{

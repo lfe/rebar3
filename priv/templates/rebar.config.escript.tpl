@@ -1,7 +1,7 @@
 {erl_opts, [no_debug_info]}.
 
 {deps, [
-    {lfe, "2.2.0"}
+    {lfe, "~> 2.0"}
 ]}.
 
 {project_plugins, [

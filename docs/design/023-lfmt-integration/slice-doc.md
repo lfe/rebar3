@@ -43,7 +43,7 @@ disclosed — see LI-5.)
 
 In scope:
 
-- **`rebar.config`**: add `{lfmt, "~> 0.4"}` to `deps` (keep `{lfe, "2.2.0"}`).
+- **`rebar.config`**: add `{lfmt, "~> 0.4"}` to `deps` (keep `{lfe, "~> 2.0"}`).
   `_checkouts/lfmt` overrides it locally during dev.
 - **Rewire the provider**: `src/r3lfe_prv_format.erl` `read_and_format/1`
   (line ~213) — `r3lfe_formatter:format(Original)` → `lfmt:format(Original)`.

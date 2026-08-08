@@ -29,7 +29,7 @@ Create `test/e2e/format_e2e.sh` (bash, `set -euo pipefail`) and a Makefile targe
    - `rebar.config` that loads the plugin **by local path** (not Hex):
      ```erlang
      {plugins, [{rebar3_lfe, {path, "<ABS_PATH_TO_THIS_REPO>"}}]}.
-     {deps, [{lfe, "2.2.0"}]}.
+     {deps, [{lfe, "~> 2.0"}]}.
      ```
      (pass the repo path in; resolve it from the script's location).
    - `src/<app>.app.src` and a deliberately **unformatted** `src/messy.lfe`
