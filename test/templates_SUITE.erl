@@ -18,7 +18,8 @@
     lfe_escript_template_exists/1,
     lfe_lib_template_exists/1,
     lfe_app_template_exists/1,
-    lfe_release_template_exists/1
+    lfe_release_template_exists/1,
+    config_templates_pin_lfe_dependency/1
 ]).
 
 %%====================================================================
@@ -33,7 +34,8 @@ all() ->
         lfe_escript_template_exists,
         lfe_lib_template_exists,
         lfe_app_template_exists,
-        lfe_release_template_exists
+        lfe_release_template_exists,
+        config_templates_pin_lfe_dependency
     ].
 
 init_per_suite(Config) ->
@@ -124,9 +126,43 @@ lfe_app_template_exists(_Config) ->
 lfe_release_template_exists(_Config) ->
     check_template_exists("lfe-release").
 
+config_templates_pin_lfe_dependency(_Config) ->
+    TemplatesDir = templates_dir(),
+    ConfigTemplates = [
+        "rebar.config.tpl",
+        "rebar.config.main.tpl",
+        "rebar.config.escript.tpl",
+        "rebar.config.release.tpl"
+    ],
+    lists:foreach(
+        fun(FileName) ->
+            File = filename:join(TemplatesDir, FileName),
+            {ok, Content} = file:read_file(File),
+            ContentStr = binary_to_list(Content),
+            ?assert(
+                string:find(ContentStr, "{lfe, \"2.2.0\"}") =/= nomatch,
+                io_lib:format("~s should pin lfe to 2.2.0", [FileName])
+            ),
+            ?assertEqual(
+                nomatch,
+                string:find(ContentStr, "{lfe, \"~> 2.2\"}"),
+                io_lib:format("~s should not float to newer lfe 2.2.x releases", [FileName])
+            )
+        end,
+        ConfigTemplates
+    ),
+    ok.
+
 %%====================================================================
 %% Helper Functions
 %%====================================================================
+
+templates_dir() ->
+    PrivDir = case code:priv_dir(rebar3_lfe) of
+        {error, bad_name} -> code:priv_dir(r3lfe);
+        Dir -> Dir
+    end,
+    filename:join(PrivDir, "templates").
 
 check_template_exists(TemplateName) ->
     PrivDir = case code:priv_dir(rebar3_lfe) of

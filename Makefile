@@ -87,7 +87,7 @@ test-new-lfe-lib: clean setup
 	rebar3 compile && \
 	rebar3 new lfe-lib example-lib && \
 	cd example-lib && \
-	rebar3 lfe compile
+	rebar3 compile
 
 test-new-lfe-main: clean setup
 	rebar3 compile
@@ -95,7 +95,7 @@ test-new-lfe-main: clean setup
 	rebar3 compile && \
 	rebar3 new lfe-main example-main && \
 	cd example-main && \
-	rebar3 lfe compile && \
+	rebar3 compile && \
 	rebar3 lfe run -- 42
 
 test-new-lfe-app: clean setup
