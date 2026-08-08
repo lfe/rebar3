@@ -25,7 +25,7 @@
 -dialyzer({no_match, validate_main_file/1}).
 
 -define(PROVIDER, run).
--define(DEPS, [{?NAMESPACE, compile}]).
+-define(DEPS, [{default, compile}]).
 
 %%====================================================================
 %% Provider API

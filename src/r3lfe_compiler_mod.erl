@@ -45,6 +45,10 @@ context(AppInfo) ->
     %% a way to pass custom data from context/1 to compile/4
     AppName = rebar_app_info:name(AppInfo),
     put({r3lfe_app_info, AppName}, AppInfo),
+    %% Also stash in persistent_term: rebar_compiler runs compile/4 in
+    %% rebar_parallel worker processes, so the process dictionary set here
+    %% is not visible there. (Note rebar_app_info:name/1 is a binary.)
+    persistent_term:put({r3lfe_app_info, AppName}, AppInfo),
 
     ?DEBUG("Compiler context for ~s:", [AppName]),
     ?DEBUG("  Source dirs: ~p", [SrcDirs]),
@@ -134,12 +138,24 @@ compile(Source, OutMappings, _Dict, Opts) ->
         [] -> "ebin"  % Fallback
     end,
 
-    %% Try to get AppInfo from process dictionary (set in context/1)
-    %% We need to figure out which app this file belongs to from the path
+    %% Make sure the LFE compiler library is loadable in THIS process.
+    %% rebar3_lfe depends on lfe as a library, but that guarantee breaks
+    %% when a _checkouts/lfe shadows the plugin's lfe dep, and newer rebar3
+    %% does not put built-dep ebins on the VM code path during compilation.
+    ok = ensure_lfe_compiler(OutDir),
+
+    %% Try to get AppInfo stashed by context/1. Note: compile/4 runs in a
+    %% rebar_parallel worker process, so use persistent_term (the process
+    %% dictionary from context/1 is invisible here). Keys are binaries
+    %% (rebar_app_info:name/1); get_app_name_from_path returns an atom.
     AppName = get_app_name_from_path(Source, OutDir),
     AppInfo = case AppName of
         undefined -> undefined;
-        Name -> get({r3lfe_app_info, Name})
+        Name ->
+            Key = {r3lfe_app_info, atom_to_binary(Name, utf8)},
+            try persistent_term:get(Key)
+            catch error:badarg -> undefined
+            end
     end,
 
     %% Get merged LFE compiler options
@@ -360,6 +376,52 @@ source_to_target(Source, OutMappings) ->
 %% @doc Extract app name from source file path
 %% Tries to determine which application a source file belongs to
 -spec get_app_name_from_path(file:filename(), file:filename()) -> atom() | undefined.
+%% @doc Ensure the LFE compiler modules are loadable in this process.
+%% Probe candidate ebin dirs derived from OutDir
+%% (_build/<profile>/lib/<app>/ebin), preferring checkouts -- matching
+%% rebar3's own precedence -- then lib dirs, then the default profile.
+-spec ensure_lfe_compiler(file:filename()) -> ok.
+ensure_lfe_compiler(OutDir) ->
+    case code:ensure_loaded(lfe_comp) of
+        {module, _} -> ok;
+        {error, _} ->
+            LibDir = filename:dirname(filename:dirname(OutDir)),
+            ProfileDir = filename:dirname(LibDir),
+            BuildDir = filename:dirname(ProfileDir),
+            ProjectRoot = filename:dirname(BuildDir),
+            Candidates =
+                [filename:join([ProfileDir, "checkouts", "lfe", "ebin"]),
+                 filename:join([BuildDir, "default", "checkouts", "lfe", "ebin"]),
+                 %% The checkout's own build output (make): rebar3 treats
+                 %% checkout deps as project apps and compiles them AFTER
+                 %% hex deps, so when a hex dep's .lfe sources compile
+                 %% before the lfe checkout, the repo's ebin is the only
+                 %% available bootstrap. Requires the checkout to be built
+                 %% (make) -- and mind stale beams when switching branches.
+                 filename:join([ProjectRoot, "_checkouts", "lfe", "ebin"]),
+                 filename:join([LibDir, "lfe", "ebin"]),
+                 filename:join([BuildDir, "default", "lib", "lfe", "ebin"]),
+                 filename:join([BuildDir, "default", "plugins", "lfe", "ebin"])],
+            Found = [D || D <- Candidates,
+                          filelib:is_regular(filename:join(D, "lfe_comp.beam"))],
+            case Found of
+                [Dir | _] ->
+                    true = code:add_patha(filename:absname(Dir)),
+                    case code:ensure_loaded(lfe_comp) of
+                        {module, _} ->
+                            ?DEBUG("Loaded lfe_comp from ~s", [Dir]),
+                            ok;
+                        {error, Why} ->
+                            ?ERROR("Cannot load lfe_comp from ~s: ~p", [Dir, Why]),
+                            ok
+                    end;
+                [] ->
+                    ?ERROR("LFE compiler (lfe_comp) not found; searched: ~p",
+                           [Candidates]),
+                    ok
+            end
+    end.
+
 get_app_name_from_path(_Source, OutDir) ->
     %% OutDir is typically something like:
     %% /path/to/project/_build/default/lib/appname/ebin

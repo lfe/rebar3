@@ -19,7 +19,7 @@
 -include("r3lfe.hrl").
 
 -define(PROVIDER, repl).
--define(DEPS, [{?NAMESPACE, compile}]).
+-define(DEPS, [{default, compile}]).
 -define(RLWRAP_ACTIVE_FLAG, "--rlwrap-active").
 %% Coloured strings for the LFE banner, red, green, yellow and blue.
 -define(RED(Str), "\e[31m" ++ Str ++ "\e[0m").

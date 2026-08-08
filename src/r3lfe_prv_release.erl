@@ -22,7 +22,7 @@
 -include("r3lfe.hrl").
 
 -define(PROVIDER, release).
--define(DEPS, [{?NAMESPACE, compile}]).
+-define(DEPS, [{default, compile}]).
 
 %%====================================================================
 %% Provider API

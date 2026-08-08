@@ -18,7 +18,7 @@
 -include("r3lfe.hrl").
 
 -define(PROVIDER, ltest).
--define(DEPS, [{?NAMESPACE, compile}]).
+-define(DEPS, [{default, compile}]).
 
 %%====================================================================
 %% Provider API
